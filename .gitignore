@@ -1,3 +1,7 @@
+#custom
+TASKS.md
+plan.plan.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

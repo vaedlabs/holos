@@ -1,0 +1,32 @@
+"""
+Conversation message schemas
+"""
+
+from typing import Optional, List
+from pydantic import BaseModel
+from datetime import datetime
+
+
+class ConversationMessageCreate(BaseModel):
+    """Schema for creating a conversation message"""
+    role: str  # 'user' or 'assistant'
+    content: str
+    warnings: Optional[List[str]] = None
+
+
+class ConversationMessageResponse(BaseModel):
+    """Schema for conversation message response"""
+    id: int
+    role: str
+    content: str
+    warnings: Optional[List[str]] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConversationHistoryResponse(BaseModel):
+    """Schema for conversation history response"""
+    messages: List[ConversationMessageResponse]
+
