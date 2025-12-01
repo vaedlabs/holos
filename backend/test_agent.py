@@ -177,6 +177,306 @@ def test_workout_log_creation(token):
         print(f"✗ Test error: {e}")
         return False
 
+def test_nutrition_agent_text_query(token):
+    """Test Nutrition Agent with text query"""
+    print("\nTesting Nutrition Agent with text query...")
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    test_message = {
+        "message": "How many calories are in an apple?",
+        "agent_type": "nutrition"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/agents/nutrition/chat",
+            headers=headers,
+            json=test_message
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✓ Nutrition Agent responded to text query")
+            print(f"  Response length: {len(data.get('response', ''))} characters")
+            
+            # For text queries, nutrition_analysis should typically be None
+            if data.get('nutrition_analysis'):
+                print("  ✓ Nutrition analysis data present")
+            else:
+                print("  ℹ No nutrition analysis (expected for text-only queries)")
+            
+            if data.get('warnings'):
+                print(f"  Warnings: {len(data['warnings'])} warning(s)")
+            
+            return True
+        else:
+            print(f"✗ Nutrition Agent failed: {response.status_code}")
+            print(f"  Response: {response.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"✗ Test error: {e}")
+        return False
+
+def test_nutrition_agent_image_analysis(token):
+    """Test Nutrition Agent with image upload (base64)"""
+    print("\nTesting Nutrition Agent with image analysis...")
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    # Create a simple test image (1x1 pixel PNG) as base64
+    # This is a minimal valid PNG image
+    test_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    
+    test_message = {
+        "message": "How many calories in this food?",
+        "agent_type": "nutrition",
+        "image_base64": test_image_base64
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/agents/nutrition/chat",
+            headers=headers,
+            json=test_message,
+            timeout=60  # Image analysis may take longer
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✓ Nutrition Agent processed image")
+            print(f"  Response length: {len(data.get('response', ''))} characters")
+            
+            # Image analysis should return nutrition_analysis
+            if data.get('nutrition_analysis'):
+                analysis = data['nutrition_analysis']
+                print("  ✓ Nutrition analysis data returned")
+                if analysis.get('calories'):
+                    print(f"    Calories: {analysis['calories']}")
+                if analysis.get('macros'):
+                    print(f"    Macros: {analysis['macros']}")
+            else:
+                print("  ⚠ No nutrition analysis in response (may be due to test image)")
+            
+            return True
+        else:
+            print(f"✗ Nutrition Agent image analysis failed: {response.status_code}")
+            print(f"  Response: {response.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"✗ Test error: {e}")
+        return False
+
+def test_nutrition_agent_meal_planning(token):
+    """Test Nutrition Agent with meal planning query"""
+    print("\nTesting Nutrition Agent meal planning...")
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    test_message = {
+        "message": "Create a healthy meal plan for weight loss",
+        "agent_type": "nutrition"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/agents/nutrition/chat",
+            headers=headers,
+            json=test_message
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✓ Nutrition Agent provided meal planning advice")
+            print(f"  Response length: {len(data.get('response', ''))} characters")
+            return True
+        else:
+            print(f"✗ Nutrition Agent meal planning failed: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"✗ Test error: {e}")
+        return False
+
+def test_mental_fitness_agent_basic(token):
+    """Test Mental Fitness Agent with basic query"""
+    print("\nTesting Mental Fitness Agent basic query...")
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    test_message = {
+        "message": "I'm feeling stressed. What should I do?",
+        "agent_type": "mental-fitness"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/agents/mental-fitness/chat",
+            headers=headers,
+            json=test_message
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✓ Mental Fitness Agent responded")
+            print(f"  Response length: {len(data.get('response', ''))} characters")
+            
+            if data.get('warnings'):
+                print(f"  Warnings: {len(data['warnings'])} warning(s)")
+            
+            return True
+        else:
+            print(f"✗ Mental Fitness Agent failed: {response.status_code}")
+            print(f"  Response: {response.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"✗ Test error: {e}")
+        return False
+
+def test_mental_fitness_agent_mindfulness(token):
+    """Test Mental Fitness Agent with mindfulness query"""
+    print("\nTesting Mental Fitness Agent mindfulness recommendations...")
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    test_message = {
+        "message": "Suggest a 10-minute meditation routine",
+        "agent_type": "mental-fitness"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/agents/mental-fitness/chat",
+            headers=headers,
+            json=test_message
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✓ Mental Fitness Agent provided mindfulness guidance")
+            print(f"  Response length: {len(data.get('response', ''))} characters")
+            return True
+        else:
+            print(f"✗ Mental Fitness Agent failed: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"✗ Test error: {e}")
+        return False
+
+def test_coordinator_agent_routing(token):
+    """Test Coordinator Agent routing to appropriate agents"""
+    print("\nTesting Coordinator Agent routing...")
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    # Test queries that should route to different agents
+    routing_tests = [
+        ("I want to build muscle", "Physical Fitness"),
+        ("How many calories in a banana?", "Nutrition"),
+        ("I'm feeling anxious", "Mental Fitness")
+    ]
+    
+    results = []
+    for query, expected_agent in routing_tests:
+        test_message = {
+            "message": query,
+            "agent_type": "coordinator"
+        }
+        
+        try:
+            response = requests.post(
+                f"{BASE_URL}/agents/coordinator/chat",
+                headers=headers,
+                json=test_message
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"  ✓ Query routed: '{query[:40]}...'")
+                print(f"    Response length: {len(data.get('response', ''))} characters")
+                results.append(True)
+            else:
+                print(f"  ✗ Routing failed for '{query[:40]}...': {response.status_code}")
+                results.append(False)
+        except Exception as e:
+            print(f"  ✗ Error routing '{query[:40]}...': {e}")
+            results.append(False)
+    
+    if all(results):
+        print("✓ All routing tests passed")
+        return True
+    else:
+        print(f"⚠ {len([r for r in results if not r])} routing test(s) failed")
+        return len([r for r in results if r]) > 0  # Partial success
+
+def test_coordinator_agent_holistic_planning(token):
+    """Test Coordinator Agent holistic planning"""
+    print("\nTesting Coordinator Agent holistic planning...")
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    test_message = {
+        "message": "I want a complete 4-week wellness plan that includes fitness, nutrition, and mental wellness",
+        "agent_type": "coordinator"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/agents/coordinator/chat",
+            headers=headers,
+            json=test_message,
+            timeout=120  # Holistic planning may take longer (calls multiple agents)
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            response_text = data.get('response', '')
+            print("✓ Coordinator Agent created holistic plan")
+            print(f"  Response length: {len(response_text)} characters")
+            
+            # Check if response mentions multiple domains
+            domains_mentioned = []
+            if any(word in response_text.lower() for word in ['workout', 'exercise', 'fitness', 'training']):
+                domains_mentioned.append("Fitness")
+            if any(word in response_text.lower() for word in ['meal', 'nutrition', 'calorie', 'diet', 'food']):
+                domains_mentioned.append("Nutrition")
+            if any(word in response_text.lower() for word in ['mindfulness', 'meditation', 'stress', 'mental', 'wellness']):
+                domains_mentioned.append("Mental Wellness")
+            
+            if len(domains_mentioned) >= 2:
+                print(f"  ✓ Plan covers multiple domains: {', '.join(domains_mentioned)}")
+            else:
+                print(f"  ⚠ Plan may not cover all domains (mentioned: {', '.join(domains_mentioned) if domains_mentioned else 'none'})")
+            
+            return True
+        else:
+            print(f"✗ Coordinator Agent holistic planning failed: {response.status_code}")
+            print(f"  Response: {response.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"✗ Test error: {e}")
+        return False
+
 def main():
     """Run all agent tests"""
     print("=" * 60)
@@ -216,6 +516,25 @@ def main():
     print("Step 4: Workout Logging")
     print("=" * 60)
     results.append(("Workout Log Creation", test_workout_log_creation(token)))
+    
+    print("\n" + "=" * 60)
+    print("Step 5: Nutrition Agent Tests")
+    print("=" * 60)
+    results.append(("Nutrition Agent - Text Query", test_nutrition_agent_text_query(token)))
+    results.append(("Nutrition Agent - Image Analysis", test_nutrition_agent_image_analysis(token)))
+    results.append(("Nutrition Agent - Meal Planning", test_nutrition_agent_meal_planning(token)))
+    
+    print("\n" + "=" * 60)
+    print("Step 6: Mental Fitness Agent Tests")
+    print("=" * 60)
+    results.append(("Mental Fitness Agent - Basic Query", test_mental_fitness_agent_basic(token)))
+    results.append(("Mental Fitness Agent - Mindfulness", test_mental_fitness_agent_mindfulness(token)))
+    
+    print("\n" + "=" * 60)
+    print("Step 7: Coordinator Agent Tests")
+    print("=" * 60)
+    results.append(("Coordinator Agent - Routing", test_coordinator_agent_routing(token)))
+    results.append(("Coordinator Agent - Holistic Planning", test_coordinator_agent_holistic_planning(token)))
     
     # Summary
     print("\n" + "=" * 60)

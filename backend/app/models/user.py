@@ -23,5 +23,7 @@ class User(Base):
     medical_history = relationship("MedicalHistory", back_populates="user", uselist=False)
     user_preferences = relationship("UserPreferences", back_populates="user", uselist=False)
     workout_logs = relationship("WorkoutLog", back_populates="user")
+    nutrition_logs = relationship("NutritionLog", back_populates="user")
+    mental_fitness_logs = relationship("MentalFitnessLog", back_populates="user")
     conversation_messages = relationship("ConversationMessage", back_populates="user")
 

@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.services.medical_service import get_medical_history, check_user_exercise_conflicts
 from app.models.user_preferences import UserPreferences
 from app.models.workout_log import WorkoutLog
+from app.models.nutrition_log import NutritionLog
+from app.models.mental_fitness_log import MentalFitnessLog
 import json
 import os
 from dotenv import load_dotenv
@@ -91,6 +93,151 @@ class GetUserPreferencesTool(BaseTool):
         return "\n".join(result) if result else "Preferences exist but no details provided."
 
 
+class WebSearchInput(BaseModel):
+    """Input for web_search tool"""
+    query: str = Field(description="Search query string")
+
+
+class WebSearchTool(BaseTool):
+    """Tool to search the web for current information"""
+    name: str = "web_search"
+    description: str = "Search the web for current information, research, or up-to-date data. Use this when you need recent information that might not be in your training data, such as latest fitness trends, nutrition facts, exercise techniques, or health research."
+    args_schema: type = WebSearchInput
+    
+    def _run(self, query: str) -> str:
+        """Search the web using Tavily API"""
+        try:
+            from tavily import TavilyClient
+            
+            api_key = os.getenv("TAVILY_API_KEY")
+            if not api_key:
+                return "Error: TAVILY_API_KEY is not set. Web search is unavailable."
+            
+            client = TavilyClient(api_key=api_key)
+            
+            # Perform search
+            response = client.search(
+                query=query,
+                search_depth="basic",  # Can be "basic" or "advanced"
+                max_results=5  # Limit to 5 results to keep response concise
+            )
+            
+            if not response.get("results"):
+                return f"No results found for query: {query}"
+            
+            # Format results
+            formatted_results = []
+            for result in response["results"][:5]:  # Limit to 5 results
+                title = result.get("title", "No title")
+                url = result.get("url", "")
+                content = result.get("content", "")
+                
+                # Truncate content if too long
+                if len(content) > 300:
+                    content = content[:297] + "..."
+                
+                formatted_results.append(f"Title: {title}\nURL: {url}\nContent: {content}")
+            
+            return "\n\n---\n\n".join(formatted_results)
+            
+        except ImportError:
+            return "Error: tavily-python package is not installed. Please install it with: pip install tavily-python"
+        except Exception as e:
+            return f"Error performing web search: {str(e)}"
+
+
+class CreateNutritionLogInput(BaseModel):
+    """Input for create_nutrition_log tool"""
+    meal_type: str = Field(description="Type of meal: breakfast, lunch, dinner, or snack")
+    foods: str = Field(description="Food items as JSON string or plain text")
+    calories: float = Field(description="Total calories for the meal")
+    macros: str = Field(default="{}", description="Macros as JSON string with protein, carbs, fats (in grams)")
+    notes: str = Field(default="", description="Optional notes about the meal")
+
+
+class CreateNutritionLogTool(BaseTool):
+    """Tool to create a nutrition log entry"""
+    name: str = "create_nutrition_log"
+    description: str = "Create a nutrition log entry for the user. Use this when the user eats a meal, when analyzing food images, or when recommending meal plans. Always log meals with accurate calorie and macro information."
+    args_schema: type = CreateNutritionLogInput
+    
+    user_id: int
+    db: Session
+    
+    def _run(self, meal_type: str, foods: str, calories: float, macros: str = "{}", notes: str = "") -> str:
+        """Create nutrition log entry"""
+        try:
+            # Parse foods if it's a JSON string
+            try:
+                foods_json = json.loads(foods) if foods else {}
+            except json.JSONDecodeError:
+                foods_json = foods  # Use as-is if not valid JSON
+            
+            # Parse macros if it's a JSON string
+            try:
+                macros_json = json.loads(macros) if macros else {}
+            except json.JSONDecodeError:
+                macros_json = macros  # Use as-is if not valid JSON
+            
+            nutrition_log = NutritionLog(
+                user_id=self.user_id,
+                meal_type=meal_type,
+                foods=json.dumps(foods_json) if isinstance(foods_json, dict) else foods,
+                calories=calories,
+                macros=json.dumps(macros_json) if isinstance(macros_json, dict) else macros,
+                notes=notes
+            )
+            
+            self.db.add(nutrition_log)
+            self.db.commit()
+            self.db.refresh(nutrition_log)
+            
+            return f"Nutrition log created successfully. Log ID: {nutrition_log.id}, Calories: {calories}"
+        except Exception as e:
+            self.db.rollback()
+            return f"Error creating nutrition log: {str(e)}"
+
+
+class CreateMentalFitnessLogInput(BaseModel):
+    """Input for create_mental_fitness_log tool"""
+    activity_type: str = Field(description="Type of activity: meditation, mindfulness, journaling, breathing exercises, yoga, etc.")
+    duration_minutes: float = Field(description="Duration of activity in minutes")
+    mood_before: str = Field(default="", description="Mood or mental state before the activity (scale 1-10 or description)")
+    mood_after: str = Field(default="", description="Mood or mental state after the activity (scale 1-10 or description)")
+    notes: str = Field(default="", description="Optional notes about the activity")
+
+
+class CreateMentalFitnessLogTool(BaseTool):
+    """Tool to create a mental fitness log entry"""
+    name: str = "create_mental_fitness_log"
+    description: str = "Create a mental fitness log entry for the user. Use this when the user completes a mental wellness activity (meditation, mindfulness, journaling, etc.) or when recommending mental wellness practices."
+    args_schema: type = CreateMentalFitnessLogInput
+    
+    user_id: int
+    db: Session
+    
+    def _run(self, activity_type: str, duration_minutes: float, mood_before: str = "", mood_after: str = "", notes: str = "") -> str:
+        """Create mental fitness log entry"""
+        try:
+            mental_fitness_log = MentalFitnessLog(
+                user_id=self.user_id,
+                activity_type=activity_type,
+                duration_minutes=duration_minutes,
+                mood_before=mood_before,
+                mood_after=mood_after,
+                notes=notes
+            )
+            
+            self.db.add(mental_fitness_log)
+            self.db.commit()
+            self.db.refresh(mental_fitness_log)
+            
+            return f"Mental fitness log created successfully. Log ID: {mental_fitness_log.id}, Activity: {activity_type}, Duration: {duration_minutes} minutes"
+        except Exception as e:
+            self.db.rollback()
+            return f"Error creating mental fitness log: {str(e)}"
+
+
 class CreateWorkoutLogInput(BaseModel):
     """Input for create_workout_log tool"""
     exercise_type: str = Field(description="Type of exercise (e.g., calisthenics, weight_lifting, cardio)")
@@ -163,6 +310,7 @@ class BaseAgent:
             GetMedicalHistoryTool(user_id=user_id, db=db),
             GetUserPreferencesTool(user_id=user_id, db=db),
             CreateWorkoutLogTool(user_id=user_id, db=db),
+            WebSearchTool(),  # Web search tool (no user_id or db needed)
         ]
         
         # Bind tools to LLM for modern LangChain approach

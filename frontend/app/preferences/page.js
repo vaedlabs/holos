@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api, getToken, removeToken } from '@/lib/api'
+import { api, removeToken } from '@/lib/api'
 import ButtonSelector from '@/components/ButtonSelector'
+import { useRequireAuth } from '@/hooks/useAuth'
 
 export default function PreferencesPage() {
   const router = useRouter()
+  const { mounted, isAuthenticated } = useRequireAuth()
   const [preferences, setPreferences] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [mounted, setMounted] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [formData, setFormData] = useState({
     goals: '',
@@ -23,22 +24,11 @@ export default function PreferencesPage() {
   })
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-    
-    // Check authentication
-    const token = getToken()
-    if (!token) {
-      router.push('/login')
-      return
-    }
+    if (!mounted || !isAuthenticated) return
 
     // Load preferences
     loadPreferences()
-  }, [mounted, router])
+  }, [mounted, isAuthenticated])
 
   useEffect(() => {
     // Close menu when clicking outside
@@ -131,7 +121,7 @@ export default function PreferencesPage() {
     router.push('/login')
   }
 
-  if (!mounted) {
+  if (!mounted || !isAuthenticated) {
     return null
   }
 

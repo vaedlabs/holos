@@ -6,8 +6,10 @@ FastAPI main application entry point
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
 # Load environment variables
 load_dotenv()
@@ -55,6 +57,11 @@ app.include_router(agents.router)
 app.include_router(preferences.router)
 app.include_router(conversation.router)
 app.include_router(logs.router)
+
+# Serve uploaded images statically
+uploads_dir = Path("uploads/images")
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 if __name__ == "__main__":
     import uvicorn

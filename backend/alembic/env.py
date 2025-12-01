@@ -18,7 +18,7 @@ load_dotenv()
 
 # Import Base and models
 from app.database import Base
-from app.models import User, MedicalHistory, UserPreferences, WorkoutLog, ConversationMessage
+from app.models import User, MedicalHistory, UserPreferences, WorkoutLog, NutritionLog, MentalFitnessLog, ConversationMessage
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

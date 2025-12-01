@@ -1,55 +1,72 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { api, getToken, removeToken } from '@/lib/api'
+import { api, removeToken, API_URL } from '@/lib/api'
 import MedicalWarning from '@/components/MedicalWarning'
+import { useRequireAuth } from '@/hooks/useAuth'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { mounted, isAuthenticated } = useRequireAuth()
   const [messages, setMessages] = useState([])
   const [inputMessage, setInputMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [mounted, setMounted] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [workoutLogsOpen, setWorkoutLogsOpen] = useState(false)
   const [workoutLogs, setWorkoutLogs] = useState([])
+  const [nutritionLogs, setNutritionLogs] = useState([])
+  const [mentalFitnessLogs, setMentalFitnessLogs] = useState([])
   const [loadingLogs, setLoadingLogs] = useState(false)
+  const [activeLogTab, setActiveLogTab] = useState('workouts') // 'workouts', 'nutrition', 'mental-fitness'
+  const [selectedAgent, setSelectedAgent] = useState('physical-fitness')
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const fileInputRef = useRef(null)
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-    
-    // Check if user is authenticated
-    const token = getToken()
-    if (!token) {
-      console.log('No token found, redirecting to login')
-      router.push('/login')
-      return
-    }
+    if (!mounted || !isAuthenticated) return
 
     console.log('Token found, user authenticated')
     
     // Load conversation history
     const loadConversation = async () => {
       try {
+        console.log('Loading conversation history...')
         const history = await api.getConversationHistory()
-        if (history.messages && history.messages.length > 0) {
+        console.log('Conversation history response:', history)
+        console.log('Response type:', typeof history)
+        console.log('Has messages property:', history && 'messages' in history)
+        
+        // Handle different response formats
+        const messages = history?.messages || history || []
+        console.log('Messages array:', messages)
+        console.log('Messages length:', Array.isArray(messages) ? messages.length : 'Not an array')
+        
+        if (Array.isArray(messages) && messages.length > 0) {
+          console.log(`Loaded ${messages.length} messages from history`)
           // Convert API messages to component format
-          const loadedMessages = history.messages.map(msg => ({
-            role: msg.role,
-            content: msg.content,
-            warnings: msg.warnings || null
-          }))
+          const loadedMessages = messages.map(msg => {
+            const messageObj = {
+              role: msg.role || 'assistant',
+              content: msg.content || '',
+              warnings: msg.warnings || null,
+            }
+            // If message has an image path, construct the image URL
+            if (msg.image_path) {
+              const imageUrl = `${API_URL}/uploads/${msg.image_path}`
+              messageObj.imagePreview = imageUrl
+            }
+            return messageObj
+          })
+          console.log('Formatted messages:', loadedMessages)
           setMessages(loadedMessages)
         } else {
+          console.log('No conversation history found, showing welcome message')
           // No history, add welcome message
           setMessages([{
             role: 'assistant',
@@ -58,6 +75,7 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error('Error loading conversation:', err)
+        console.error('Error details:', err.message, err.stack)
         // On error, start with welcome message
         setMessages([{
           role: 'assistant',
@@ -67,28 +85,45 @@ export default function DashboardPage() {
     }
     
     loadConversation()
-    loadWorkoutLogs()
-  }, [mounted, router])
+  }, [mounted, isAuthenticated])
+  
+  useEffect(() => {
+    if (workoutLogsOpen) {
+      loadAllLogs()
+    }
+  }, [workoutLogsOpen])
 
-  const loadWorkoutLogs = async () => {
+  const loadAllLogs = useCallback(async () => {
     setLoadingLogs(true)
     try {
-      const data = await api.getWorkoutLogs(10, 0) // Get 10 most recent logs
-      setWorkoutLogs(data.logs || [])
+      // Load all log types in parallel
+      const [workoutData, nutritionData, mentalData] = await Promise.all([
+        api.getWorkoutLogs(10, 0).catch(() => ({ logs: [] })),
+        api.getNutritionLogs(10, 0).catch(() => ({ logs: [] })),
+        api.getMentalFitnessLogs(10, 0).catch(() => ({ logs: [] }))
+      ])
+      setWorkoutLogs(workoutData.logs || [])
+      setNutritionLogs(nutritionData.logs || [])
+      setMentalFitnessLogs(mentalData.logs || [])
     } catch (err) {
-      console.error('Error loading workout logs:', err)
-      // Don't show error to user, just log it
+      console.error('Error loading logs:', err)
     } finally {
       setLoadingLogs(false)
     }
-  }
+  }, [])
 
   const handleWorkoutLogsClick = () => {
     setWorkoutLogsOpen(!workoutLogsOpen)
     if (!workoutLogsOpen) {
-      loadWorkoutLogs()
+      loadAllLogs()
     }
   }
+  
+  useEffect(() => {
+    if (workoutLogsOpen) {
+      loadAllLogs()
+    }
+  }, [workoutLogsOpen, loadAllLogs])
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -101,8 +136,14 @@ export default function DashboardPage() {
       if (menuOpen && !event.target.closest('[aria-label="Menu"]') && !event.target.closest('div[style*="position: absolute"]')) {
         setMenuOpen(false)
       }
-      if (workoutLogsOpen && !event.target.closest('[aria-label="Workout Logs"]') && !event.target.closest('div[style*="workout-logs-modal"]')) {
-        setWorkoutLogsOpen(false)
+      // Check if click is outside the logs modal - exclude the button and the modal itself
+      if (workoutLogsOpen) {
+        const logsButton = event.target.closest('[aria-label="Logs"]')
+        const logsModal = event.target.closest('.workout-logs-modal')
+        // Only close if click is outside both the button and the modal
+        if (!logsButton && !logsModal) {
+          setWorkoutLogsOpen(false)
+        }
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -111,11 +152,31 @@ export default function DashboardPage() {
 
   const handleSend = async (e) => {
     e.preventDefault()
-    if (!inputMessage.trim() || loading) return
+    // Allow sending with just image (for Nutrition Agent) or with text
+    if ((!inputMessage.trim() && !selectedImage) || loading) return
+
+    // Convert image to base64 if present (before clearing state)
+    let imageBase64 = null
+    let imagePreviewUrl = null
+    if (selectedImage && selectedAgent === 'nutrition') {
+      const reader = new FileReader()
+      imageBase64 = await new Promise((resolve, reject) => {
+        reader.onload = () => {
+          // Keep the full data URL for display
+          imagePreviewUrl = reader.result
+          // Remove data:image/...;base64, prefix for API
+          const base64String = reader.result.split(',')[1]
+          resolve(base64String)
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(selectedImage)
+      })
+    }
 
     const userMessage = {
       role: 'user',
-      content: inputMessage
+      content: inputMessage,
+      imagePreview: imagePreviewUrl  // Store image preview for display
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -123,16 +184,40 @@ export default function DashboardPage() {
     setLoading(true)
     setError('')
 
+    // Clear image and reset file input after storing preview
+    if (selectedImage) {
+      setSelectedImage(null)
+      setImagePreview(null)
+      // Reset file input so it can be used again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+
     try {
-      // Save user message to database
+      // Upload image first if present
+      let imagePath = null
+      if (imageBase64) {
+        try {
+          const uploadResult = await api.uploadImage(imageBase64)
+          imagePath = uploadResult.image_path
+          console.log('Image uploaded, path:', imagePath)
+        } catch (uploadErr) {
+          console.warn('Failed to upload image:', uploadErr)
+          // Continue without image path
+        }
+      }
+
+      // Save user message to database (use placeholder if only image)
+      const messageContent = inputMessage.trim() || (imagePreviewUrl ? '📷 Image' : '')
       try {
-        await api.saveMessage('user', inputMessage)
+        await api.saveMessage('user', messageContent, null, imagePath)
       } catch (saveErr) {
         console.warn('Failed to save user message:', saveErr)
         // Continue even if save fails
       }
 
-      const response = await api.chatWithAgent(inputMessage)
+      const response = await api.chatWithAgent(inputMessage, selectedAgent, imageBase64)
       
       const assistantMessage = {
         role: 'assistant',
@@ -184,8 +269,38 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="header">
         <div className="header-content">
-          <h1 style={{ margin: 0, fontSize: '1.25rem' }}>Holos - Physical Fitness Coach</h1>
+          <h1 style={{ margin: 0, fontSize: '1.25rem' }}>
+            Holos - {selectedAgent === 'physical-fitness' ? 'Physical Fitness' : 
+                     selectedAgent === 'nutrition' ? 'Nutrition' : 
+                     selectedAgent === 'mental-fitness' ? 'Mental Fitness' :
+                     'Coordinator'} Coach
+          </h1>
           <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+            {/* Agent Selector */}
+            <select
+              value={selectedAgent}
+              onChange={(e) => {
+                setSelectedAgent(e.target.value)
+                setSelectedImage(null)
+                setImagePreview(null)
+              }}
+              style={{
+                padding: '0.5rem 0.75rem',
+                background: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.4)',
+                borderRadius: 'var(--border-radius)',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '500'
+              }}
+            >
+              <option value="physical-fitness" style={{ color: '#000' }}>Physical Fitness</option>
+              <option value="nutrition" style={{ color: '#000' }}>Nutrition</option>
+              <option value="mental-fitness" style={{ color: '#000' }}>Mental Fitness</option>
+              <option value="coordinator" style={{ color: '#000' }}>Coordinator (All-in-One)</option>
+            </select>
+            
             {/* Workout Logs Button */}
             <div style={{ position: 'relative' }}>
               <button
@@ -202,7 +317,7 @@ export default function DashboardPage() {
                   whiteSpace: 'nowrap',
                   transition: 'all 0.2s ease'
                 }}
-                aria-label="Workout Logs"
+                aria-label="Logs"
                 onMouseEnter={(e) => {
                   if (!workoutLogsOpen) {
                     e.target.style.background = 'rgba(255,255,255,0.25)'
@@ -214,10 +329,10 @@ export default function DashboardPage() {
                   }
                 }}
               >
-                Workouts
+                Logs
               </button>
               
-              {/* Workout Logs Modal */}
+              {/* Logs Modal with Tabs */}
               {workoutLogsOpen && (
                 <div 
                   className="workout-logs-modal"
@@ -229,30 +344,47 @@ export default function DashboardPage() {
                     background: 'white',
                     borderRadius: '8px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    minWidth: '400px',
-                    maxWidth: '500px',
-                    maxHeight: '500px',
+                    minWidth: '450px',
+                    maxWidth: '550px',
+                    maxHeight: '600px',
                     zIndex: 1000,
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column'
                   }}
                 >
+                  {/* Tabs */}
                   <div style={{
-                    padding: 'var(--spacing-md)',
+                    display: 'flex',
                     borderBottom: '1px solid var(--border-color)',
                     background: 'var(--bg-primary)'
                   }}>
-                    <h3 style={{ 
-                      margin: 0, 
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      color: 'var(--text-primary)'
-                    }}>
-                      Workout Logs
-                    </h3>
+                    {['workouts', 'nutrition', 'mental-fitness'].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={(e) => {
+                          e.stopPropagation() // Prevent event from bubbling up
+                          setActiveLogTab(tab)
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: 'var(--spacing-md)',
+                          background: activeLogTab === tab ? 'white' : 'transparent',
+                          border: 'none',
+                          borderBottom: activeLogTab === tab ? '2px solid var(--primary-color)' : '2px solid transparent',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          fontWeight: activeLogTab === tab ? '600' : '500',
+                          color: activeLogTab === tab ? 'var(--primary-color)' : 'var(--text-secondary)',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {tab === 'workouts' ? 'Workouts' : tab === 'nutrition' ? 'Nutrition' : 'Mental'}
+                      </button>
+                    ))}
                   </div>
                   
+                  {/* Tab Content */}
                   <div style={{
                     flex: 1,
                     overflowY: 'auto',
@@ -265,111 +397,369 @@ export default function DashboardPage() {
                         color: 'var(--text-secondary)',
                         fontSize: '0.875rem'
                       }}>
-                        Loading workouts...
-                      </div>
-                    ) : workoutLogs.length > 0 ? (
-                      <div style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: 'var(--spacing-sm)'
-                      }}>
-                        {workoutLogs.map((log) => {
-                          const workoutDate = new Date(log.workout_date)
-                          const formattedDate = workoutDate.toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            year: 'numeric' 
-                          })
-                          const formattedTime = workoutDate.toLocaleTimeString('en-US', { 
-                            hour: 'numeric', 
-                            minute: '2-digit' 
-                          })
-                          
-                          return (
-                            <div
-                              key={log.id}
-                              style={{
-                                padding: 'var(--spacing-md)',
-                                margin: 0,
-                                background: 'var(--bg-secondary)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: 'var(--border-radius)',
-                                transition: 'all 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                                e.currentTarget.style.transform = 'translateY(-1px)'
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.boxShadow = 'none'
-                                e.currentTarget.style.transform = 'translateY(0)'
-                              }}
-                            >
-                              <div style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'flex-start',
-                                marginBottom: 'var(--spacing-xs)'
-                              }}>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ 
-                                    fontWeight: '600', 
-                                    color: 'var(--text-primary)',
-                                    marginBottom: '0.25rem'
-                                  }}>
-                                    {log.exercise_type || 'Workout'}
-                                  </div>
-                                  {log.exercises && (
-                                    <div style={{ 
-                                      fontSize: '0.875rem', 
-                                      color: 'var(--text-secondary)',
-                                      marginTop: '0.25rem',
-                                      whiteSpace: 'pre-wrap'
-                                    }}>
-                                      {log.exercises}
-                                    </div>
-                                  )}
-                                </div>
-                                <div style={{ 
-                                  fontSize: '0.75rem', 
-                                  color: 'var(--text-secondary)',
-                                  textAlign: 'right',
-                                  marginLeft: 'var(--spacing-md)'
-                                }}>
-                                  <div>{formattedDate}</div>
-                                  <div>{formattedTime}</div>
-                                  {log.duration_minutes && (
-                                    <div style={{ marginTop: '0.25rem', fontWeight: '500' }}>
-                                      {Math.round(log.duration_minutes)} min
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              {log.notes && (
-                                <div style={{ 
-                                  fontSize: '0.875rem', 
-                                  color: 'var(--text-secondary)',
-                                  marginTop: 'var(--spacing-xs)',
-                                  fontStyle: 'italic',
-                                  paddingTop: 'var(--spacing-xs)',
-                                  borderTop: '1px solid var(--border-color)'
-                                }}>
-                                  {log.notes}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
+                        Loading {activeLogTab}...
                       </div>
                     ) : (
-                      <div style={{ 
-                        padding: 'var(--spacing-xl)', 
-                        textAlign: 'center', 
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.875rem'
-                      }}>
-                        No workouts logged yet. Your workouts will appear here once you complete them or when the agent logs them for you.
-                      </div>
+                      <>
+                        {/* Workouts Tab */}
+                        {activeLogTab === 'workouts' && (
+                          workoutLogs.length > 0 ? (
+                            <div style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: 'var(--spacing-sm)'
+                            }}>
+                              {workoutLogs.map((log) => {
+                                const workoutDate = new Date(log.workout_date)
+                                const formattedDate = workoutDate.toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric' 
+                                })
+                                const formattedTime = workoutDate.toLocaleTimeString('en-US', { 
+                                  hour: 'numeric', 
+                                  minute: '2-digit' 
+                                })
+                                
+                                return (
+                                  <div
+                                    key={log.id}
+                                    style={{
+                                      padding: 'var(--spacing-md)',
+                                      margin: 0,
+                                      background: 'var(--bg-secondary)',
+                                      border: '1px solid var(--border-color)',
+                                      borderRadius: 'var(--border-radius)',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                                      e.currentTarget.style.transform = 'translateY(-1px)'
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.boxShadow = 'none'
+                                      e.currentTarget.style.transform = 'translateY(0)'
+                                    }}
+                                  >
+                                    <div style={{ 
+                                      display: 'flex', 
+                                      justifyContent: 'space-between', 
+                                      alignItems: 'flex-start',
+                                      marginBottom: 'var(--spacing-xs)'
+                                    }}>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ 
+                                          fontWeight: '600', 
+                                          color: 'var(--text-primary)',
+                                          marginBottom: '0.25rem'
+                                        }}>
+                                          {log.exercise_type || 'Workout'}
+                                        </div>
+                                        {log.exercises && (
+                                          <div style={{ 
+                                            fontSize: '0.875rem', 
+                                            color: 'var(--text-secondary)',
+                                            marginTop: '0.25rem',
+                                            whiteSpace: 'pre-wrap'
+                                          }}>
+                                            {log.exercises}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div style={{ 
+                                        fontSize: '0.75rem', 
+                                        color: 'var(--text-secondary)',
+                                        textAlign: 'right',
+                                        marginLeft: 'var(--spacing-md)'
+                                      }}>
+                                        <div>{formattedDate}</div>
+                                        <div>{formattedTime}</div>
+                                        {log.duration_minutes && (
+                                          <div style={{ marginTop: '0.25rem', fontWeight: '500' }}>
+                                            {Math.round(log.duration_minutes)} min
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {log.notes && (
+                                      <div style={{ 
+                                        fontSize: '0.875rem', 
+                                        color: 'var(--text-secondary)',
+                                        marginTop: 'var(--spacing-xs)',
+                                        fontStyle: 'italic',
+                                        paddingTop: 'var(--spacing-xs)',
+                                        borderTop: '1px solid var(--border-color)'
+                                      }}>
+                                        {log.notes}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{ 
+                              padding: 'var(--spacing-xl)', 
+                              textAlign: 'center', 
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.875rem'
+                            }}>
+                              No workouts logged yet. Your workouts will appear here once you complete them or when the agent logs them for you.
+                            </div>
+                          )
+                        )}
+
+                        {/* Nutrition Tab */}
+                        {activeLogTab === 'nutrition' && (
+                          nutritionLogs.length > 0 ? (
+                            <div style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: 'var(--spacing-sm)'
+                            }}>
+                              {nutritionLogs.map((log) => {
+                                const mealDate = new Date(log.meal_date)
+                                const formattedDate = mealDate.toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric' 
+                                })
+                                const formattedTime = mealDate.toLocaleTimeString('en-US', { 
+                                  hour: 'numeric', 
+                                  minute: '2-digit' 
+                                })
+                                
+                                // Parse macros if it's a JSON string
+                                let macros = null
+                                try {
+                                  macros = log.macros ? JSON.parse(log.macros) : null
+                                } catch {
+                                  macros = null
+                                }
+                                
+                                return (
+                                  <div
+                                    key={log.id}
+                                    style={{
+                                      padding: 'var(--spacing-md)',
+                                      margin: 0,
+                                      background: 'var(--bg-secondary)',
+                                      border: '1px solid var(--border-color)',
+                                      borderRadius: 'var(--border-radius)',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                                      e.currentTarget.style.transform = 'translateY(-1px)'
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.boxShadow = 'none'
+                                      e.currentTarget.style.transform = 'translateY(0)'
+                                    }}
+                                  >
+                                    <div style={{ 
+                                      display: 'flex', 
+                                      justifyContent: 'space-between', 
+                                      alignItems: 'flex-start',
+                                      marginBottom: 'var(--spacing-xs)'
+                                    }}>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ 
+                                          fontWeight: '600', 
+                                          color: 'var(--text-primary)',
+                                          marginBottom: '0.25rem'
+                                        }}>
+                                          {log.meal_type ? log.meal_type.charAt(0).toUpperCase() + log.meal_type.slice(1) : 'Meal'}
+                                        </div>
+                                        {log.foods && (
+                                          <div style={{ 
+                                            fontSize: '0.875rem', 
+                                            color: 'var(--text-secondary)',
+                                            marginTop: '0.25rem'
+                                          }}>
+                                            {typeof log.foods === 'string' ? (log.foods.length > 100 ? log.foods.substring(0, 100) + '...' : log.foods) : 'Food logged'}
+                                          </div>
+                                        )}
+                                        <div style={{ 
+                                          display: 'flex', 
+                                          gap: 'var(--spacing-md)',
+                                          marginTop: '0.5rem',
+                                          fontSize: '0.875rem'
+                                        }}>
+                                          {log.calories && (
+                                            <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                                              {Math.round(log.calories)} cal
+                                            </span>
+                                          )}
+                                          {macros && (
+                                            <>
+                                              {macros.protein && (
+                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                  P: {Math.round(macros.protein)}g
+                                                </span>
+                                              )}
+                                              {macros.carbs && (
+                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                  C: {Math.round(macros.carbs)}g
+                                                </span>
+                                              )}
+                                              {macros.fats && (
+                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                  F: {Math.round(macros.fats)}g
+                                                </span>
+                                              )}
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div style={{ 
+                                        fontSize: '0.75rem', 
+                                        color: 'var(--text-secondary)',
+                                        textAlign: 'right',
+                                        marginLeft: 'var(--spacing-md)'
+                                      }}>
+                                        <div>{formattedDate}</div>
+                                        <div>{formattedTime}</div>
+                                      </div>
+                                    </div>
+                                    {log.notes && (
+                                      <div style={{ 
+                                        fontSize: '0.875rem', 
+                                        color: 'var(--text-secondary)',
+                                        marginTop: 'var(--spacing-xs)',
+                                        fontStyle: 'italic',
+                                        paddingTop: 'var(--spacing-xs)',
+                                        borderTop: '1px solid var(--border-color)'
+                                      }}>
+                                        {log.notes}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{ 
+                              padding: 'var(--spacing-xl)', 
+                              textAlign: 'center', 
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.875rem'
+                            }}>
+                              No nutrition logs yet. Your meals will appear here once you log them or when the agent logs them for you.
+                            </div>
+                          )
+                        )}
+
+                        {/* Mental Fitness Tab */}
+                        {activeLogTab === 'mental-fitness' && (
+                          mentalFitnessLogs.length > 0 ? (
+                            <div style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: 'var(--spacing-sm)'
+                            }}>
+                              {mentalFitnessLogs.map((log) => {
+                                const activityDate = new Date(log.activity_date)
+                                const formattedDate = activityDate.toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric' 
+                                })
+                                const formattedTime = activityDate.toLocaleTimeString('en-US', { 
+                                  hour: 'numeric', 
+                                  minute: '2-digit' 
+                                })
+                                
+                                return (
+                                  <div
+                                    key={log.id}
+                                    style={{
+                                      padding: 'var(--spacing-md)',
+                                      margin: 0,
+                                      background: 'var(--bg-secondary)',
+                                      border: '1px solid var(--border-color)',
+                                      borderRadius: 'var(--border-radius)',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                                      e.currentTarget.style.transform = 'translateY(-1px)'
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.boxShadow = 'none'
+                                      e.currentTarget.style.transform = 'translateY(0)'
+                                    }}
+                                  >
+                                    <div style={{ 
+                                      display: 'flex', 
+                                      justifyContent: 'space-between', 
+                                      alignItems: 'flex-start',
+                                      marginBottom: 'var(--spacing-xs)'
+                                    }}>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ 
+                                          fontWeight: '600', 
+                                          color: 'var(--text-primary)',
+                                          marginBottom: '0.25rem'
+                                        }}>
+                                          {log.activity_type ? log.activity_type.charAt(0).toUpperCase() + log.activity_type.slice(1) : 'Activity'}
+                                        </div>
+                                        <div style={{ 
+                                          display: 'flex', 
+                                          gap: 'var(--spacing-md)',
+                                          marginTop: '0.5rem',
+                                          fontSize: '0.875rem'
+                                        }}>
+                                          {log.duration_minutes && (
+                                            <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                                              {Math.round(log.duration_minutes)} min
+                                            </span>
+                                          )}
+                                          {log.mood_before && log.mood_after && (
+                                            <span style={{ color: 'var(--text-secondary)' }}>
+                                              Mood: {log.mood_before} → {log.mood_after}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div style={{ 
+                                        fontSize: '0.75rem', 
+                                        color: 'var(--text-secondary)',
+                                        textAlign: 'right',
+                                        marginLeft: 'var(--spacing-md)'
+                                      }}>
+                                        <div>{formattedDate}</div>
+                                        <div>{formattedTime}</div>
+                                      </div>
+                                    </div>
+                                    {log.notes && (
+                                      <div style={{ 
+                                        fontSize: '0.875rem', 
+                                        color: 'var(--text-secondary)',
+                                        marginTop: 'var(--spacing-xs)',
+                                        fontStyle: 'italic',
+                                        paddingTop: 'var(--spacing-xs)',
+                                        borderTop: '1px solid var(--border-color)'
+                                      }}>
+                                        {log.notes}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{ 
+                              padding: 'var(--spacing-xl)', 
+                              textAlign: 'center', 
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.875rem'
+                            }}>
+                              No mental fitness logs yet. Your activities will appear here once you log them or when the agent logs them for you.
+                            </div>
+                          )
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -534,7 +924,25 @@ export default function DashboardPage() {
               }}
             >
               {msg.role === 'user' ? (
-                <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                <div>
+                  {/* Show image if present */}
+                  {msg.imagePreview && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <img 
+                        src={msg.imagePreview} 
+                        alt="Uploaded food" 
+                        style={{
+                          maxWidth: '300px',
+                          maxHeight: '300px',
+                          borderRadius: 'var(--border-radius)',
+                          objectFit: 'cover',
+                          border: '1px solid rgba(255,255,255,0.2)'
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content || (msg.imagePreview ? '📷 Image' : '')}</div>
+                </div>
               ) : (
                 <div style={{
                   lineHeight: '1.6',
@@ -660,34 +1068,138 @@ export default function DashboardPage() {
         <form onSubmit={handleSend} style={{ 
           padding: 'var(--spacing-lg)', 
           display: 'flex', 
+          flexDirection: 'column',
           gap: 'var(--spacing-md)',
           maxWidth: '1200px',
           margin: '0 auto'
         }}>
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Ask me about workouts, exercises, or fitness advice..."
-            disabled={loading}
-            className="form-input"
-            style={{ 
-              flex: 1,
-              padding: '0.875rem 1rem',
-              fontSize: '0.95rem'
-            }}
-          />
-          <button
-            type="submit"
-            disabled={loading || !inputMessage.trim()}
-            className="btn btn-primary"
-            style={{ 
-              padding: '0.875rem 2rem',
-              minWidth: '100px'
-            }}
-          >
-            {loading ? 'Sending...' : 'Send'}
-          </button>
+          {/* Image Preview (for Nutrition Agent) */}
+          {imagePreview && selectedAgent === 'nutrition' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-sm)',
+              padding: 'var(--spacing-sm)',
+              background: 'var(--bg-secondary)',
+              borderRadius: 'var(--border-radius)',
+              border: '1px solid var(--border-color)'
+            }}>
+              <img 
+                src={imagePreview} 
+                alt="Preview" 
+                style={{
+                  maxWidth: '100px',
+                  maxHeight: '100px',
+                  borderRadius: 'var(--border-radius)',
+                  objectFit: 'cover'
+                }}
+              />
+              <span style={{ flex: 1, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                {selectedImage?.name || 'Image selected'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedImage(null)
+                  setImagePreview(null)
+                }}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  background: 'var(--error-color)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--border-radius)',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem'
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+          
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
+            {/* Image Upload (only for Nutrition Agent) */}
+            {selectedAgent === 'nutrition' && (
+              <label
+                style={{
+                  padding: '0.875rem 1rem',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius)',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                📷 Image
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0]
+                    if (file) {
+                      setSelectedImage(file)
+                      const reader = new FileReader()
+                      reader.onload = (event) => {
+                        setImagePreview(event.target.result)
+                      }
+                      reader.readAsDataURL(file)
+                    } else {
+                      // Reset if no file selected
+                      setSelectedImage(null)
+                      setImagePreview(null)
+                    }
+                  }}
+                  onClick={(e) => {
+                    // Reset value on click to allow selecting same file again
+                    e.target.value = ''
+                  }}
+                  style={{ display: 'none' }}
+                  disabled={loading}
+                />
+              </label>
+            )}
+            
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder={
+                selectedAgent === 'physical-fitness' 
+                  ? 'Ask me about workouts, exercises, or fitness advice...'
+                  : selectedAgent === 'nutrition'
+                  ? 'Ask me about nutrition or upload a food image...'
+                  : selectedAgent === 'mental-fitness'
+                  ? 'Ask me about mental wellness...'
+                  : 'Ask me anything - I\'ll route to the right expert or create a holistic plan...'
+                  ? 'Ask about nutrition, meal planning, or upload a food image...'
+                  : 'Ask about mindfulness, stress management, or mental wellness...'
+              }
+              disabled={loading}
+              className="form-input"
+              style={{ 
+                flex: 1,
+                padding: '0.875rem 1rem',
+                fontSize: '0.95rem'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={loading || (!inputMessage.trim() && !selectedImage && !imagePreview)}
+              className="btn btn-primary"
+              style={{ 
+                padding: '0.875rem 2rem',
+                minWidth: '100px'
+              }}
+            >
+              {loading ? 'Sending...' : 'Send'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

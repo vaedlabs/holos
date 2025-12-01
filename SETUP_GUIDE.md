@@ -57,6 +57,12 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
 # OpenAI API
 OPENAI_API_KEY=sk-your-openai-api-key-here
 
+# Google Gemini API (for Nutrition Agent with image analysis)
+GOOGLE_GEMINI_API_KEY=your-gemini-api-key-here
+
+# Tavily API (for web search tool)
+TAVILY_API_KEY=your-tavily-api-key-here
+
 # Environment
 ENVIRONMENT=development
 LOG_LEVEL=INFO
@@ -66,6 +72,32 @@ LOG_LEVEL=INFO
 - Replace `username` and `password` with your PostgreSQL credentials
 - Generate a secure `JWT_SECRET_KEY` (you can use: `openssl rand -hex 32`)
 - Get your OpenAI API key from [platform.openai.com](https://platform.openai.com/api-keys)
+- Get your Google Gemini API key from [makersuite.google.com](https://makersuite.google.com/app/apikey) (for Nutrition Agent with image analysis)
+- Get your Tavily API key from [tavily.com](https://tavily.com) (optional, for web search functionality)
+
+**Getting API Keys:**
+
+1. **OpenAI API Key**:
+   - Visit [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+   - Sign up or log in
+   - Create a new API key
+   - Copy the key (starts with `sk-`)
+   - **Note**: You may need to set up billing for API usage
+
+2. **Google Gemini API Key** (Required for Nutrition Agent image analysis):
+   - Visit [makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey)
+   - Sign in with your Google account
+   - Click "Create API Key"
+   - Copy the generated key
+   - This enables image-based food analysis and calorie tracking
+
+3. **Tavily API Key** (Optional, for web search functionality):
+   - Visit [tavily.com](https://tavily.com)
+   - Sign up for a free account
+   - Navigate to API keys section
+   - Create a new API key
+   - Copy the key
+   - This enables agents to search the web for current information
 
 ### 2.4 Set Up Database
 
@@ -303,7 +335,9 @@ npm start
 - `JWT_SECRET_KEY` - Secret for JWT tokens
 - `JWT_ALGORITHM` - JWT algorithm (default: HS256)
 - `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` - Token expiration (default: 1440)
-- `OPENAI_API_KEY` - OpenAI API key
+- `OPENAI_API_KEY` - OpenAI API key (for Physical Fitness, Mental Fitness, and Coordinator agents)
+- `GOOGLE_GEMINI_API_KEY` - Google Gemini API key (for Nutrition Agent with image analysis)
+- `TAVILY_API_KEY` - Tavily API key (optional, for web search tool)
 - `ENVIRONMENT` - Environment name (development/production)
 - `LOG_LEVEL` - Logging level (INFO/DEBUG)
 
@@ -315,9 +349,18 @@ npm start
 Once setup is complete:
 
 1. **Explore the API**: Visit `http://localhost:8000/docs` to see all available endpoints
-2. **Test the Agent**: Try different queries in the dashboard chat
-3. **Check Medical Warnings**: Enter medical conditions and see conflict detection in action
-4. **View Workout Logs**: Ask the agent to log workouts and view them in the dashboard
+2. **Test the Agents**: Try different queries in the dashboard chat with different agents:
+   - Physical Fitness Agent: "I want to build muscle"
+   - Nutrition Agent: "How many calories in an apple?" or upload a food image
+   - Mental Fitness Agent: "I'm feeling stressed"
+   - Coordinator Agent: "I want a complete wellness plan"
+3. **Test Image-Based Calorie Tracking**: 
+   - Select Nutrition Agent in the dashboard
+   - Click the "📷 Image" button
+   - Upload a food image
+   - Ask "How many calories?" to get automatic analysis
+4. **Check Medical Warnings**: Enter medical conditions and see conflict detection in action
+5. **View Logs**: Check workout, nutrition, and mental fitness logs in the Logs modal
 
 ## Support
 

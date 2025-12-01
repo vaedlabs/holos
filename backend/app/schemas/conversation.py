@@ -12,6 +12,7 @@ class ConversationMessageCreate(BaseModel):
     role: str  # 'user' or 'assistant'
     content: str
     warnings: Optional[List[str]] = None
+    image_path: Optional[str] = None  # Path to stored image
 
 
 class ConversationMessageResponse(BaseModel):
@@ -20,6 +21,7 @@ class ConversationMessageResponse(BaseModel):
     role: str
     content: str
     warnings: Optional[List[str]] = None
+    image_path: Optional[str] = None  # Path to stored image
     created_at: datetime
 
     class Config:

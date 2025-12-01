@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import MedicalHistoryForm from '@/components/MedicalHistoryForm'
 import ButtonSelector from '@/components/ButtonSelector'
+import { useRequireAuth } from '@/hooks/useAuth'
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { mounted, isAuthenticated } = useRequireAuth()
   const [step, setStep] = useState(1) // 1: medical, 2: preferences
   const [medicalData, setMedicalData] = useState({})
   const [preferencesData, setPreferencesData] = useState({
@@ -19,6 +21,11 @@ export default function OnboardingPage() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Don't render until mounted and authenticated
+  if (!mounted || !isAuthenticated) {
+    return null
+  }
 
   const handleMedicalSubmit = (data) => {
     setMedicalData(data)

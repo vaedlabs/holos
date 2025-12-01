@@ -2,10 +2,16 @@
 Conversation history routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import json
+import os
+import uuid
+import base64
+from pathlib import Path
 from app.dependencies import get_database, get_current_user
 from app.models.user import User
 from app.models.conversation_message import ConversationMessage
@@ -16,6 +22,10 @@ from app.schemas.conversation import (
 )
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
+
+# Create uploads directory if it doesn't exist
+UPLOADS_DIR = Path("uploads/images")
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @router.post("/messages", response_model=ConversationMessageResponse)
@@ -34,7 +44,8 @@ async def create_message(
             user_id=current_user.id,
             role=message.role,
             content=message.content,
-            warnings=warnings_json
+            warnings=warnings_json,
+            image_path=message.image_path
         )
         
         db.add(db_message)
@@ -54,6 +65,7 @@ async def create_message(
             role=db_message.role,
             content=db_message.content,
             warnings=warnings,
+            image_path=db_message.image_path,
             created_at=db_message.created_at
         )
     except Exception as e:
@@ -89,6 +101,7 @@ async def get_conversation_history(
                 role=msg.role,
                 content=msg.content,
                 warnings=warnings,
+                image_path=msg.image_path,
                 created_at=msg.created_at
             ))
         
@@ -100,6 +113,57 @@ async def get_conversation_history(
         )
 
 
+@router.post("/upload-image")
+async def upload_image(
+    image_base64: str = Form(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database)
+):
+    """Upload and store an image, return the path"""
+    try:
+        # Decode base64 image
+        try:
+            # Remove data URL prefix if present
+            if ',' in image_base64:
+                image_base64 = image_base64.split(',')[1]
+            
+            image_data = base64.b64decode(image_base64)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid base64 image data: {str(e)}"
+            )
+        
+        # Generate unique filename
+        filename = f"{current_user.id}_{uuid.uuid4().hex[:8]}.jpg"
+        file_path = UPLOADS_DIR / filename
+        
+        # Save image
+        with open(file_path, 'wb') as f:
+            f.write(image_data)
+        
+        # Return relative path for storage in DB
+        relative_path = f"images/{filename}"
+        
+        return {"image_path": relative_path}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error uploading image: {str(e)}"
+        )
+
+
+@router.get("/images/{filename}")
+async def get_image(filename: str):
+    """Serve stored images"""
+    file_path = UPLOADS_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    return FileResponse(file_path)
+
+
 @router.delete("/messages", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_conversation_history(
     current_user: User = Depends(get_current_user),
@@ -107,6 +171,22 @@ async def clear_conversation_history(
 ):
     """Clear conversation history for the current user"""
     try:
+        # Get all messages to delete associated images
+        messages = db.query(ConversationMessage).filter(
+            ConversationMessage.user_id == current_user.id
+        ).all()
+        
+        # Delete associated image files
+        for msg in messages:
+            if msg.image_path:
+                image_file = UPLOADS_DIR / msg.image_path.split('/')[-1]
+                if image_file.exists():
+                    try:
+                        image_file.unlink()
+                    except:
+                        pass  # Continue even if image deletion fails
+        
+        # Delete messages
         db.query(ConversationMessage).filter(
             ConversationMessage.user_id == current_user.id
         ).delete()

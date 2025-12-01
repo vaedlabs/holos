@@ -19,7 +19,7 @@ def test_imports():
         from app.database import Base, engine, get_db
         print("✓ Database imports successfully")
         
-        from app.models import User, MedicalHistory, UserPreferences, WorkoutLog
+        from app.models import User, MedicalHistory, UserPreferences, WorkoutLog, NutritionLog, MentalFitnessLog
         print("✓ Models import successfully")
         
         from app.auth import verify_password, get_password_hash, create_access_token

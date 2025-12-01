@@ -6,15 +6,16 @@ AI-powered fitness application with specialized agents for physical fitness, nut
 
 - **4 Specialized AI Agents**:
   - 💪 Physical Fitness Agent (OpenAI) - Workout planning, exercise recommendations
-  - 🥗 Nutrition Agent (Gemini) - Meal planning with geographic awareness
+  - 🥗 Nutrition Agent (Gemini) - Meal planning with geographic awareness and **image-based calorie tracking**
   - 🧘 Mental Fitness Agent (OpenAI) - Mindfulness and stress management
-  - 🎯 Coordinator Agent (OpenAI) - Holistic cross-domain recommendations
+  - 🎯 Coordinator Agent (OpenAI) - Intelligent routing and holistic cross-domain planning
 
 - **Medical Safety**: Exercise conflict detection based on medical history
+- **Image-Based Calorie Tracking**: Upload food images for automatic calorie and macro analysis using Gemini Vision
 - **Geographic Nutrition**: Location-aware food recommendations
 - **Multiple Exercise Types**: Calisthenics, weight lifting, powerlifting, pilates, yoga, cardio, HIIT, and more
-- **Persuasive Recommendations**: Agents provide adamant, evidence-based guidance
-- **Real-time Streaming**: WebSocket support for live agent responses
+- **Holistic Planning**: Coordinator Agent creates comprehensive wellness plans combining all three domains
+- **Conversation Persistence**: Chat history and images are saved and persist across sessions
 
 ## Quick Start
 
@@ -87,16 +88,23 @@ holos/
 - `GET /preferences` - Get user preferences
 - `POST /preferences` - Create/update preferences
 
-### Physical Fitness Agent
+### AI Agents
 - `POST /agents/physical-fitness/chat` - Chat with Physical Fitness Agent
+- `POST /agents/nutrition/chat` - Chat with Nutrition Agent (supports image uploads for food analysis)
+- `POST /agents/mental-fitness/chat` - Chat with Mental Fitness Agent
+- `POST /agents/coordinator/chat` - Chat with Coordinator Agent (routes queries or creates holistic plans)
 
 ### Conversation
-- `POST /messages` - Save conversation message
-- `GET /messages` - Get conversation history
-- `DELETE /messages` - Clear conversation history
+- `POST /conversation/messages` - Save conversation message (supports image storage)
+- `GET /conversation/messages` - Get conversation history (includes image references)
+- `DELETE /conversation/messages` - Clear conversation history
+- `POST /conversation/upload-image` - Upload and store image for conversation messages
+- `GET /uploads/images/{filename}` - Retrieve stored conversation images
 
-### Workout Logs
+### Logs
 - `GET /logs/workouts` - Get user's workout logs (with pagination)
+- `GET /logs/nutrition` - Get user's nutrition logs (with pagination)
+- `GET /logs/mental-fitness` - Get user's mental fitness logs (with pagination)
 
 **Full API Documentation**: Visit `http://localhost:8000/docs` when backend is running
 

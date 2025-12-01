@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, setToken } from '@/lib/api'
+import { useRedirectIfAuthenticated } from '@/hooks/useAuth'
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { mounted } = useRedirectIfAuthenticated()
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -13,6 +15,11 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [validationErrors, setValidationErrors] = useState({})
+
+  // Don't render until mounted (redirect will happen if authenticated)
+  if (!mounted) {
+    return null
+  }
 
   // Validation functions
   const validateEmail = (email) => {

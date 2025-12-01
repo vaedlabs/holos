@@ -7,7 +7,7 @@ import os
 import sys
 from sqlalchemy import create_engine, text
 from app.database import Base, engine
-from app.models import User, MedicalHistory, UserPreferences, WorkoutLog, ConversationMessage
+from app.models import User, MedicalHistory, UserPreferences, WorkoutLog, NutritionLog, MentalFitnessLog, ConversationMessage
 from dotenv import load_dotenv
 
 load_dotenv()

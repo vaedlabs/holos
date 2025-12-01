@@ -1,37 +1,45 @@
 # FastAPI and server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.122.1
+uvicorn[standard]==0.38.0
 
 # Database
-sqlalchemy==2.0.23
+sqlalchemy==2.0.44
 psycopg2-binary==2.9.9
-alembic==1.12.1
+alembic==1.17.2
 
-# LangChain
-langchain==0.3.0
-langchain-core==0.3.0
-langchain-openai==0.2.0
+# LangChain (compatible versions - updated for compatibility)
+langchain==1.1.0
+langchain-core==1.1.0  # Updated to match langchain-openai 1.1.0
+langchain-openai==1.1.0
 langchain-community==0.3.0
 
 # OpenAI SDK (updated for langchain-openai compatibility)
-openai>=1.40.0,<2.0.0
+openai==2.8.1
 
 # Authentication
-python-jose[cryptography]==3.3.0
-bcrypt==4.1.1
+python-jose[cryptography]==3.5.0
+bcrypt==5.0.0
 passlib[bcrypt]==1.7.4
 
 # Data validation
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic==2.12.5
+pydantic-settings==2.12.0
 email-validator==2.1.0
 
 # Environment variables
-python-dotenv==1.0.0
+python-dotenv==1.2.1
 
 # CORS
-python-multipart==0.0.6
+python-multipart==0.0.20
 
 # Testing (optional, for test scripts)
-requests==2.31.0
+requests==2.32.5
 
+# Web Search
+tavily-python==0.7.13
+
+# Google Gemini (using direct SDK, not LangChain wrapper)
+google-generativeai==0.8.5  # Direct SDK for both text and image analysis
+
+# Image Processing
+Pillow==12.0.0
