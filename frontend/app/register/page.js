@@ -113,8 +113,26 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '2rem' }}>
-      <div className="card container-sm" style={{ maxWidth: '400px', width: '100%' }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      padding: '2rem',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <div className="lava-lamp-bg">
+        <div className="lava-blob blob-1"></div>
+        <div className="lava-blob blob-2"></div>
+        <div className="lava-blob blob-3"></div>
+      </div>
+      <div className="card container-sm lava-lamp-overlay" style={{ 
+        maxWidth: '500px', 
+        width: '100%',
+        background: 'rgba(255, 255, 255, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.3)'
+      }}>
         <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--text-primary)' }}>Register</h1>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
           <div className="form-group">

@@ -22,9 +22,10 @@ export default function DashboardPage() {
   const [mentalFitnessLogs, setMentalFitnessLogs] = useState([])
   const [loadingLogs, setLoadingLogs] = useState(false)
   const [activeLogTab, setActiveLogTab] = useState('workouts') // 'workouts', 'nutrition', 'mental-fitness'
-  const [selectedAgent, setSelectedAgent] = useState('physical-fitness')
+  const [selectedAgent, setSelectedAgent] = useState('coordinator')
   const [selectedImage, setSelectedImage] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+  const [fileInputKey, setFileInputKey] = useState(0) // Key to force file input remount
   const fileInputRef = useRef(null)
   const messagesEndRef = useRef(null)
 
@@ -70,7 +71,7 @@ export default function DashboardPage() {
           // No history, add welcome message
           setMessages([{
             role: 'assistant',
-            content: 'Hello! I\'m your Physical Fitness Coach. How can I help you today?'
+            content: 'Hello! I\'m your Holos Coordinator. I can help you with fitness, nutrition, mental wellness, or create a holistic plan. How can I assist you today?'
           }])
         }
       } catch (err) {
@@ -158,7 +159,7 @@ export default function DashboardPage() {
     // Convert image to base64 if present (before clearing state)
     let imageBase64 = null
     let imagePreviewUrl = null
-    if (selectedImage && selectedAgent === 'nutrition') {
+    if (selectedImage && (selectedAgent === 'nutrition' || selectedAgent === 'coordinator')) {
       const reader = new FileReader()
       imageBase64 = await new Promise((resolve, reject) => {
         reader.onload = () => {
@@ -188,10 +189,9 @@ export default function DashboardPage() {
     if (selectedImage) {
       setSelectedImage(null)
       setImagePreview(null)
-      // Reset file input so it can be used again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      // Force file input to remount by changing key
+      // This ensures the input is completely fresh and can accept new files
+      setFileInputKey(prev => prev + 1)
     }
 
     try {
@@ -209,7 +209,7 @@ export default function DashboardPage() {
       }
 
       // Save user message to database (use placeholder if only image)
-      const messageContent = inputMessage.trim() || (imagePreviewUrl ? '📷 Image' : '')
+      const messageContent = inputMessage.trim() || (imagePreviewUrl ? 'Image uploaded' : '')
       try {
         await api.saveMessage('user', messageContent, null, imagePath)
       } catch (saveErr) {
@@ -941,7 +941,7 @@ export default function DashboardPage() {
                       />
                     </div>
                   )}
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content || (msg.imagePreview ? '📷 Image' : '')}</div>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content || (msg.imagePreview ? '' : '')}</div>
                 </div>
               ) : (
                 <div style={{
@@ -1073,8 +1073,8 @@ export default function DashboardPage() {
           maxWidth: '1200px',
           margin: '0 auto'
         }}>
-          {/* Image Preview (for Nutrition Agent) */}
-          {imagePreview && selectedAgent === 'nutrition' && (
+          {/* Image Preview (for Nutrition and Coordinator Agents) */}
+          {imagePreview && (selectedAgent === 'nutrition' || selectedAgent === 'coordinator') && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -1119,29 +1119,52 @@ export default function DashboardPage() {
           )}
           
           <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
-            {/* Image Upload (only for Nutrition Agent) */}
-            {selectedAgent === 'nutrition' && (
+            {/* Image Upload (for Nutrition and Coordinator Agents) */}
+            {(selectedAgent === 'nutrition' || selectedAgent === 'coordinator') && (
               <label
                 style={{
-                  padding: '0.875rem 1rem',
+                  padding: '0.75rem',
                   background: 'var(--bg-secondary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius)',
                   cursor: 'pointer',
-                  fontSize: '0.875rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  whiteSpace: 'nowrap'
+                  justifyContent: 'center',
+                  width: '44px',
+                  height: '44px',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--bg-tertiary)'
+                  e.currentTarget.style.borderColor = 'var(--primary-color)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--bg-secondary)'
+                  e.currentTarget.style.borderColor = 'var(--border-color)'
                 }}
               >
-                📷 Image
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
                 <input
+                  key={fileInputKey}
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
-                    const file = e.target.files[0]
+                    const file = e.target.files?.[0]
                     if (file) {
                       setSelectedImage(file)
                       const reader = new FileReader()
@@ -1157,7 +1180,8 @@ export default function DashboardPage() {
                   }}
                   onClick={(e) => {
                     // Reset value on click to allow selecting same file again
-                    e.target.value = ''
+                    // This ensures onChange fires even if the same file is selected
+                    e.currentTarget.value = ''
                   }}
                   style={{ display: 'none' }}
                   disabled={loading}
@@ -1191,13 +1215,67 @@ export default function DashboardPage() {
             <button
               type="submit"
               disabled={loading || (!inputMessage.trim() && !selectedImage && !imagePreview)}
-              className="btn btn-primary"
               style={{ 
-                padding: '0.875rem 2rem',
-                minWidth: '100px'
+                padding: '0.75rem',
+                width: '44px',
+                height: '44px',
+                background: loading || (!inputMessage.trim() && !selectedImage && !imagePreview)
+                  ? '#ccc'
+                  : 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)',
+                border: 'none',
+                borderRadius: 'var(--border-radius)',
+                cursor: loading || (!inputMessage.trim() && !selectedImage && !imagePreview)
+                  ? 'not-allowed'
+                  : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                boxShadow: loading || (!inputMessage.trim() && !selectedImage && !imagePreview)
+                  ? 'none'
+                  : 'var(--shadow-sm)',
+                opacity: loading || (!inputMessage.trim() && !selectedImage && !imagePreview) ? 0.6 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!loading && (inputMessage.trim() || selectedImage || imagePreview)) {
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                  e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = loading || (!inputMessage.trim() && !selectedImage && !imagePreview)
+                  ? 'none'
+                  : 'var(--shadow-sm)'
               }}
             >
-              {loading ? 'Sending...' : 'Send'}
+              {loading ? (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{ animation: 'spin 1s linear infinite' }}
+                >
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              ) : (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="12" y1="19" x2="12" y2="5" />
+                  <polyline points="5 12 12 5 19 12" />
+                </svg>
+              )}
             </button>
           </div>
         </form>

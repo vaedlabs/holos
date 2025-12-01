@@ -6,14 +6,22 @@ export default function Home() {
       flexDirection: 'column', 
       alignItems: 'center', 
       justifyContent: 'center', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-      padding: '2rem' 
+      padding: '2rem',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      <div className="card" style={{ 
+      <div className="lava-lamp-bg">
+        <div className="lava-blob blob-1"></div>
+        <div className="lava-blob blob-2"></div>
+        <div className="lava-blob blob-3"></div>
+      </div>
+      <div className="card lava-lamp-overlay" style={{ 
         maxWidth: '600px', 
         width: '100%', 
         textAlign: 'center',
-        animation: 'fadeIn 0.5s ease-in'
+        animation: 'fadeIn 0.5s ease-in',
+        background: 'rgba(255, 255, 255, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.3)'
       }}>
         <h1 style={{ 
           marginBottom: 'var(--spacing-md)', 
