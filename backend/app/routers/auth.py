@@ -5,9 +5,16 @@ Authentication routes
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.dependencies import get_database
+from pathlib import Path
+from app.dependencies import get_database, get_current_user
 from app.auth import verify_password, get_password_hash, create_access_token
 from app.models.user import User
+from app.models.conversation_message import ConversationMessage
+from app.models.workout_log import WorkoutLog
+from app.models.nutrition_log import NutritionLog
+from app.models.mental_fitness_log import MentalFitnessLog
+from app.models.medical_history import MedicalHistory
+from app.models.user_preferences import UserPreferences
 from app.schemas.user import UserRegister, UserLogin, UserResponse, Token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -91,4 +98,74 @@ async def login(credentials: UserLogin, db: Session = Depends(get_database)):
     access_token = create_access_token(data={"sub": str(user.id)})
     
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.delete("/delete-account", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database)
+):
+    """
+    Delete the current user's account and all associated data.
+    This action is irreversible.
+    """
+    try:
+        user_id = current_user.id
+        
+        # 1. Delete conversation messages and associated images
+        messages = db.query(ConversationMessage).filter(
+            ConversationMessage.user_id == user_id
+        ).all()
+        
+        # Delete associated image files
+        UPLOADS_DIR = Path("uploads/images")
+        for msg in messages:
+            if msg.image_path:
+                image_file = UPLOADS_DIR / msg.image_path.split('/')[-1]
+                if image_file.exists():
+                    try:
+                        image_file.unlink()
+                    except:
+                        pass  # Continue even if image deletion fails
+        
+        db.query(ConversationMessage).filter(
+            ConversationMessage.user_id == user_id
+        ).delete()
+        
+        # 2. Delete workout logs
+        db.query(WorkoutLog).filter(
+            WorkoutLog.user_id == user_id
+        ).delete()
+        
+        # 3. Delete nutrition logs
+        db.query(NutritionLog).filter(
+            NutritionLog.user_id == user_id
+        ).delete()
+        
+        # 4. Delete mental fitness logs
+        db.query(MentalFitnessLog).filter(
+            MentalFitnessLog.user_id == user_id
+        ).delete()
+        
+        # 5. Delete medical history
+        db.query(MedicalHistory).filter(
+            MedicalHistory.user_id == user_id
+        ).delete()
+        
+        # 6. Delete user preferences
+        db.query(UserPreferences).filter(
+            UserPreferences.user_id == user_id
+        ).delete()
+        
+        # 7. Delete user account
+        db.query(User).filter(User.id == user_id).delete()
+        
+        db.commit()
+        return None
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting account: {str(e)}"
+        )
 

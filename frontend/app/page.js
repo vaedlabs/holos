@@ -15,31 +15,27 @@ export default function Home() {
         <div className="lava-blob blob-2"></div>
         <div className="lava-blob blob-3"></div>
       </div>
-      <div className="card lava-lamp-overlay" style={{ 
+      <div className="card glassmorphism" style={{ 
         maxWidth: '600px', 
         width: '100%', 
         textAlign: 'center',
-        animation: 'fadeIn 0.5s ease-in',
-        background: 'rgba(255, 255, 255, 0.95)',
-        border: '1px solid rgba(255, 255, 255, 0.3)'
+        animation: 'fadeIn 0.5s ease-in'
       }}>
         <h1 style={{ 
           marginBottom: 'var(--spacing-md)', 
-          color: 'var(--text-primary)',
+          color: 'white',
           fontSize: '2.5rem',
           fontWeight: '700',
-          background: 'linear-gradient(135deg, var(--primary-color) 0%, #764ba2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
+          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
         }}>
           Holos
         </h1>
         <p style={{ 
           fontSize: '1.125rem', 
-          color: 'var(--text-secondary)', 
+          color: 'rgba(255, 255, 255, 0.9)', 
           marginBottom: 'var(--spacing-2xl)',
-          lineHeight: '1.6'
+          lineHeight: '1.6',
+          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
         }}>
           AI-powered fitness application with specialized agents for physical fitness, nutrition, and mental wellness.
         </p>

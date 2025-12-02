@@ -74,13 +74,11 @@ export default function LoginPage() {
         <div className="lava-blob blob-2"></div>
         <div className="lava-blob blob-3"></div>
       </div>
-      <div className="card container-sm lava-lamp-overlay" style={{ 
+      <div className="card container-sm glassmorphism" style={{ 
         maxWidth: '400px', 
-        width: '100%',
-        background: 'rgba(255, 255, 255, 0.95)',
-        border: '1px solid rgba(255, 255, 255, 0.3)'
+        width: '100%'
       }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--text-primary)' }}>Login</h1>
+        <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--text-light)', textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)' }}>Login</h1>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
           <div className="form-group">
             <label htmlFor="email" className="form-label">
@@ -142,8 +140,8 @@ export default function LoginPage() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <p style={{ marginTop: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          Don&apos;t have an account? <a href="/register" style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: '500' }}>Register here</a>
+        <p style={{ marginTop: '1.5rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.9)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+          Don&apos;t have an account? <a href="/register" style={{ color: '#00d4ff', textDecoration: 'none', fontWeight: '600', textShadow: '0 0 8px rgba(0, 212, 255, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3)' }}>Register here</a>
         </p>
       </div>
     </div>

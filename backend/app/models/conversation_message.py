@@ -19,6 +19,7 @@ class ConversationMessage(Base):
     content = Column(Text, nullable=False)
     warnings = Column(Text, nullable=True)  # JSON string for warnings array
     image_path = Column(String, nullable=True)  # Path to stored image file
+    agent_type = Column(String, nullable=False, default='coordinator')  # 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

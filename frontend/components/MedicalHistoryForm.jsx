@@ -84,13 +84,14 @@ export default function MedicalHistoryForm({ onSubmit, initialData = {} }) {
           placeholder="e.g., knee injury, back pain"
           maxLength={MAX_LENGTH.conditions}
           className={`form-input ${validationErrors.conditions ? 'form-input-error' : ''}`}
+          style={{ color: 'var(--text-light)' }}
         />
         {validationErrors.conditions && (
           <div className="text-error" style={{ fontSize: '0.875rem', marginTop: '0.0625rem', color: 'var(--danger-color)' }}>
             {validationErrors.conditions}
           </div>
         )}
-        <small className="text-muted" style={{ display: 'block', marginTop: '0.0625rem', fontSize: '0.875rem' }}>
+        <small className="text-muted" style={{ display: 'block', marginTop: '0.0625rem', fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.7)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
           {formData.conditions.length}/{MAX_LENGTH.conditions} characters
         </small>
       </div>
@@ -107,13 +108,14 @@ export default function MedicalHistoryForm({ onSubmit, initialData = {} }) {
           placeholder="Describe any physical limitations..."
           maxLength={MAX_LENGTH.limitations}
           className={`form-textarea ${validationErrors.limitations ? 'form-input-error' : ''}`}
+          style={{ color: 'var(--text-light)' }}
         />
         {validationErrors.limitations && (
           <div className="text-error" style={{ fontSize: '0.875rem', marginTop: '0.0625rem', color: 'var(--danger-color)' }}>
             {validationErrors.limitations}
           </div>
         )}
-        <small className="text-muted" style={{ display: 'block', marginTop: '0.0625rem', fontSize: '0.875rem' }}>
+        <small className="text-muted" style={{ display: 'block', marginTop: '0.0625rem', fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.7)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
           {formData.limitations.length}/{MAX_LENGTH.limitations} characters
         </small>
       </div>
@@ -130,13 +132,14 @@ export default function MedicalHistoryForm({ onSubmit, initialData = {} }) {
           placeholder="List any current medications"
           maxLength={MAX_LENGTH.medications}
           className={`form-input ${validationErrors.medications ? 'form-input-error' : ''}`}
+          style={{ color: 'var(--text-light)' }}
         />
         {validationErrors.medications && (
           <div className="text-error" style={{ fontSize: '0.875rem', marginTop: '0.0625rem', color: 'var(--danger-color)' }}>
             {validationErrors.medications}
           </div>
         )}
-        <small className="text-muted" style={{ display: 'block', marginTop: '0.0625rem', fontSize: '0.875rem' }}>
+        <small className="text-muted" style={{ display: 'block', marginTop: '0.0625rem', fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.7)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
           {formData.medications.length}/{MAX_LENGTH.medications} characters
         </small>
       </div>
@@ -153,13 +156,14 @@ export default function MedicalHistoryForm({ onSubmit, initialData = {} }) {
           placeholder="Any additional medical information..."
           maxLength={MAX_LENGTH.notes}
           className={`form-textarea ${validationErrors.notes ? 'form-input-error' : ''}`}
+          style={{ color: 'var(--text-light)' }}
         />
         {validationErrors.notes && (
           <div className="text-error" style={{ fontSize: '0.875rem', marginTop: '0.0625rem', color: 'var(--danger-color)' }}>
             {validationErrors.notes}
           </div>
         )}
-        <small className="text-muted" style={{ display: 'block', marginTop: '0.0625rem', fontSize: '0.875rem' }}>
+        <small className="text-muted" style={{ display: 'block', marginTop: '0.0625rem', fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.7)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
           {formData.notes.length}/{MAX_LENGTH.notes} characters
         </small>
       </div>

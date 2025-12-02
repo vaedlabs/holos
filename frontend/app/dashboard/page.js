@@ -37,8 +37,8 @@ export default function DashboardPage() {
     // Load conversation history
     const loadConversation = async () => {
       try {
-        console.log('Loading conversation history...')
-        const history = await api.getConversationHistory()
+        console.log('Loading conversation history for agent:', selectedAgent)
+        const history = await api.getConversationHistory(selectedAgent)
         console.log('Conversation history response:', history)
         console.log('Response type:', typeof history)
         console.log('Has messages property:', history && 'messages' in history)
@@ -86,7 +86,7 @@ export default function DashboardPage() {
     }
     
     loadConversation()
-  }, [mounted, isAuthenticated])
+  }, [mounted, isAuthenticated, selectedAgent])
   
   useEffect(() => {
     if (workoutLogsOpen) {
@@ -211,7 +211,7 @@ export default function DashboardPage() {
       // Save user message to database (use placeholder if only image)
       const messageContent = inputMessage.trim() || (imagePreviewUrl ? 'Image uploaded' : '')
       try {
-        await api.saveMessage('user', messageContent, null, imagePath)
+        await api.saveMessage('user', messageContent, null, imagePath, selectedAgent)
       } catch (saveErr) {
         console.warn('Failed to save user message:', saveErr)
         // Continue even if save fails
@@ -229,7 +229,7 @@ export default function DashboardPage() {
       
       // Save assistant message to database
       try {
-        await api.saveMessage('assistant', response.response, response.warnings)
+        await api.saveMessage('assistant', response.response, response.warnings, null, selectedAgent)
       } catch (saveErr) {
         console.warn('Failed to save assistant message:', saveErr)
         // Continue even if save fails
@@ -265,11 +265,37 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-secondary)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'linear-gradient(180deg, #0a0e27 0%, #1a1f3a 30%, #1e40af 60%, #0f172a 100%)' }}>
+      {/* SVG Filter for Liquid Glass Effect */}
+      <svg width="0" height="0" style={{ position: 'absolute' }}>
+        <defs>
+          <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%">
+            <feTurbulence 
+              type="fractalNoise" 
+              baseFrequency="0.008 0.008"
+              numOctaves="2" 
+              seed="92" 
+              result="noise" 
+            />
+            <feGaussianBlur 
+              in="noise" 
+              stdDeviation="2" 
+              result="blurred" 
+            />
+            <feDisplacementMap 
+              in="SourceGraphic" 
+              in2="blurred" 
+              scale="150"
+              xChannelSelector="R" 
+              yChannelSelector="G" 
+            />
+          </filter>
+        </defs>
+      </svg>
       {/* Header */}
       <header className="header">
         <div className="header-content">
-          <h1 style={{ margin: 0, fontSize: '1.25rem' }}>
+          <h1 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-light)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
             Holos - {selectedAgent === 'physical-fitness' ? 'Physical Fitness' : 
                      selectedAgent === 'nutrition' ? 'Nutrition' : 
                      selectedAgent === 'mental-fitness' ? 'Mental Fitness' :
@@ -291,8 +317,11 @@ export default function DashboardPage() {
                 border: '1px solid rgba(255,255,255,0.4)',
                 borderRadius: 'var(--border-radius)',
                 cursor: 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: '500'
+                fontSize: '1rem',
+                fontWeight: '500',
+                height: '44px',
+                display: 'flex',
+                alignItems: 'center'
               }}
             >
               <option value="physical-fitness" style={{ color: '#000' }}>Physical Fitness</option>
@@ -312,10 +341,14 @@ export default function DashboardPage() {
                   border: '1px solid rgba(255,255,255,0.4)',
                   borderRadius: 'var(--border-radius)',
                   cursor: 'pointer',
-                  fontSize: '0.875rem',
+                  fontSize: '1rem',
                   fontWeight: '500',
                   whiteSpace: 'nowrap',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  height: '44px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
                 aria-label="Logs"
                 onMouseEnter={(e) => {
@@ -335,29 +368,29 @@ export default function DashboardPage() {
               {/* Logs Modal with Tabs */}
               {workoutLogsOpen && (
                 <div 
-                  className="workout-logs-modal"
+                  className="workout-logs-modal glassmorphism"
                   style={{
                     position: 'absolute',
                     top: '100%',
                     right: 0,
                     marginTop: '0.5rem',
-                    background: 'white',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     minWidth: '450px',
                     maxWidth: '550px',
                     maxHeight: '600px',
                     zIndex: 1000,
                     overflow: 'hidden',
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    backdropFilter: 'blur(50px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(50px) saturate(180%)',
+                    background: 'rgba(15, 23, 42, 0.9)'
                   }}
                 >
                   {/* Tabs */}
                   <div style={{
                     display: 'flex',
-                    borderBottom: '1px solid var(--border-color)',
-                    background: 'var(--bg-primary)'
+                    borderBottom: '1px solid rgba(82, 82, 82, 0.2)',
+                    background: 'transparent'
                   }}>
                     {['workouts', 'nutrition', 'mental-fitness'].map((tab) => (
                       <button
@@ -369,14 +402,36 @@ export default function DashboardPage() {
                         style={{
                           flex: 1,
                           padding: 'var(--spacing-md)',
-                          background: activeLogTab === tab ? 'white' : 'transparent',
+                          background: activeLogTab === tab 
+                            ? 'rgba(255, 255, 255, 0.15)' 
+                            : 'transparent',
+                          backdropFilter: activeLogTab === tab ? 'blur(10px) saturate(150%)' : 'none',
+                          WebkitBackdropFilter: activeLogTab === tab ? 'blur(10px) saturate(150%)' : 'none',
                           border: 'none',
-                          borderBottom: activeLogTab === tab ? '2px solid var(--primary-color)' : '2px solid transparent',
+                          borderBottom: activeLogTab === tab 
+                            ? '2px solid var(--primary-color)' 
+                            : '2px solid transparent',
                           cursor: 'pointer',
                           fontSize: '0.875rem',
                           fontWeight: activeLogTab === tab ? '600' : '500',
-                          color: activeLogTab === tab ? 'var(--primary-color)' : 'var(--text-secondary)',
-                          transition: 'all 0.2s ease'
+                          color: activeLogTab === tab 
+                            ? 'var(--text-light)' 
+                            : 'rgba(255, 255, 255, 0.85)',
+                          transition: 'all 0.2s ease',
+                          textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
+                          borderRadius: activeLogTab === tab ? '8px 8px 0 0' : '0'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (activeLogTab !== tab) {
+                            e.target.style.background = 'rgba(255, 255, 255, 0.08)'
+                            e.target.style.color = 'rgba(255, 255, 255, 0.95)'
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (activeLogTab !== tab) {
+                            e.target.style.background = 'transparent'
+                            e.target.style.color = 'rgba(255, 255, 255, 0.85)'
+                          }
                         }}
                       >
                         {tab === 'workouts' ? 'Workouts' : tab === 'nutrition' ? 'Nutrition' : 'Mental'}
@@ -394,8 +449,9 @@ export default function DashboardPage() {
                       <div style={{ 
                         padding: 'var(--spacing-lg)', 
                         textAlign: 'center', 
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.875rem'
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        fontSize: '0.875rem',
+                        textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)'
                       }}>
                         Loading {activeLogTab}...
                       </div>
@@ -424,20 +480,16 @@ export default function DashboardPage() {
                                 return (
                                   <div
                                     key={log.id}
+                                    className="glassmorphism"
                                     style={{
                                       padding: 'var(--spacing-md)',
                                       margin: 0,
-                                      background: 'var(--bg-secondary)',
-                                      border: '1px solid var(--border-color)',
-                                      borderRadius: 'var(--border-radius)',
                                       transition: 'all 0.2s ease'
                                     }}
                                     onMouseEnter={(e) => {
-                                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
                                       e.currentTarget.style.transform = 'translateY(-1px)'
                                     }}
                                     onMouseLeave={(e) => {
-                                      e.currentTarget.style.boxShadow = 'none'
                                       e.currentTarget.style.transform = 'translateY(0)'
                                     }}
                                   >
@@ -450,17 +502,19 @@ export default function DashboardPage() {
                                       <div style={{ flex: 1 }}>
                                         <div style={{ 
                                           fontWeight: '600', 
-                                          color: 'var(--text-primary)',
-                                          marginBottom: '0.25rem'
+                                          color: 'var(--text-light)',
+                                          marginBottom: '0.25rem',
+                                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                         }}>
                                           {log.exercise_type || 'Workout'}
                                         </div>
                                         {log.exercises && (
                                           <div style={{ 
                                             fontSize: '0.875rem', 
-                                            color: 'var(--text-secondary)',
+                                            color: 'rgba(255, 255, 255, 0.8)',
                                             marginTop: '0.25rem',
-                                            whiteSpace: 'pre-wrap'
+                                            whiteSpace: 'pre-wrap',
+                                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                           }}>
                                             {log.exercises}
                                           </div>
@@ -468,9 +522,10 @@ export default function DashboardPage() {
                                       </div>
                                       <div style={{ 
                                         fontSize: '0.75rem', 
-                                        color: 'var(--text-secondary)',
+                                        color: 'rgba(255, 255, 255, 0.7)',
                                         textAlign: 'right',
-                                        marginLeft: 'var(--spacing-md)'
+                                        marginLeft: 'var(--spacing-md)',
+                                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                       }}>
                                         <div>{formattedDate}</div>
                                         <div>{formattedTime}</div>
@@ -484,11 +539,12 @@ export default function DashboardPage() {
                                     {log.notes && (
                                       <div style={{ 
                                         fontSize: '0.875rem', 
-                                        color: 'var(--text-secondary)',
+                                        color: 'rgba(255, 255, 255, 0.7)',
                                         marginTop: 'var(--spacing-xs)',
                                         fontStyle: 'italic',
                                         paddingTop: 'var(--spacing-xs)',
-                                        borderTop: '1px solid var(--border-color)'
+                                        borderTop: '1px solid rgba(82, 82, 82, 0.2)',
+                                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                       }}>
                                         {log.notes}
                                       </div>
@@ -501,8 +557,9 @@ export default function DashboardPage() {
                             <div style={{ 
                               padding: 'var(--spacing-xl)', 
                               textAlign: 'center', 
-                              color: 'var(--text-secondary)',
-                              fontSize: '0.875rem'
+                              color: 'rgba(255, 255, 255, 0.95)',
+                              fontSize: '0.875rem',
+                              textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)'
                             }}>
                               No workouts logged yet. Your workouts will appear here once you complete them or when the agent logs them for you.
                             </div>
@@ -540,20 +597,16 @@ export default function DashboardPage() {
                                 return (
                                   <div
                                     key={log.id}
+                                    className="glassmorphism"
                                     style={{
                                       padding: 'var(--spacing-md)',
                                       margin: 0,
-                                      background: 'var(--bg-secondary)',
-                                      border: '1px solid var(--border-color)',
-                                      borderRadius: 'var(--border-radius)',
                                       transition: 'all 0.2s ease'
                                     }}
                                     onMouseEnter={(e) => {
-                                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
                                       e.currentTarget.style.transform = 'translateY(-1px)'
                                     }}
                                     onMouseLeave={(e) => {
-                                      e.currentTarget.style.boxShadow = 'none'
                                       e.currentTarget.style.transform = 'translateY(0)'
                                     }}
                                   >
@@ -566,16 +619,18 @@ export default function DashboardPage() {
                                       <div style={{ flex: 1 }}>
                                         <div style={{ 
                                           fontWeight: '600', 
-                                          color: 'var(--text-primary)',
-                                          marginBottom: '0.25rem'
+                                          color: 'var(--text-light)',
+                                          marginBottom: '0.25rem',
+                                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                         }}>
                                           {log.meal_type ? log.meal_type.charAt(0).toUpperCase() + log.meal_type.slice(1) : 'Meal'}
                                         </div>
                                         {log.foods && (
                                           <div style={{ 
                                             fontSize: '0.875rem', 
-                                            color: 'var(--text-secondary)',
-                                            marginTop: '0.25rem'
+                                            color: 'rgba(255, 255, 255, 0.8)',
+                                            marginTop: '0.25rem',
+                                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                           }}>
                                             {typeof log.foods === 'string' ? (log.foods.length > 100 ? log.foods.substring(0, 100) + '...' : log.foods) : 'Food logged'}
                                           </div>
@@ -587,24 +642,24 @@ export default function DashboardPage() {
                                           fontSize: '0.875rem'
                                         }}>
                                           {log.calories && (
-                                            <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                                            <span style={{ color: 'var(--text-light)', fontWeight: '500', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                                               {Math.round(log.calories)} cal
                                             </span>
                                           )}
                                           {macros && (
                                             <>
                                               {macros.protein && (
-                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                <span style={{ color: 'rgba(255, 255, 255, 0.7)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                                                   P: {Math.round(macros.protein)}g
                                                 </span>
                                               )}
                                               {macros.carbs && (
-                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                <span style={{ color: 'rgba(255, 255, 255, 0.7)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                                                   C: {Math.round(macros.carbs)}g
                                                 </span>
                                               )}
                                               {macros.fats && (
-                                                <span style={{ color: 'var(--text-secondary)' }}>
+                                                <span style={{ color: 'rgba(255, 255, 255, 0.7)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                                                   F: {Math.round(macros.fats)}g
                                                 </span>
                                               )}
@@ -614,9 +669,10 @@ export default function DashboardPage() {
                                       </div>
                                       <div style={{ 
                                         fontSize: '0.75rem', 
-                                        color: 'var(--text-secondary)',
+                                        color: 'rgba(255, 255, 255, 0.7)',
                                         textAlign: 'right',
-                                        marginLeft: 'var(--spacing-md)'
+                                        marginLeft: 'var(--spacing-md)',
+                                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                       }}>
                                         <div>{formattedDate}</div>
                                         <div>{formattedTime}</div>
@@ -625,11 +681,12 @@ export default function DashboardPage() {
                                     {log.notes && (
                                       <div style={{ 
                                         fontSize: '0.875rem', 
-                                        color: 'var(--text-secondary)',
+                                        color: 'rgba(255, 255, 255, 0.7)',
                                         marginTop: 'var(--spacing-xs)',
                                         fontStyle: 'italic',
                                         paddingTop: 'var(--spacing-xs)',
-                                        borderTop: '1px solid var(--border-color)'
+                                        borderTop: '1px solid rgba(82, 82, 82, 0.2)',
+                                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                       }}>
                                         {log.notes}
                                       </div>
@@ -642,8 +699,9 @@ export default function DashboardPage() {
                             <div style={{ 
                               padding: 'var(--spacing-xl)', 
                               textAlign: 'center', 
-                              color: 'var(--text-secondary)',
-                              fontSize: '0.875rem'
+                              color: 'rgba(255, 255, 255, 0.95)',
+                              fontSize: '0.875rem',
+                              textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)'
                             }}>
                               No nutrition logs yet. Your meals will appear here once you log them or when the agent logs them for you.
                             </div>
@@ -673,20 +731,16 @@ export default function DashboardPage() {
                                 return (
                                   <div
                                     key={log.id}
+                                    className="glassmorphism"
                                     style={{
                                       padding: 'var(--spacing-md)',
                                       margin: 0,
-                                      background: 'var(--bg-secondary)',
-                                      border: '1px solid var(--border-color)',
-                                      borderRadius: 'var(--border-radius)',
                                       transition: 'all 0.2s ease'
                                     }}
                                     onMouseEnter={(e) => {
-                                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
                                       e.currentTarget.style.transform = 'translateY(-1px)'
                                     }}
                                     onMouseLeave={(e) => {
-                                      e.currentTarget.style.boxShadow = 'none'
                                       e.currentTarget.style.transform = 'translateY(0)'
                                     }}
                                   >
@@ -699,8 +753,9 @@ export default function DashboardPage() {
                                       <div style={{ flex: 1 }}>
                                         <div style={{ 
                                           fontWeight: '600', 
-                                          color: 'var(--text-primary)',
-                                          marginBottom: '0.25rem'
+                                          color: 'var(--text-light)',
+                                          marginBottom: '0.25rem',
+                                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                         }}>
                                           {log.activity_type ? log.activity_type.charAt(0).toUpperCase() + log.activity_type.slice(1) : 'Activity'}
                                         </div>
@@ -711,12 +766,12 @@ export default function DashboardPage() {
                                           fontSize: '0.875rem'
                                         }}>
                                           {log.duration_minutes && (
-                                            <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                                            <span style={{ color: 'var(--text-light)', fontWeight: '500', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                                               {Math.round(log.duration_minutes)} min
                                             </span>
                                           )}
                                           {log.mood_before && log.mood_after && (
-                                            <span style={{ color: 'var(--text-secondary)' }}>
+                                            <span style={{ color: 'rgba(255, 255, 255, 0.7)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                                               Mood: {log.mood_before} → {log.mood_after}
                                             </span>
                                           )}
@@ -724,9 +779,10 @@ export default function DashboardPage() {
                                       </div>
                                       <div style={{ 
                                         fontSize: '0.75rem', 
-                                        color: 'var(--text-secondary)',
+                                        color: 'rgba(255, 255, 255, 0.7)',
                                         textAlign: 'right',
-                                        marginLeft: 'var(--spacing-md)'
+                                        marginLeft: 'var(--spacing-md)',
+                                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                       }}>
                                         <div>{formattedDate}</div>
                                         <div>{formattedTime}</div>
@@ -735,11 +791,12 @@ export default function DashboardPage() {
                                     {log.notes && (
                                       <div style={{ 
                                         fontSize: '0.875rem', 
-                                        color: 'var(--text-secondary)',
+                                        color: 'rgba(255, 255, 255, 0.7)',
                                         marginTop: 'var(--spacing-xs)',
                                         fontStyle: 'italic',
                                         paddingTop: 'var(--spacing-xs)',
-                                        borderTop: '1px solid var(--border-color)'
+                                        borderTop: '1px solid rgba(82, 82, 82, 0.2)',
+                                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                                       }}>
                                         {log.notes}
                                       </div>
@@ -752,8 +809,9 @@ export default function DashboardPage() {
                             <div style={{ 
                               padding: 'var(--spacing-xl)', 
                               textAlign: 'center', 
-                              color: 'var(--text-secondary)',
-                              fontSize: '0.875rem'
+                              color: 'rgba(255, 255, 255, 0.95)',
+                              fontSize: '0.875rem',
+                              textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)'
                             }}>
                               No mental fitness logs yet. Your activities will appear here once you log them or when the agent logs them for you.
                             </div>
@@ -780,8 +838,8 @@ export default function DashboardPage() {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '4px',
-                  width: '32px',
-                  height: '32px',
+                  width: '44px',
+                  height: '44px',
                   justifyContent: 'center',
                   alignItems: 'center',
                   transition: 'all 0.2s ease'
@@ -804,17 +862,17 @@ export default function DashboardPage() {
               </button>
             
             {menuOpen && (
-              <div style={{
+              <div className="glassmorphism" style={{
                 position: 'absolute',
                 top: '100%',
                 right: 0,
                 marginTop: '0.5rem',
-                background: 'white',
-                borderRadius: '4px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                 minWidth: '180px',
                 zIndex: 1000,
-                overflow: 'hidden'
+                overflow: 'hidden',
+                backdropFilter: 'blur(50px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(50px) saturate(180%)',
+                background: 'rgba(15, 23, 42, 0.9)'
               }}>
                 <button
                   onClick={() => {
@@ -824,15 +882,26 @@ export default function DashboardPage() {
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem',
-                    background: 'white',
-                    color: '#333',
+                    background: 'transparent',
+                    color: 'var(--text-light)',
                     border: 'none',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    fontSize: '0.95rem'
+                    fontSize: '0.95rem',
+                    fontWeight: '500',
+                    textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
+                    transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
-                  onMouseLeave={(e) => e.target.style.background = 'white'}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.12)'
+                    e.target.style.backdropFilter = 'blur(10px) saturate(150%)'
+                    e.target.style.WebkitBackdropFilter = 'blur(10px) saturate(150%)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'transparent'
+                    e.target.style.backdropFilter = 'none'
+                    e.target.style.WebkitBackdropFilter = 'none'
+                  }}
                 >
                   Medical History
                 </button>
@@ -844,16 +913,27 @@ export default function DashboardPage() {
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem',
-                    background: 'white',
-                    color: '#333',
+                    background: 'transparent',
+                    color: 'var(--text-light)',
                     border: 'none',
                     textAlign: 'left',
                     cursor: 'pointer',
                     fontSize: '0.95rem',
-                    borderTop: '1px solid #e0e0e0'
+                    fontWeight: '500',
+                    borderTop: '1px solid rgba(82, 82, 82, 0.2)',
+                    textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
+                    transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
-                  onMouseLeave={(e) => e.target.style.background = 'white'}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.12)'
+                    e.target.style.backdropFilter = 'blur(10px) saturate(150%)'
+                    e.target.style.WebkitBackdropFilter = 'blur(10px) saturate(150%)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'transparent'
+                    e.target.style.backdropFilter = 'none'
+                    e.target.style.WebkitBackdropFilter = 'none'
+                  }}
                 >
                   User Preferences
                 </button>
@@ -865,16 +945,27 @@ export default function DashboardPage() {
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem',
-                    background: 'white',
-                    color: '#d32f2f',
+                    background: 'transparent',
+                    color: '#ff4444',
                     border: 'none',
                     textAlign: 'left',
                     cursor: 'pointer',
                     fontSize: '0.95rem',
-                    borderTop: '1px solid #e0e0e0'
+                    fontWeight: '500',
+                    borderTop: '1px solid rgba(82, 82, 82, 0.2)',
+                    textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
+                    transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
-                  onMouseLeave={(e) => e.target.style.background = 'white'}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = 'rgba(255, 68, 68, 0.15)'
+                    e.target.style.backdropFilter = 'blur(10px) saturate(150%)'
+                    e.target.style.WebkitBackdropFilter = 'blur(10px) saturate(150%)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'transparent'
+                    e.target.style.backdropFilter = 'none'
+                    e.target.style.WebkitBackdropFilter = 'none'
+                  }}
                 >
                   Logout
                 </button>
@@ -890,7 +981,7 @@ export default function DashboardPage() {
         flex: 1, 
         overflowY: 'auto', 
         padding: 'var(--spacing-lg)', 
-        background: 'var(--bg-secondary)',
+        background: 'transparent',
         maxWidth: '1200px',
         margin: '0 auto',
         width: '100%'
@@ -906,21 +997,23 @@ export default function DashboardPage() {
             }}
           >
             <div
+              className={msg.role === 'assistant' ? 'liquid-glass-card' : ''}
               style={{
                 maxWidth: '75%',
-                padding: 'var(--spacing-md) var(--spacing-lg)',
+                padding: msg.role === 'assistant' ? 'var(--spacing-md) var(--spacing-lg)' : 'var(--spacing-md) var(--spacing-lg)',
                 borderRadius: msg.role === 'user' 
                   ? 'var(--border-radius-lg) var(--border-radius-lg) var(--border-radius-lg) 4px'
-                  : 'var(--border-radius-lg) var(--border-radius-lg) 4px var(--border-radius-lg)',
+                  : '28px',
                 background: msg.role === 'user' 
                   ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
-                  : 'var(--bg-primary)',
-                color: msg.role === 'user' ? 'var(--text-light)' : 'var(--text-primary)',
+                  : 'rgba(255, 255, 255, 0.05)',
+                color: msg.role === 'user' ? 'var(--text-light)' : 'var(--text-light)',
                 boxShadow: msg.role === 'user' 
                   ? '0 2px 8px rgba(0, 112, 243, 0.2)'
-                  : 'var(--shadow-sm)',
+                  : undefined,
                 wordWrap: 'break-word',
-                border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)'
+                border: msg.role === 'user' ? 'none' : undefined,
+                textShadow: msg.role === 'assistant' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : undefined
               }}
             >
               {msg.role === 'user' ? (
@@ -966,21 +1059,25 @@ export default function DashboardPage() {
                           marginBottom: '0.75rem'
                         }} {...props} />
                       ),
-                      thead: ({node, ...props}) => <thead style={{ background: '#f5f5f5' }} {...props} />,
+                      thead: ({node, ...props}) => <thead style={{ background: 'rgba(255, 255, 255, 0.1)' }} {...props} />,
                       tbody: ({node, ...props}) => <tbody {...props} />,
-                      tr: ({node, ...props}) => <tr style={{ borderBottom: '1px solid #e0e0e0' }} {...props} />,
+                      tr: ({node, ...props}) => <tr style={{ borderBottom: '1px solid rgba(82, 82, 82, 0.2)' }} {...props} />,
                       th: ({node, ...props}) => (
                         <th style={{
                           padding: '0.5rem',
                           textAlign: 'left',
                           fontWeight: 'bold',
-                          border: '1px solid #e0e0e0'
+                          border: '1px solid rgba(82, 82, 82, 0.2)',
+                          color: 'var(--text-light)',
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                         }} {...props} />
                       ),
                       td: ({node, ...props}) => (
                         <td style={{
                           padding: '0.5rem',
-                          border: '1px solid #e0e0e0'
+                          border: '1px solid rgba(82, 82, 82, 0.2)',
+                          color: 'var(--text-light)',
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
                         }} {...props} />
                       ),
                       code: ({node, inline, ...props}) => (
@@ -1029,12 +1126,8 @@ export default function DashboardPage() {
         ))}
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1.25rem' }}>
-            <div style={{ 
+            <div className="glassmorphism" style={{ 
               padding: 'var(--spacing-md) var(--spacing-lg)', 
-              background: 'var(--bg-primary)', 
-              borderRadius: 'var(--border-radius-lg)', 
-              boxShadow: 'var(--shadow-sm)',
-              border: '1px solid var(--border-color)',
               display: 'flex',
               alignItems: 'center',
               gap: 'var(--spacing-sm)'
@@ -1042,12 +1135,14 @@ export default function DashboardPage() {
               <div style={{
                 width: '12px',
                 height: '12px',
-                border: '2px solid var(--text-secondary)',
+                borderWidth: '2px',
+                borderStyle: 'solid',
+                borderColor: 'rgba(255, 255, 255, 0.5)',
                 borderTopColor: 'transparent',
                 borderRadius: '50%',
                 animation: 'spin 0.8s linear infinite'
               }}></div>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Thinking...</span>
+              <span style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>Thinking...</span>
             </div>
           </div>
         )}
@@ -1056,9 +1151,9 @@ export default function DashboardPage() {
 
       {/* Input */}
       <div style={{ 
-        background: 'var(--bg-primary)', 
-        borderTop: '1px solid var(--border-color)',
-        boxShadow: '0 -2px 8px rgba(0,0,0,0.05)'
+        background: 'transparent', 
+        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 -2px 8px rgba(0,0,0,0.2)'
       }}>
         {error && (
           <div className="alert alert-error" style={{ margin: '0 var(--spacing-lg) var(--spacing-md) 0', borderRadius: 0 }}>
@@ -1075,14 +1170,12 @@ export default function DashboardPage() {
         }}>
           {/* Image Preview (for Nutrition and Coordinator Agents) */}
           {imagePreview && (selectedAgent === 'nutrition' || selectedAgent === 'coordinator') && (
-            <div style={{
+            <div className="glassmorphism" style={{
               display: 'flex',
               alignItems: 'center',
               gap: 'var(--spacing-sm)',
               padding: 'var(--spacing-sm)',
-              background: 'var(--bg-secondary)',
-              borderRadius: 'var(--border-radius)',
-              border: '1px solid var(--border-color)'
+              borderRadius: 'var(--border-radius)'
             }}>
               <img 
                 src={imagePreview} 
@@ -1094,7 +1187,7 @@ export default function DashboardPage() {
                   objectFit: 'cover'
                 }}
               />
-              <span style={{ flex: 1, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              <span style={{ flex: 1, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.8)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                 {selectedImage?.name || 'Image selected'}
               </span>
               <button
@@ -1118,14 +1211,13 @@ export default function DashboardPage() {
             </div>
           )}
           
-          <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
             {/* Image Upload (for Nutrition and Coordinator Agents) */}
             {(selectedAgent === 'nutrition' || selectedAgent === 'coordinator') && (
               <label
+                className="glassmorphism"
                 style={{
                   padding: '0.75rem',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
                   borderRadius: 'var(--border-radius)',
                   cursor: 'pointer',
                   display: 'flex',
@@ -1136,12 +1228,12 @@ export default function DashboardPage() {
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-tertiary)'
-                  e.currentTarget.style.borderColor = 'var(--primary-color)'
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)'
-                  e.currentTarget.style.borderColor = 'var(--border-color)'
+                  e.currentTarget.style.background = 'rgba(23, 23, 23, 0.05)'
+                  e.currentTarget.style.borderColor = 'rgba(82, 82, 82, 0.2)'
                 }}
               >
                 <svg
@@ -1149,11 +1241,10 @@ export default function DashboardPage() {
                   height="20"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="white"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  style={{ color: 'var(--text-secondary)' }}
                 >
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <circle cx="12" cy="13" r="4" />

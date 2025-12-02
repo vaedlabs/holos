@@ -12,6 +12,7 @@ from app.models.user_preferences import UserPreferences
 from app.models.workout_log import WorkoutLog
 from app.models.nutrition_log import NutritionLog
 from app.models.mental_fitness_log import MentalFitnessLog
+from app.models.conversation_message import ConversationMessage
 import json
 import os
 from dotenv import load_dotenv
@@ -282,6 +283,41 @@ class CreateWorkoutLogTool(BaseTool):
             return f"Error creating workout log: {str(e)}"
 
 
+class GetConversationHistoryInput(BaseModel):
+    """Input for GetConversationHistoryTool"""
+    agent_type: Optional[str] = Field(default=None, description="Optional agent type to filter conversation history (e.g., 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'). If not provided, returns all conversation history.")
+
+
+class GetConversationHistoryTool(BaseTool):
+    """Tool to retrieve the user's conversation history with the AI agents."""
+    name: str = "get_conversation_history"
+    description: str = "Retrieve the user's past conversation messages. Can filter by a specific agent type to get relevant context. Returns a list of messages with role, content, and agent_type."
+    args_schema: type = GetConversationHistoryInput
+
+    user_id: int
+    db: Session
+
+    def _run(self, agent_type: Optional[str] = None) -> str:
+        """Retrieve conversation history for the user, optionally filtered by agent type."""
+        query = self.db.query(ConversationMessage).filter(
+            ConversationMessage.user_id == self.user_id
+        )
+        if agent_type:
+            query = query.filter(ConversationMessage.agent_type == agent_type)
+        
+        messages = query.order_by(ConversationMessage.created_at.asc()).all()
+        
+        if not messages:
+            return "No conversation history found."
+        
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append(
+                f"Agent: {msg.agent_type} - Role: {msg.role}, Content: {msg.content}"
+            )
+        return "\n".join(formatted_messages)
+
+
 class BaseAgent:
     """Base agent class with common functionality - using modern LangChain approach without deprecated AgentExecutor"""
     
@@ -311,6 +347,7 @@ class BaseAgent:
             GetUserPreferencesTool(user_id=user_id, db=db),
             CreateWorkoutLogTool(user_id=user_id, db=db),
             WebSearchTool(),  # Web search tool (no user_id or db needed)
+            GetConversationHistoryTool(user_id=user_id, db=db),  # Conversation history tool
         ]
         
         # Bind tools to LLM for modern LangChain approach

@@ -45,7 +45,8 @@ async def create_message(
             role=message.role,
             content=message.content,
             warnings=warnings_json,
-            image_path=message.image_path
+            image_path=message.image_path,
+            agent_type=message.agent_type or 'coordinator'
         )
         
         db.add(db_message)
@@ -66,6 +67,7 @@ async def create_message(
             content=db_message.content,
             warnings=warnings,
             image_path=db_message.image_path,
+            agent_type=db_message.agent_type,
             created_at=db_message.created_at
         )
     except Exception as e:
@@ -78,14 +80,21 @@ async def create_message(
 
 @router.get("/messages", response_model=ConversationHistoryResponse)
 async def get_conversation_history(
+    agent_type: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_database)
 ):
-    """Get conversation history for the current user"""
+    """Get conversation history for the current user, optionally filtered by agent_type"""
     try:
-        messages = db.query(ConversationMessage).filter(
+        query = db.query(ConversationMessage).filter(
             ConversationMessage.user_id == current_user.id
-        ).order_by(ConversationMessage.created_at.asc()).all()
+        )
+        
+        # Filter by agent_type if provided
+        if agent_type:
+            query = query.filter(ConversationMessage.agent_type == agent_type)
+        
+        messages = query.order_by(ConversationMessage.created_at.asc()).all()
         
         message_responses = []
         for msg in messages:
@@ -102,6 +111,7 @@ async def get_conversation_history(
                 content=msg.content,
                 warnings=warnings,
                 image_path=msg.image_path,
+                agent_type=msg.agent_type,
                 created_at=msg.created_at
             ))
         

@@ -79,7 +79,7 @@ export default function ButtonSelector({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+      <label className="form-label" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
         {label}
       </label>
       
@@ -92,33 +92,35 @@ export default function ButtonSelector({
               key={option}
               type="button"
               onClick={() => toggleOption(option)}
+              className={!isSelected ? 'glassmorphism' : ''}
               style={{
                 padding: '0.625rem 1.25rem',
                 background: isSelected 
                   ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
-                  : 'var(--bg-primary)',
-                color: isSelected ? 'var(--text-light)' : 'var(--text-primary)',
+                  : undefined,
+                color: isSelected ? 'var(--text-light)' : 'var(--text-light)',
                 border: isSelected 
                   ? '1px solid var(--primary-color)' 
-                  : '1px solid var(--border-color)',
+                  : undefined,
                 borderRadius: 'var(--border-radius-lg)',
                 cursor: 'pointer',
                 fontSize: '0.9rem',
                 fontWeight: isSelected ? '500' : '400',
                 transition: 'all 0.2s ease',
                 whiteSpace: 'nowrap',
-                boxShadow: isSelected ? 'var(--shadow-sm)' : 'none'
+                boxShadow: isSelected ? 'var(--shadow-sm)' : undefined,
+                textShadow: !isSelected ? '0 1px 2px rgba(0, 0, 0, 0.3)' : undefined
               }}
               onMouseEnter={(e) => {
                 if (!isSelected) {
-                  e.target.style.background = 'var(--bg-tertiary)'
-                  e.target.style.borderColor = 'var(--primary-color)'
+                  e.target.style.background = 'rgba(255, 255, 255, 0.1)'
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)'
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isSelected) {
-                  e.target.style.background = 'var(--bg-primary)'
-                  e.target.style.borderColor = 'var(--border-color)'
+                  e.target.style.background = 'rgba(23, 23, 23, 0.05)'
+                  e.target.style.borderColor = 'rgba(82, 82, 82, 0.2)'
                 }
               }}
             >
@@ -133,33 +135,35 @@ export default function ButtonSelector({
         <button
           type="button"
           onClick={handleOtherToggle}
+          className={!showOther ? 'glassmorphism' : ''}
           style={{
             padding: '0.625rem 1.25rem',
             background: showOther 
               ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
-              : 'var(--bg-primary)',
-            color: showOther ? 'var(--text-light)' : 'var(--text-primary)',
+              : undefined,
+            color: showOther ? 'var(--text-light)' : 'var(--text-light)',
             border: showOther 
               ? '1px solid var(--primary-color)' 
-              : '1px solid var(--border-color)',
+              : undefined,
             borderRadius: 'var(--border-radius-lg)',
             cursor: 'pointer',
             fontSize: '0.9rem',
             fontWeight: showOther ? '500' : '400',
             marginBottom: showOther ? 'var(--spacing-sm)' : '0',
             transition: 'all 0.2s ease',
-            boxShadow: showOther ? 'var(--shadow-sm)' : 'none'
+            boxShadow: showOther ? 'var(--shadow-sm)' : undefined,
+            textShadow: !showOther ? '0 1px 2px rgba(0, 0, 0, 0.3)' : undefined
           }}
           onMouseEnter={(e) => {
             if (!showOther) {
-              e.target.style.background = 'var(--bg-tertiary)'
-              e.target.style.borderColor = 'var(--primary-color)'
+              e.target.style.background = 'rgba(255, 255, 255, 0.1)'
+              e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)'
             }
           }}
           onMouseLeave={(e) => {
             if (!showOther) {
-              e.target.style.background = 'var(--bg-primary)'
-              e.target.style.borderColor = 'var(--border-color)'
+              e.target.style.background = 'rgba(23, 23, 23, 0.05)'
+              e.target.style.borderColor = 'rgba(82, 82, 82, 0.2)'
             }
           }}
         >

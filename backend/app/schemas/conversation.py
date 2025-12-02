@@ -13,6 +13,7 @@ class ConversationMessageCreate(BaseModel):
     content: str
     warnings: Optional[List[str]] = None
     image_path: Optional[str] = None  # Path to stored image
+    agent_type: Optional[str] = 'coordinator'  # 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'
 
 
 class ConversationMessageResponse(BaseModel):
@@ -22,6 +23,7 @@ class ConversationMessageResponse(BaseModel):
     content: str
     warnings: Optional[List[str]] = None
     image_path: Optional[str] = None  # Path to stored image
+    agent_type: str  # 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'
     created_at: datetime
 
     class Config:

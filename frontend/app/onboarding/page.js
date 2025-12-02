@@ -79,7 +79,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', padding: 'var(--spacing-xl) 0' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0a0e27 0%, #1a1f3a 30%, #1e40af 60%, #0f172a 100%)', padding: 'var(--spacing-xl) 0' }}>
       <div className="container-sm">
         <div className="card">
           <h1 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)' }}>Welcome! Let&apos;s set up your profile</h1>
