@@ -29,7 +29,7 @@ async def get_user_preferences_endpoint(
     return preferences
 
 
-@router.post("", response_model=UserPreferencesResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserPreferencesResponse, status_code=status.HTTP_200_OK)
 async def create_or_update_user_preferences(
     preferences_data: UserPreferencesCreate,
     current_user: User = Depends(get_current_user),

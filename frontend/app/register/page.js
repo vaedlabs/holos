@@ -122,6 +122,23 @@ export default function RegisterPage() {
       position: 'relative',
       overflow: 'hidden'
     }}>
+      {/* Holos Logo */}
+      <div style={{
+        position: 'absolute',
+        top: '2rem',
+        left: '2rem',
+        zIndex: 10
+      }}>
+        <h1 style={{ 
+          color: 'white',
+          fontSize: '2rem',
+          fontWeight: '700',
+          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+          margin: 0
+        }}>
+          Holos
+        </h1>
+      </div>
       <div className="lava-lamp-bg">
         <div className="lava-blob blob-1"></div>
         <div className="lava-blob blob-2"></div>

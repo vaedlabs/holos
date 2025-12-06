@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import decode_access_token
 from app.models.user import User
+import os
 
 # HTTP Bearer token scheme
 # auto_error=False allows us to handle missing tokens gracefully
@@ -45,11 +46,12 @@ def get_current_user(
     if token:
         token = token.strip().strip('"').strip("'")
     
-    # Debug logging
+    # Debug logging (only in development)
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"Received token: {token[:30] if token and len(token) > 30 else token}...")
-    logger.info(f"Token length: {len(token) if token else 0}")
+    if os.getenv("ENVIRONMENT", "development") == "development":
+        logger.info(f"Received token: {token[:30] if token and len(token) > 30 else token}...")
+        logger.info(f"Token length: {len(token) if token else 0}")
     
     payload = decode_access_token(token)
     

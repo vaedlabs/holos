@@ -9,16 +9,25 @@ alembic==1.17.2
 
 # LangChain (compatible versions - updated for compatibility)
 langchain==1.1.0
-langchain-core==1.1.0  # Updated to match langchain-openai 1.1.0
+langchain-core==1.1.0
 langchain-openai==1.1.0
-langchain-community==0.3.0
+langchain-google-genai==3.2.0
+
+# LangGraph
+langgraph==1.0.4
+langgraph-checkpoint==3.0.1
+langgraph-prebuilt==1.0.5
+langgraph-sdk==0.2.10
+
+# LangSmith
+langsmith==0.4.49
 
 # OpenAI SDK (updated for langchain-openai compatibility)
 openai==2.8.1
 
 # Authentication
 python-jose[cryptography]==3.5.0
-bcrypt==5.0.0
+bcrypt==4.0.1  # Compatible with passlib 1.7.4 (5.0.0 causes AttributeError warning)
 passlib[bcrypt]==1.7.4
 
 # Data validation
@@ -32,7 +41,10 @@ python-dotenv==1.2.1
 # CORS
 python-multipart==0.0.20
 
-# Testing (optional, for test scripts)
+# Testing
+pytest==8.4.2
+pytest-asyncio==0.24.0  # Updated for Python 3.12 compatibility
+pytest-cov==4.1.0
 requests==2.32.5
 
 # Web Search

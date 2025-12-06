@@ -26,6 +26,9 @@ export default function PreferencesPage() {
     activity_level: '',
     location: '',
     dietary_restrictions: '',
+    age: '',
+    gender: '',
+    lifestyle: '',
   })
 
   useEffect(() => {
@@ -58,12 +61,26 @@ export default function PreferencesPage() {
         activity_level: data.activity_level || '',
         location: data.location || '',
         dietary_restrictions: data.dietary_restrictions || '',
+        age: data.age || '',
+        gender: data.gender || '',
+        lifestyle: data.lifestyle || '',
       })
     } catch (err) {
+      // Don't show error if it's a 401 (will redirect to login)
+      if (err.message && err.message.includes('401')) {
+        // Let the API client handle the redirect
+        return
+      }
+      // Don't show error for 404 (no preferences yet)
       if (err.message && err.message.includes('404')) {
         setPreferences(null)
       } else {
-        setError(err.message || 'Failed to load preferences')
+        // Only show network/connection errors, not auth errors
+        if (err.message && (err.message.includes('Cannot connect') || err.message.includes('Failed to fetch') || err.message.includes('network'))) {
+          setError(err.message)
+        } else if (!err.message?.includes('credentials') && !err.message?.includes('Unauthorized')) {
+          setError(err.message || 'Failed to load preferences')
+        }
       }
     } finally {
       setLoading(false)
@@ -111,10 +128,19 @@ export default function PreferencesPage() {
     }
     
     try {
-      const updated = await api.updateUserPreferences(formData)
+      // Convert empty strings to null for optional fields
+      const dataToSend = Object.keys(formData).reduce((acc, key) => {
+        const value = formData[key]
+        // Convert empty strings to null for optional fields (except for required ones)
+        acc[key] = (value === '' || value === null || value === undefined) ? null : value
+        return acc
+      }, {})
+      
+      const updated = await api.updateUserPreferences(dataToSend)
       setPreferences(updated)
       setIsEditing(false)
     } catch (err) {
+      console.error('Error updating preferences:', err)
       setError(err.message || 'Failed to update preferences')
     } finally {
       setSaving(false)
@@ -433,6 +459,9 @@ export default function PreferencesPage() {
                 <label htmlFor="activity_level" className="form-label">
                   Activity Level
                 </label>
+                <small style={{ display: 'block', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.875rem', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+                  The level of fitness activity you want to do
+                </small>
                 <select
                   id="activity_level"
                   name="activity_level"
@@ -441,11 +470,70 @@ export default function PreferencesPage() {
                   className="form-select"
                 >
                   <option value="">Select activity level</option>
-                  <option value="sedentary">Sedentary</option>
                   <option value="light">Light</option>
                   <option value="moderate">Moderate</option>
+                  <option value="high">High</option>
+                  <option value="very_high">Very High</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="age" className="form-label">
+                  Age <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontWeight: 'normal' }}>(optional)</span>
+                </label>
+                <input
+                  id="age"
+                  name="age"
+                  type="number"
+                  min="13"
+                  max="120"
+                  value={formData.age}
+                  onChange={handleChange}
+                  placeholder="Enter your age"
+                  className="form-input"
+                />
+                {formData.age && (formData.age < 13 || formData.age > 120) && (
+                  <small style={{ color: 'rgba(255, 68, 68, 0.9)', display: 'block', marginTop: '0.25rem' }}>
+                    Age must be between 13 and 120
+                  </small>
+                )}
+              </div>
+              <div className="form-group">
+                <label htmlFor="gender" className="form-label">
+                  Gender/Sex <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontWeight: 'normal' }}>(optional)</span>
+                </label>
+                <select
+                  id="gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className="form-select"
+                >
+                  <option value="">Select gender/sex</option>
+                  <option value="XX">XX (Biological Female)</option>
+                  <option value="XY">XY (Biological Male)</option>
+                  <option value="other">Other</option>
+                  <option value="">Prefer not to say</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="lifestyle" className="form-label">
+                  Lifestyle <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontWeight: 'normal' }}>(optional)</span>
+                </label>
+                <small style={{ display: 'block', marginBottom: '0.5rem', color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.875rem', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+                  Your daily lifestyle and activity patterns
+                </small>
+                <select
+                  id="lifestyle"
+                  name="lifestyle"
+                  value={formData.lifestyle}
+                  onChange={handleChange}
+                  className="form-select"
+                >
+                  <option value="">Select lifestyle</option>
+                  <option value="sedentary">Sedentary</option>
                   <option value="active">Active</option>
                   <option value="very_active">Very Active</option>
+                  <option value="athlete">Athlete</option>
                 </select>
               </div>
               <div className="form-group">
@@ -485,6 +573,12 @@ export default function PreferencesPage() {
                 value={formData.dietary_restrictions}
                 onChange={(value) => setFormData({ ...formData, dietary_restrictions: value })}
                 placeholder="Type other dietary restrictions (comma-separated)..."
+                conflicts={{
+                  'Vegan': ['Non-vegetarian', 'Pescatarian', 'Vegetarian'],
+                  'Vegetarian': ['Non-vegetarian', 'Pescatarian'],
+                  'Pescatarian': ['Vegan', 'Vegetarian', 'Non-vegetarian'],
+                  'Non-vegetarian': ['Vegan', 'Vegetarian', 'Pescatarian']
+                }}
               />
               <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>
                 <button
@@ -541,6 +635,39 @@ export default function PreferencesPage() {
                     </div>
                   )}
 
+                  {preferences.age && (
+                    <div>
+                      <h3 style={{ marginBottom: 'var(--spacing-sm)', color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.875rem', textTransform: 'uppercase', fontWeight: '600', letterSpacing: '0.5px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+                        Age
+                      </h3>
+                      <p className="glassmorphism" style={{ margin: 0, padding: 'var(--spacing-md)', borderRadius: 'var(--border-radius)', color: 'var(--text-light)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+                        {preferences.age}
+                      </p>
+                    </div>
+                  )}
+
+                  {preferences.gender && (
+                    <div>
+                      <h3 style={{ marginBottom: 'var(--spacing-sm)', color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.875rem', textTransform: 'uppercase', fontWeight: '600', letterSpacing: '0.5px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+                        Gender/Sex
+                      </h3>
+                      <p className="glassmorphism" style={{ margin: 0, padding: 'var(--spacing-md)', borderRadius: 'var(--border-radius)', color: 'var(--text-light)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+                        {preferences.gender}
+                      </p>
+                    </div>
+                  )}
+
+                  {preferences.lifestyle && (
+                    <div>
+                      <h3 style={{ marginBottom: 'var(--spacing-sm)', color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.875rem', textTransform: 'uppercase', fontWeight: '600', letterSpacing: '0.5px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+                        Lifestyle
+                      </h3>
+                      <p className="glassmorphism" style={{ margin: 0, padding: 'var(--spacing-md)', borderRadius: 'var(--border-radius)', color: 'var(--text-light)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+                        {preferences.lifestyle}
+                      </p>
+                    </div>
+                  )}
+
                   {preferences.location && (
                     <div>
                       <h3 style={{ marginBottom: 'var(--spacing-sm)', color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.875rem', textTransform: 'uppercase', fontWeight: '600', letterSpacing: '0.5px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
@@ -563,7 +690,7 @@ export default function PreferencesPage() {
                     </div>
                   )}
 
-                  {!preferences.goals && !preferences.exercise_types && !preferences.activity_level && !preferences.location && !preferences.dietary_restrictions && (
+                  {!preferences.goals && !preferences.exercise_types && !preferences.activity_level && !preferences.location && !preferences.dietary_restrictions && !preferences.age && !preferences.gender && !preferences.lifestyle && (
                     <div style={{ textAlign: 'center', padding: 'var(--spacing-2xl)', color: 'rgba(255, 255, 255, 0.9)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                       <p style={{ marginBottom: 'var(--spacing-md)' }}>No preferences recorded yet.</p>
                       <button

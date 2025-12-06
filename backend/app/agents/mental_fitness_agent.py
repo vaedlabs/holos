@@ -3,7 +3,7 @@ Mental Fitness Agent - Specialized agent for mental wellness, mindfulness, and s
 Uses OpenAI (same as Physical Fitness Agent)
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
@@ -23,9 +23,22 @@ from app.models.user_preferences import UserPreferences
 class MentalFitnessAgent:
     """Mental Fitness Agent specialized for mindfulness, stress management, and mental wellness"""
     
-    def __init__(self, user_id: int, db: Session, model_name: str = "gpt-4.1"):
+    def __init__(
+        self, 
+        user_id: int, 
+        db: Session, 
+        model_name: str = "gpt-4.1",
+        shared_context: Optional[Dict[str, Optional[Dict]]] = None,
+        tracer: Optional[Any] = None
+    ):
         self.user_id = user_id
         self.db = db
+        
+        # Store shared context if provided (from ContextManager)
+        self._shared_context = shared_context
+        
+        # Store tracer for observability (optional)
+        self.tracer = tracer
         
         # Get API key from environment
         api_key = os.getenv("OPENAI_API_KEY")
@@ -60,47 +73,26 @@ class MentalFitnessAgent:
         self._user_context_summary = None
         self._context_fetched = False
     
+    def _get_agent_type(self) -> str:
+        """Get agent type identifier"""
+        return "mental_fitness"
+    
     def _get_system_prompt(self) -> str:
-        """Get specialized system prompt for mental fitness agent"""
-        return """You are a compassionate and knowledgeable Mental Wellness Coach. Your role is to help users with:
-
-1. **Mindfulness Practices**: Guide users in meditation, breathing exercises, and present-moment awareness
-2. **Stress Management**: Provide techniques and strategies to manage stress, anxiety, and overwhelm
-3. **Emotional Regulation**: Help users understand and manage their emotions effectively
-4. **Mental Wellness Routines**: Create personalized mental wellness plans and habits
-5. **Mood Tracking**: Help users track their mental state and identify patterns
-6. **Sleep & Recovery**: Provide guidance on mental recovery and rest practices
-
-**Important Guidelines:**
-- Always be empathetic, non-judgmental, and supportive
-- Consider the user's medical history, especially mental health conditions
-- Respect user preferences and adapt recommendations to their lifestyle
-- Use evidence-based techniques (mindfulness-based stress reduction, cognitive behavioral therapy principles, etc.)
-- Encourage regular practice and gradual progress
-- Use the create_mental_fitness_log tool to track activities and mood changes
-- Use web_search tool for current mental wellness research or resources
-- Be mindful of mental health conditions and suggest professional help when appropriate
-- Focus on building sustainable habits rather than quick fixes
-
-**Activity Types You Can Recommend:**
-- Meditation (guided, silent, body scan, loving-kindness)
-- Mindfulness exercises (breathing, body awareness, mindful walking)
-- Journaling (gratitude, reflection, thought patterns)
-- Breathing exercises (box breathing, 4-7-8, alternate nostril)
-- Progressive muscle relaxation
-- Visualization and guided imagery
-- Yoga and gentle movement for mental wellness
-- Nature connection and outdoor activities
-- Digital detox and screen time management
-
-**Response Style:**
-- Warm, encouraging, and understanding
-- Practical and actionable
-- Respectful of individual differences
-- Focused on empowerment and self-awareness
-- Clear about when professional help may be beneficial
-
-Help users build a sustainable mental wellness practice that supports their overall health and fitness goals."""
+        """
+        Get specialized system prompt for mental fitness agent with humanization guidelines.
+        Checks cache first, then builds if not cached.
+        """
+        # Check cache first
+        agent_type = self._get_agent_type()
+        from app.services.prompt_cache import prompt_cache
+        cached_prompt = prompt_cache.get_static_prompt(agent_type)
+        if cached_prompt:
+            return cached_prompt
+        
+        # Not cached, build it
+        # Use prompt component system
+        from app.agents.prompts.mental_fitness_prompt import get_mental_fitness_prompt
+        return get_mental_fitness_prompt()
 
     def _get_user_context_summary(self) -> str:
         """Get minimal summary of user context for mental fitness agent"""
@@ -109,6 +101,40 @@ Help users build a sustainable mental wellness practice that supports their over
         
         summary_parts = []
         
+        # Use shared context if provided (from ContextManager)
+        if self._shared_context:
+            # Get medical history from shared context - especially important for mental health
+            medical_history = self._shared_context.get("medical_history")
+            if medical_history:
+                if medical_history.get("conditions"):
+                    conditions = medical_history["conditions"].strip()
+                    if conditions:
+                        if len(conditions) > 50:
+                            conditions = conditions[:47] + "..."
+                        summary_parts.append(f"Medical: {conditions}")
+                
+                if medical_history.get("medications"):
+                    medications = medical_history["medications"].strip()
+                    if medications:
+                        if len(medications) > 40:
+                            medications = medications[:37] + "..."
+                        summary_parts.append(f"Meds: {medications}")
+            
+            # Get user preferences from shared context
+            preferences = self._shared_context.get("preferences")
+            if preferences:
+                if preferences.get("goals"):
+                    goals = preferences["goals"].strip()
+                    if goals:
+                        if len(goals) > 40:
+                            goals = goals[:37] + "..."
+                        summary_parts.append(f"Goals: {goals}")
+            
+            self._user_context_summary = " | ".join(summary_parts) if summary_parts else ""
+            self._context_fetched = True
+            return self._user_context_summary
+        
+        # Fallback: Fetch context independently (for backward compatibility)
         # Get medical history - especially important for mental health
         medical_history = get_medical_history(self.user_id, self.db)
         if medical_history:
@@ -140,6 +166,81 @@ Help users build a sustainable mental wellness practice that supports their over
         self._context_fetched = True
         return self._user_context_summary
     
+    def _build_enhanced_system_prompt(self) -> str:
+        """
+        Build system prompt with enhanced context to reduce tool calls.
+        
+        Strategy: Include full context in system prompt upfront to reduce tool calls.
+        This offsets the cost of larger prompts by reducing tool call tokens.
+        
+        Returns:
+            Enhanced system prompt with full context included
+        """
+        base_prompt = self.system_message
+        
+        # Use shared context if available (from ContextManager - already cached)
+        if self._shared_context:
+            context_parts = []
+            
+            # Include full medical history if available (especially important for mental health)
+            medical_history = self._shared_context.get("medical_history")
+            if medical_history:
+                medical_parts = []
+                if medical_history.get("conditions"):
+                    medical_parts.append(f"Medical Conditions: {medical_history['conditions']}")
+                if medical_history.get("limitations"):
+                    medical_parts.append(f"Physical Limitations: {medical_history['limitations']}")
+                if medical_history.get("medications"):
+                    medical_parts.append(f"Medications: {medical_history['medications']}")
+                if medical_history.get("notes"):
+                    medical_parts.append(f"Medical Notes: {medical_history['notes']}")
+                
+                if medical_parts:
+                    context_parts.append("## Medical History\n" + "\n".join(medical_parts))
+            
+            # Include full user preferences if available
+            preferences = self._shared_context.get("user_preferences")
+            if preferences:
+                pref_parts = []
+                if preferences.get("goals"):
+                    pref_parts.append(f"Fitness Goals: {preferences['goals']}")
+                if preferences.get("exercise_types"):
+                    pref_parts.append(f"Preferred Exercise Types: {preferences['exercise_types']}")
+                if preferences.get("dietary_restrictions"):
+                    pref_parts.append(f"Dietary Restrictions: {preferences['dietary_restrictions']}")
+                if preferences.get("activity_level"):
+                    pref_parts.append(f"Activity Level: {preferences['activity_level']}")
+                if preferences.get("lifestyle"):
+                    pref_parts.append(f"Lifestyle: {preferences['lifestyle']}")
+                if preferences.get("age"):
+                    pref_parts.append(f"Age: {preferences['age']}")
+                if preferences.get("gender"):
+                    pref_parts.append(f"Gender: {preferences['gender']}")
+                
+                if pref_parts:
+                    context_parts.append("## User Preferences\n" + "\n".join(pref_parts))
+            
+            # Add context section if we have any context
+            if context_parts:
+                context_section = "\n\n".join(context_parts)
+                base_prompt += f"\n\n## User Context (Available Information)\n{context_section}"
+                base_prompt += "\n\n**IMPORTANT**: You have full user context above. Only call tools (get_medical_history, get_user_preferences) if you need information NOT provided above or if the context seems outdated. For real-time information (web search, conversation history) or actions (creating logs), use tools as needed."
+            else:
+                base_prompt += "\n\n**Note**: No user context available. Use get_medical_history and get_user_preferences tools to fetch user information when needed."
+        else:
+            # Fallback: Use brief summary if shared context not available
+            context_summary = self._get_user_context_summary()
+            if context_summary:
+                base_prompt += f"\n\nUser context (brief): {context_summary}. Use tools for details."
+            else:
+                base_prompt += "\n\nUse get_medical_history and get_user_preferences tools to fetch user information."
+        
+        # Cache the enhanced prompt before returning
+        from app.services.prompt_cache import prompt_cache
+        prompt_cache.set_enhanced_prompt(self._get_agent_type(), self.user_id, base_prompt)
+        
+        return base_prompt
+    
     async def recommend_practice(self, user_query: str) -> Dict[str, Any]:
         """
         Main method to handle user queries for mental wellness recommendations
@@ -151,13 +252,8 @@ Help users build a sustainable mental wellness practice that supports their over
             Dict with response and warnings
         """
         try:
-            context_summary = self._get_user_context_summary()
-            
-            enhanced_system_message = self.system_message
-            if context_summary:
-                enhanced_system_message += f"\n\nUser context (brief): {context_summary}. Use tools for details."
-            else:
-                enhanced_system_message += "\n\nUse get_medical_history and get_user_preferences tools to fetch user information."
+            # Build enhanced system message with full context to reduce tool calls
+            enhanced_system_message = self._build_enhanced_system_prompt()
             
             messages = [
                 SystemMessage(content=enhanced_system_message),

@@ -2,6 +2,8 @@
 TASKS.md
 plan.plan.md
 .cursor/
+tests/
+uploads/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

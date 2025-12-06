@@ -28,6 +28,12 @@ def update_user_preferences(user_id: int, data: dict, db: Session) -> UserPrefer
             preferences.location = data["location"]
         if "dietary_restrictions" in data:
             preferences.dietary_restrictions = data["dietary_restrictions"]
+        if "age" in data:
+            preferences.age = data["age"]
+        if "gender" in data:
+            preferences.gender = data["gender"]
+        if "lifestyle" in data:
+            preferences.lifestyle = data["lifestyle"]
     else:
         # Create new
         preferences = UserPreferences(
@@ -36,7 +42,10 @@ def update_user_preferences(user_id: int, data: dict, db: Session) -> UserPrefer
             exercise_types=data.get("exercise_types"),
             activity_level=data.get("activity_level"),
             location=data.get("location"),
-            dietary_restrictions=data.get("dietary_restrictions")
+            dietary_restrictions=data.get("dietary_restrictions"),
+            age=data.get("age"),
+            gender=data.get("gender"),
+            lifestyle=data.get("lifestyle")
         )
         db.add(preferences)
     

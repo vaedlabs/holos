@@ -8,6 +8,8 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from sqlalchemy.orm import Session
 from app.services.medical_service import get_medical_history, check_user_exercise_conflicts
+from app.services.tool_cache import tool_cache
+from app.services.prompt_cache import prompt_cache
 from app.models.user_preferences import UserPreferences
 from app.models.workout_log import WorkoutLog
 from app.models.nutrition_log import NutritionLog
@@ -37,23 +39,33 @@ class GetMedicalHistoryTool(BaseTool):
     db: Session
     
     def _run(self, query: str = "") -> str:
-        """Get medical history for the user"""
+        """Get medical history for the user (with caching)"""
+        # Check cache first
+        cached_result = tool_cache.get("get_medical_history", user_id=self.user_id, query=query)
+        if cached_result is not None:
+            return cached_result
+        
+        # Fetch from database
         medical_history = get_medical_history(self.user_id, self.db)
         
         if not medical_history:
-            return "No medical history on file for this user."
+            result = "No medical history on file for this user."
+        else:
+            result_parts = []
+            if medical_history.conditions:
+                result_parts.append(f"Conditions: {medical_history.conditions}")
+            if medical_history.limitations:
+                result_parts.append(f"Limitations: {medical_history.limitations}")
+            if medical_history.medications:
+                result_parts.append(f"Medications: {medical_history.medications}")
+            if medical_history.notes:
+                result_parts.append(f"Notes: {medical_history.notes}")
+            
+            result = "\n".join(result_parts) if result_parts else "Medical history exists but no details provided."
         
-        result = []
-        if medical_history.conditions:
-            result.append(f"Conditions: {medical_history.conditions}")
-        if medical_history.limitations:
-            result.append(f"Limitations: {medical_history.limitations}")
-        if medical_history.medications:
-            result.append(f"Medications: {medical_history.medications}")
-        if medical_history.notes:
-            result.append(f"Notes: {medical_history.notes}")
-        
-        return "\n".join(result) if result else "Medical history exists but no details provided."
+        # Cache the result
+        tool_cache.set("get_medical_history", result, user_id=self.user_id, query=query)
+        return result
 
 
 class GetUserPreferencesInput(BaseModel):
@@ -71,27 +83,37 @@ class GetUserPreferencesTool(BaseTool):
     db: Session
     
     def _run(self, query: str = "") -> str:
-        """Get user preferences"""
+        """Get user preferences (with caching)"""
+        # Check cache first
+        cached_result = tool_cache.get("get_user_preferences", user_id=self.user_id, query=query)
+        if cached_result is not None:
+            return cached_result
+        
+        # Fetch from database
         preferences = self.db.query(UserPreferences).filter(
             UserPreferences.user_id == self.user_id
         ).first()
         
         if not preferences:
-            return "No preferences set for this user."
+            result = "No preferences set for this user."
+        else:
+            result_parts = []
+            if preferences.goals:
+                result_parts.append(f"Goals: {preferences.goals}")
+            if preferences.exercise_types:
+                result_parts.append(f"Exercise Types: {preferences.exercise_types}")
+            if preferences.activity_level:
+                result_parts.append(f"Activity Level: {preferences.activity_level}")
+            if preferences.location:
+                result_parts.append(f"Location: {preferences.location}")
+            if preferences.dietary_restrictions:
+                result_parts.append(f"Dietary Restrictions: {preferences.dietary_restrictions}")
+            
+            result = "\n".join(result_parts) if result_parts else "Preferences exist but no details provided."
         
-        result = []
-        if preferences.goals:
-            result.append(f"Goals: {preferences.goals}")
-        if preferences.exercise_types:
-            result.append(f"Exercise Types: {preferences.exercise_types}")
-        if preferences.activity_level:
-            result.append(f"Activity Level: {preferences.activity_level}")
-        if preferences.location:
-            result.append(f"Location: {preferences.location}")
-        if preferences.dietary_restrictions:
-            result.append(f"Dietary Restrictions: {preferences.dietary_restrictions}")
-        
-        return "\n".join(result) if result else "Preferences exist but no details provided."
+        # Cache the result
+        tool_cache.set("get_user_preferences", result, user_id=self.user_id, query=query)
+        return result
 
 
 class WebSearchInput(BaseModel):
@@ -106,45 +128,57 @@ class WebSearchTool(BaseTool):
     args_schema: type = WebSearchInput
     
     def _run(self, query: str) -> str:
-        """Search the web using Tavily API"""
+        """Search the web using Tavily API (with caching)"""
+        # Check cache first (web_search doesn't have user_id)
+        cached_result = tool_cache.get("web_search", query=query)
+        if cached_result is not None:
+            return cached_result
+        
+        # Perform search
         try:
             from tavily import TavilyClient
             
             api_key = os.getenv("TAVILY_API_KEY")
             if not api_key:
-                return "Error: TAVILY_API_KEY is not set. Web search is unavailable."
-            
-            client = TavilyClient(api_key=api_key)
-            
-            # Perform search
-            response = client.search(
-                query=query,
-                search_depth="basic",  # Can be "basic" or "advanced"
-                max_results=5  # Limit to 5 results to keep response concise
-            )
-            
-            if not response.get("results"):
-                return f"No results found for query: {query}"
-            
-            # Format results
-            formatted_results = []
-            for result in response["results"][:5]:  # Limit to 5 results
-                title = result.get("title", "No title")
-                url = result.get("url", "")
-                content = result.get("content", "")
+                result = "Error: TAVILY_API_KEY is not set. Web search is unavailable."
+            else:
+                client = TavilyClient(api_key=api_key)
                 
-                # Truncate content if too long
-                if len(content) > 300:
-                    content = content[:297] + "..."
+                # Perform search
+                response = client.search(
+                    query=query,
+                    search_depth="basic",  # Can be "basic" or "advanced"
+                    max_results=5  # Limit to 5 results to keep response concise
+                )
                 
-                formatted_results.append(f"Title: {title}\nURL: {url}\nContent: {content}")
-            
-            return "\n\n---\n\n".join(formatted_results)
+                if not response.get("results"):
+                    result = f"No results found for query: {query}"
+                else:
+                    # Format results
+                    formatted_results = []
+                    for result_item in response["results"][:5]:  # Limit to 5 results
+                        title = result_item.get("title", "No title")
+                        url = result_item.get("url", "")
+                        content = result_item.get("content", "")
+                        
+                        # Truncate content if too long
+                        if len(content) > 300:
+                            content = content[:297] + "..."
+                        
+                        formatted_results.append(f"Title: {title}\nURL: {url}\nContent: {content}")
+                    
+                    result = "\n\n---\n\n".join(formatted_results)
             
         except ImportError:
-            return "Error: tavily-python package is not installed. Please install it with: pip install tavily-python"
+            result = "Error: tavily-python package is not installed. Please install it with: pip install tavily-python"
         except Exception as e:
-            return f"Error performing web search: {str(e)}"
+            result = f"Error performing web search: {str(e)}"
+        
+        # Cache the result (only cache successful results, not errors)
+        if not result.startswith("Error"):
+            tool_cache.set("web_search", result, query=query)
+        
+        return result
 
 
 class CreateNutritionLogInput(BaseModel):
@@ -298,7 +332,13 @@ class GetConversationHistoryTool(BaseTool):
     db: Session
 
     def _run(self, agent_type: Optional[str] = None) -> str:
-        """Retrieve conversation history for the user, optionally filtered by agent type."""
+        """Retrieve conversation history for the user, optionally filtered by agent type (with caching)."""
+        # Check cache first
+        cached_result = tool_cache.get("get_conversation_history", user_id=self.user_id, agent_type=agent_type)
+        if cached_result is not None:
+            return cached_result
+        
+        # Fetch from database
         query = self.db.query(ConversationMessage).filter(
             ConversationMessage.user_id == self.user_id
         )
@@ -308,22 +348,39 @@ class GetConversationHistoryTool(BaseTool):
         messages = query.order_by(ConversationMessage.created_at.asc()).all()
         
         if not messages:
-            return "No conversation history found."
+            result = "No conversation history found."
+        else:
+            formatted_messages = []
+            for msg in messages:
+                formatted_messages.append(
+                    f"Agent: {msg.agent_type} - Role: {msg.role}, Content: {msg.content}"
+                )
+            result = "\n".join(formatted_messages)
         
-        formatted_messages = []
-        for msg in messages:
-            formatted_messages.append(
-                f"Agent: {msg.agent_type} - Role: {msg.role}, Content: {msg.content}"
-            )
-        return "\n".join(formatted_messages)
+        # Cache the result
+        tool_cache.set("get_conversation_history", result, user_id=self.user_id, agent_type=agent_type)
+        return result
 
 
 class BaseAgent:
     """Base agent class with common functionality - using modern LangChain approach without deprecated AgentExecutor"""
     
-    def __init__(self, user_id: int, db: Session, model_name: str = "gpt-4.1"):
+    def __init__(
+        self, 
+        user_id: int, 
+        db: Session, 
+        model_name: str = "gpt-4.1",
+        shared_context: Optional[Dict[str, Optional[Dict]]] = None,
+        tracer: Optional[Any] = None  # AgentTracer instance (optional)
+    ):
         self.user_id = user_id
         self.db = db
+        
+        # Store shared context if provided (from ContextManager)
+        self._shared_context = shared_context
+        
+        # Store tracer for observability (optional)
+        self.tracer = tracer
         
         # Get API key from environment
         api_key = os.getenv("OPENAI_API_KEY")
@@ -353,19 +410,73 @@ class BaseAgent:
         # Bind tools to LLM for modern LangChain approach
         self.llm_with_tools = self.llm.bind_tools(self.tools)
         
-        # Create system message
+        # Get agent type for caching (default to class name, can be overridden)
+        self.agent_type = self._get_agent_type()
+        
+        # Create system message (with caching)
         self.system_message = self._get_system_prompt()
         
+        # Allow child agents to inject additional personality traits
+        # Child agents can override _get_personality_traits() to add specific traits
+        personality_traits = self._get_personality_traits()
+        if personality_traits:
+            self.system_message += f"\n\n## Additional Personality Traits\n{personality_traits}"
+        
+        # Cache the static base prompt (after adding personality traits)
+        prompt_cache.set_static_prompt(self.agent_type, self.system_message)
+        
         # Cache user context summary (fetched once per agent instance)
+        # If shared_context is provided, we'll use it instead of fetching
         self._user_context_summary = None
         self._context_fetched = False
     
+    def _get_agent_type(self) -> str:
+        """
+        Get agent type identifier for caching.
+        Override in child classes if needed.
+        
+        Returns:
+            Agent type string (e.g., 'physical_fitness', 'nutrition', 'mental_fitness', 'coordinator')
+        """
+        # Default: use class name, convert to snake_case
+        class_name = self.__class__.__name__
+        # Convert CamelCase to snake_case
+        import re
+        snake_case = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name).lower()
+        # Remove 'agent' suffix if present
+        if snake_case.endswith('_agent'):
+            snake_case = snake_case[:-6]
+        return snake_case
+    
     def _get_system_prompt(self) -> str:
-        """Get system prompt for the agent"""
-        return """You are a helpful fitness assistant. Always check the user's medical history before recommending any exercises. 
-        If an exercise conflicts with their medical conditions, warn them and suggest alternatives.
-        Use the available tools to get medical history and user preferences to provide personalized recommendations.
-        Be encouraging and provide clear, actionable advice."""
+        """
+        Get system prompt for the agent with humanization guidelines.
+        Checks cache first, then builds if not cached.
+        """
+        # Check cache first
+        agent_type = self._get_agent_type()
+        cached_prompt = prompt_cache.get_static_prompt(agent_type)
+        if cached_prompt:
+            return cached_prompt
+        
+        # Not cached, build it
+        # Use base humanization from prompt components
+        from app.agents.prompts.base_humanization import BASE_HUMANIZATION
+        return BASE_HUMANIZATION
+    
+    def _get_personality_traits(self) -> str:
+        """
+        Override this method in child agents to add specific personality traits.
+        Returns additional personality guidelines that will be appended to the base prompt.
+        
+        Example:
+            return \"\"\"
+            - Be especially motivational and energetic
+            - Use active voice: \"Let's crush this workout!\" not \"Workouts should be performed\"
+            - Celebrate small wins enthusiastically
+            \"\"\"
+        """
+        return ""
     
     def check_exercise_safety(self, exercise: str) -> Dict[str, Any]:
         """Check if an exercise is safe for the user based on medical history"""
@@ -376,11 +487,50 @@ class BaseAgent:
         Get a minimal summary of user context (cached per agent instance).
         Returns a very brief summary to minimize token usage.
         Only includes essential info - agent should use tools for details.
+        
+        Uses shared_context if provided (from ContextManager), otherwise fetches independently.
         """
         if self._context_fetched and self._user_context_summary:
             return self._user_context_summary
         
-        # Fetch context once and create minimal summary (max 150 chars total)
+        # Use shared context if provided (from ContextManager)
+        if self._shared_context:
+            summary_parts = []
+            
+            # Get medical history from shared context
+            medical_history = self._shared_context.get("medical_history")
+            if medical_history and medical_history.get("conditions"):
+                conditions = medical_history["conditions"].strip()
+                if conditions:
+                    if len(conditions) > 60:
+                        conditions = conditions[:57] + "..."
+                    summary_parts.append(f"M:{conditions}")
+            
+            # Get user preferences from shared context
+            preferences = self._shared_context.get("preferences")
+            if preferences:
+                pref_items = []
+                if preferences.get("goals") and preferences["goals"].strip():
+                    goals = preferences["goals"].strip()
+                    if len(goals) > 50:
+                        goals = goals[:47] + "..."
+                    pref_items.append(goals)
+                if preferences.get("exercise_types") and preferences["exercise_types"].strip():
+                    pref_items.append(preferences["exercise_types"].strip()[:20])
+                
+                if pref_items:
+                    summary_parts.append("|".join(pref_items[:2]))  # Max 2 items
+            
+            # Cache the summary (max 150 chars total)
+            if summary_parts:
+                self._user_context_summary = " ".join(summary_parts)[:150]
+            else:
+                self._user_context_summary = None
+            
+            self._context_fetched = True
+            return self._user_context_summary
+        
+        # Fallback: Fetch context independently (for backward compatibility)
         summary_parts = []
         
         # Get medical history - only include if there are actual conditions (max 60 chars)
@@ -427,17 +577,9 @@ class BaseAgent:
             if not api_key:
                 return "Error: OpenAI API key is not configured. Please set OPENAI_API_KEY in your environment variables."
             
-            # Get minimal context summary (cached, fetched once per agent instance)
-            context_summary = self._get_user_context_summary()
-            
-            # Build system message with minimal context
-            # The agent should use tools for detailed information when needed
-            enhanced_system_message = self.system_message
-            if context_summary:
-                # Include only a very brief summary - agent should use tools for details
-                enhanced_system_message += f"\n\nUser context (brief): {context_summary}. Use tools for details."
-            else:
-                enhanced_system_message += "\n\nUse get_medical_history and get_user_preferences tools to fetch user information."
+            # Build enhanced system message with full context to reduce tool calls
+            # This strategy: Include more context upfront to reduce tool calls, offsetting larger prompt cost
+            enhanced_system_message = self._build_enhanced_system_prompt()
             
             # Build messages with enhanced system prompt
             messages = [
@@ -468,14 +610,33 @@ class BaseAgent:
                         for tool in self.tools:
                             if tool.name == tool_name:
                                 try:
+                                    # Log tool call if tracer is available
+                                    if self.tracer:
+                                        self.tracer.log_tool_call(
+                                            tool_name=tool_name,
+                                            tool_input=tool_input,
+                                            tool_output=""  # Will update after execution
+                                        )
+                                    
                                     tool_result = tool._run(**tool_input)
+                                    
+                                    # Update tracer with actual output
+                                    if self.tracer:
+                                        # Re-log with actual output (last tool call)
+                                        if self.tracer.current_trace and self.tracer.current_trace.get("tools_called"):
+                                            self.tracer.current_trace["tools_called"][-1]["output"] = str(tool_result)[:500]
+                                    
                                     break
                                 except Exception as e:
                                     tool_result = f"Error executing {tool_name}: {str(e)}"
+                                    if self.tracer:
+                                        self.tracer.log_warning(f"Tool {tool_name} error: {str(e)}")
                                     break
                         
                         if tool_result is None:
                             tool_result = f"Tool {tool_name} not found"
+                            if self.tracer:
+                                self.tracer.log_warning(f"Tool {tool_name} not found")
                         
                         # Add tool result as ToolMessage
                         messages.append(ToolMessage(

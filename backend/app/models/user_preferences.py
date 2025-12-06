@@ -29,6 +29,11 @@ class UserPreferences(Base):
     # Activity level
     activity_level = Column(String, nullable=True)  # sedentary, light, moderate, active, very_active
     
+    # Demographics
+    age = Column(Integer, nullable=True)  # User's age (13-120)
+    gender = Column(String, nullable=True)  # XX, XY, other, or null
+    lifestyle = Column(String, nullable=True)  # sedentary, active, very_active, athlete (can overlap with activity_level but provides more context)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

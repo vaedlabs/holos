@@ -12,7 +12,8 @@ import os
 load_dotenv()
 
 # JWT Configuration
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+# Note: JWT_SECRET_KEY must be set via environment variable (validated at startup)
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
@@ -55,6 +56,9 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token"""
+    if not JWT_SECRET_KEY:
+        raise ValueError("JWT_SECRET_KEY is not configured. Please set it in environment variables.")
+    
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -68,6 +72,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def decode_access_token(token: str) -> Optional[dict]:
     """Decode and validate a JWT access token"""
+    if not JWT_SECRET_KEY:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error("JWT_SECRET_KEY is not configured. Cannot decode tokens.")
+        return None
+    
     if not token:
         return None
     

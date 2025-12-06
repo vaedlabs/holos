@@ -7,7 +7,8 @@ export default function ButtonSelector({
   options, 
   value, 
   onChange, 
-  placeholder = "Type comma-separated values..." 
+  placeholder = "Type comma-separated values...",
+  conflicts = {} // Object mapping option names to arrays of conflicting option names
 }) {
   const [selectedOptions, setSelectedOptions] = useState(new Set())
   const [otherValue, setOtherValue] = useState('')
@@ -60,7 +61,37 @@ export default function ButtonSelector({
     }
   }, [selectedOptions, otherValue, showOther, isInitialized, value, onChange])
 
+  // Check if an option is disabled due to conflicts
+  const isOptionDisabled = (option) => {
+    if (!conflicts || Object.keys(conflicts).length === 0) return false
+    
+    // Check if any selected option conflicts with this option
+    for (const selectedOption of selectedOptions) {
+      const conflictingOptions = conflicts[selectedOption] || []
+      if (conflictingOptions.includes(option)) {
+        return true
+      }
+    }
+    return false
+  }
+
+  // Get conflict explanation for tooltip
+  const getConflictReason = (option) => {
+    if (!conflicts || Object.keys(conflicts).length === 0) return ''
+    
+    for (const selectedOption of selectedOptions) {
+      const conflictingOptions = conflicts[selectedOption] || []
+      if (conflictingOptions.includes(option)) {
+        return `Cannot select "${option}" because "${selectedOption}" is already selected`
+      }
+    }
+    return ''
+  }
+
   const toggleOption = (option) => {
+    // Don't allow toggling if disabled
+    if (isOptionDisabled(option)) return
+    
     const newSelected = new Set(selectedOptions)
     if (newSelected.has(option)) {
       newSelected.delete(option)
@@ -87,38 +118,48 @@ export default function ButtonSelector({
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
         {options.map((option) => {
           const isSelected = selectedOptions.has(option)
+          const isDisabled = isOptionDisabled(option)
+          const conflictReason = getConflictReason(option)
+          
           return (
             <button
               key={option}
               type="button"
               onClick={() => toggleOption(option)}
-              className={!isSelected ? 'glassmorphism' : ''}
+              disabled={isDisabled}
+              title={isDisabled ? conflictReason : ''}
+              className={!isSelected && !isDisabled ? 'glassmorphism' : ''}
               style={{
                 padding: '0.625rem 1.25rem',
                 background: isSelected 
                   ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
+                  : isDisabled
+                  ? 'rgba(82, 82, 82, 0.3)'
                   : undefined,
-                color: isSelected ? 'var(--text-light)' : 'var(--text-light)',
+                color: isSelected ? 'var(--text-light)' : isDisabled ? 'rgba(255, 255, 255, 0.4)' : 'var(--text-light)',
                 border: isSelected 
                   ? '1px solid var(--primary-color)' 
+                  : isDisabled
+                  ? '1px solid rgba(82, 82, 82, 0.3)'
                   : undefined,
                 borderRadius: 'var(--border-radius-lg)',
-                cursor: 'pointer',
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
                 fontSize: '0.9rem',
                 fontWeight: isSelected ? '500' : '400',
                 transition: 'all 0.2s ease',
                 whiteSpace: 'nowrap',
                 boxShadow: isSelected ? 'var(--shadow-sm)' : undefined,
-                textShadow: !isSelected ? '0 1px 2px rgba(0, 0, 0, 0.3)' : undefined
+                textShadow: !isSelected && !isDisabled ? '0 1px 2px rgba(0, 0, 0, 0.3)' : undefined,
+                opacity: isDisabled ? 0.5 : 1
               }}
               onMouseEnter={(e) => {
-                if (!isSelected) {
+                if (!isSelected && !isDisabled) {
                   e.target.style.background = 'rgba(255, 255, 255, 0.1)'
                   e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)'
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isSelected) {
+                if (!isSelected && !isDisabled) {
                   e.target.style.background = 'rgba(23, 23, 23, 0.05)'
                   e.target.style.borderColor = 'rgba(82, 82, 82, 0.2)'
                 }

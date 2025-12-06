@@ -26,4 +26,5 @@ class User(Base):
     nutrition_logs = relationship("NutritionLog", back_populates="user")
     mental_fitness_logs = relationship("MentalFitnessLog", back_populates="user")
     conversation_messages = relationship("ConversationMessage", back_populates="user")
+    agent_execution_logs = relationship("AgentExecutionLog", back_populates="user")
 

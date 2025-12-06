@@ -18,4 +18,5 @@ class AgentChatResponse(BaseModel):
     response: str
     warnings: Optional[List[str]] = None
     nutrition_analysis: Optional[Dict[str, Any]] = None  # Structured nutrition data from image analysis (Nutrition Agent only)
+    steps: Optional[List[str]] = None  # Step-by-step updates from coordinator agent showing what it's doing
 

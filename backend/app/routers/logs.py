@@ -112,3 +112,99 @@ async def get_mental_fitness_logs(
             detail=f"Failed to retrieve mental fitness logs: {str(e)}"
         )
 
+
+@router.delete("/workouts/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workout_log(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database)
+):
+    """Delete a workout log by ID"""
+    try:
+        log = db.query(WorkoutLog).filter(
+            WorkoutLog.id == log_id,
+            WorkoutLog.user_id == current_user.id
+        ).first()
+        
+        if not log:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workout log not found"
+            )
+        
+        db.delete(log)
+        db.commit()
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete workout log: {str(e)}"
+        )
+
+
+@router.delete("/nutrition/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_nutrition_log(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database)
+):
+    """Delete a nutrition log by ID"""
+    try:
+        log = db.query(NutritionLog).filter(
+            NutritionLog.id == log_id,
+            NutritionLog.user_id == current_user.id
+        ).first()
+        
+        if not log:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nutrition log not found"
+            )
+        
+        db.delete(log)
+        db.commit()
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete nutrition log: {str(e)}"
+        )
+
+
+@router.delete("/mental-fitness/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_mental_fitness_log(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database)
+):
+    """Delete a mental fitness log by ID"""
+    try:
+        log = db.query(MentalFitnessLog).filter(
+            MentalFitnessLog.id == log_id,
+            MentalFitnessLog.user_id == current_user.id
+        ).first()
+        
+        if not log:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Mental fitness log not found"
+            )
+        
+        db.delete(log)
+        db.commit()
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete mental fitness log: {str(e)}"
+        )
+

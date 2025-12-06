@@ -48,9 +48,12 @@ def update_medical_history(user_id: int, data: dict, db: Session) -> MedicalHist
 # "warning" = exercise needs caution/modification
 EXERCISE_CONFLICTS = {
     # Musculoskeletal injuries (mostly warnings - can be modified)
-    "knee injury": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps", "burpees"]},
-    "knee pain": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps", "burpees"]},
-    "knee problems": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps"]},
+    "knee injury": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps", "burpees", "deadlifts", "dead lifts"]},
+    "knee pain": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps", "burpees", "deadlifts", "dead lifts"]},
+    "knee problems": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps", "deadlifts", "dead lifts"]},
+    "acl": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps", "burpees", "deadlifts", "dead lifts", "heavy lifting"]},
+    "acl injury": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps", "burpees", "deadlifts", "dead lifts", "heavy lifting"]},
+    "acl tear": {"severity": "warning", "exercises": ["squats", "lunges", "running", "jumping", "leg press", "step-ups", "box jumps", "burpees", "deadlifts", "dead lifts", "heavy lifting"]},
     "back injury": {"severity": "block", "exercises": ["deadlifts", "squats", "bent-over rows", "overhead press", "heavy lifting", "good mornings", "back extensions"]},
     "back pain": {"severity": "warning", "exercises": ["deadlifts", "squats", "bent-over rows", "overhead press", "heavy lifting", "good mornings"]},
     "lower back pain": {"severity": "warning", "exercises": ["deadlifts", "squats", "bent-over rows", "heavy lifting", "good mornings"]},
@@ -66,8 +69,8 @@ EXERCISE_CONFLICTS = {
     "neck pain": {"severity": "warning", "exercises": ["overhead press", "deadlifts", "heavy lifting", "neck bridges", "bridges"]},
     
     # Cardiovascular conditions (mostly blocks - high risk)
-    "heart condition": {"severity": "block", "exercises": ["high intensity", "hiit", "sprinting", "heavy lifting", "max effort"]},
-    "heart disease": {"severity": "block", "exercises": ["high intensity", "hiit", "sprinting", "heavy lifting", "max effort", "circuit training"]},
+    "heart condition": {"severity": "block", "exercises": ["high intensity", "hiit", "sprinting", "heavy lifting", "max effort", "triathlon", "marathon", "endurance events", "endurance running", "long distance running", "ultramarathon", "ironman", "half ironman"]},
+    "heart disease": {"severity": "block", "exercises": ["high intensity", "hiit", "sprinting", "heavy lifting", "max effort", "circuit training", "triathlon", "marathon", "endurance events", "endurance running", "long distance running", "ultramarathon", "ironman", "half ironman"]},
     "hypertension": {"severity": "warning", "exercises": ["heavy lifting", "max effort", "high intensity", "sprinting"]},
     "high blood pressure": {"severity": "warning", "exercises": ["heavy lifting", "max effort", "high intensity", "sprinting"]},
     "arrhythmia": {"severity": "block", "exercises": ["high intensity", "hiit", "sprinting", "heavy lifting", "max effort"]},
@@ -202,7 +205,7 @@ def get_conflicting_exercises(conditions: str) -> Dict[str, List[str]]:
 def check_user_exercise_conflicts(user_id: int, exercise: str, db: Session) -> Dict:
     """
     Check if an exercise conflicts with user's medical history.
-    Returns a dict with conflict information including severity.
+    Returns a dict with conflict information including severity and context for agent reasoning.
     """
     medical_history = get_medical_history(user_id, db)
     
@@ -211,43 +214,68 @@ def check_user_exercise_conflicts(user_id: int, exercise: str, db: Session) -> D
             "has_conflict": False,
             "severity": None,
             "conflicting_conditions": [],
-            "message": None
+            "message": None,
+            "reasoning_context": None
         }
     
     conflicting_conditions = []
     highest_severity = None  # "block" takes precedence over "warning"
     condition_list = [c.strip() for c in medical_history.conditions.split(",") if c.strip()]
+    matched_conditions_info = []  # Store detailed info for reasoning
     
     for condition in condition_list:
         conflict_result = check_exercise_conflict(condition, exercise)
         if conflict_result["has_conflict"]:
             conflicting_conditions.append(condition)
             severity = conflict_result["severity"]
+            matched_condition_key = conflict_result.get("matched_condition")
             
             # Track highest severity (block > warning)
             if severity == "block":
                 highest_severity = "block"
             elif severity == "warning" and highest_severity != "block":
                 highest_severity = "warning"
+            
+            # Store detailed info for agent reasoning
+            matched_conditions_info.append({
+                "condition": condition,
+                "matched_key": matched_condition_key,
+                "severity": severity
+            })
     
     if conflicting_conditions:
-        # Build appropriate message based on severity
+        # Build context-rich message that allows agent reasoning
+        conditions_str = ', '.join(conflicting_conditions)
+        
+        # Create reasoning context for the agent
+        reasoning_context = {
+            "conflicting_conditions": conflicting_conditions,
+            "severity": highest_severity,
+            "matched_conditions_info": matched_conditions_info,
+            "medical_notes": medical_history.notes if medical_history.notes else None,
+            "limitations": medical_history.limitations if medical_history.limitations else None
+        }
+        
+        # Build informative message (not prescriptive - allows agent reasoning)
+        # Include explicit severity indicators for frontend detection
         if highest_severity == "block":
-            message = f"BLOCKED: {exercise} should be avoided due to your conditions: {', '.join(conflicting_conditions)}. Please consult your healthcare provider."
+            message = f"BLOCKED: {exercise} conflicts with your conditions ({conditions_str}). Severity: HIGH RISK. Consider: condition severity, doctor's approval, modifications, and safer alternatives."
         else:
-            message = f"Warning: {exercise} may conflict with your conditions: {', '.join(conflicting_conditions)}. Proceed with caution or consult your healthcare provider."
+            message = f"Warning: {exercise} may need modification for your conditions ({conditions_str}). Severity: MODERATE. Consider: condition management, modifications, and gradual progression."
         
         return {
             "has_conflict": True,
             "severity": highest_severity,
             "conflicting_conditions": conflicting_conditions,
-            "message": message
+            "message": message,
+            "reasoning_context": reasoning_context
         }
     
     return {
         "has_conflict": False,
         "severity": None,
         "conflicting_conditions": [],
-        "message": None
+        "message": None,
+        "reasoning_context": None
     }
 
