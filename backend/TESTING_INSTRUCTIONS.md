@@ -1,65 +1,68 @@
-# Testing Instructions - Post-MVP Phases 1-4
+# Testing Instructions
 
-## Issue Found: LangChain Version Compatibility
+Current stack pinned in `backend/requirements.txt`:
 
-The test revealed a version compatibility issue:
-```
-ImportError: cannot import name 'ModelProfileRegistry' from 'langchain_core.language_models'
-```
+- `langchain==1.1.0`
+- `langchain-core==1.1.0`
+- `langchain-openai==1.1.0`
 
-## Fix Required
+Python 3.12+ recommended.
 
-**Step 1: Upgrade langchain-openai**
+---
+
+## If You're on the Current Stack
+
+Just install from requirements and you should be fine:
+
 ```bash
 cd backend
-pip install --upgrade langchain-openai==0.2.3
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-**Step 2: Verify the fix**
+Verify the imports worked:
+
 ```bash
-python3 -c "from langchain_openai import ChatOpenAI; print('✓ Import successful')"
+python3 -c "from langchain_openai import ChatOpenAI; print('LangChain/OpenAI import successful')"
+python3 -c "import langchain, langchain_core; print(langchain.__version__, langchain_core.__version__)"
 ```
 
-**Step 3: Run the full test**
+Should print `1.1.0 1.1.0` with no errors. Then run the tests:
+
 ```bash
 python3 test_post_mvp_setup.py
+# or just: pytest
 ```
 
-## Alternative: Reinstall All LangChain Packages
+---
 
-If the above doesn't work, reinstall all LangChain packages together:
-```bash
-pip install --upgrade \
-  langchain==0.3.0 \
-  langchain-core==0.3.0 \
-  langchain-openai==0.2.3 \
-  langchain-community==0.3.0
+## What the Tests Check
+
+1. Environment variables (`DATABASE_URL`, `OPENAI_API_KEY`, `GOOGLE_GEMINI_API_KEY`)
+2. Database models (User, MedicalHistory, NutritionLog, MentalFitnessLog, etc.)
+3. Base agent tools (GetMedicalHistoryTool, CreateNutritionLogTool, etc.)
+4. Physical Fitness Agent
+5. Nutrition Agent (needs `GOOGLE_GEMINI_API_KEY`)
+6. Mental Fitness Agent
+7. Python dependencies
+8. Database connection and tables
+9. Tool schema validation
+10. Agent method structure
+
+A clean run looks like:
+
+```text
+All models imported successfully
+All base agent tools imported successfully
+All agents imported successfully
+All agent methods verified
 ```
 
-## What the Test Checks
+---
 
-1. ✅ Environment variables (DATABASE_URL, API keys)
-2. ✅ Database models (User, MedicalHistory, NutritionLog, MentalFitnessLog, etc.)
-3. ✅ Base agent tools (GetMedicalHistoryTool, CreateNutritionLogTool, etc.)
-4. ✅ Physical Fitness Agent
-5. ✅ Nutrition Agent (requires GOOGLE_GEMINI_API_KEY)
-6. ✅ Mental Fitness Agent
-7. ✅ Python dependencies
-8. ✅ Database connection and tables
-9. ✅ Tool schema validation
-10. ✅ Agent method structure
+## After a Clean Test
 
-## Expected Results After Fix
-
-Once `langchain-openai` is upgraded, all imports should work and you should see:
-- ✓ All models imported successfully
-- ✓ All base agent tools imported successfully
-- ✓ All agents imported successfully
-- ✓ All agent methods verified
-
-## Next Steps After Successful Test
-
-1. Ensure all environment variables are set (especially GOOGLE_GEMINI_API_KEY for Nutrition Agent)
-2. Run database migrations if tables are missing
-3. Proceed to Phase 5: Coordinator Agent
-
+1. Double-check all env variables are set — especially `GOOGLE_GEMINI_API_KEY` for the Nutrition Agent
+2. Make sure migrations are up to date: `python setup_database.py` or `alembic upgrade head`
+3. You're good to go

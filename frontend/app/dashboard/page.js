@@ -30,6 +30,25 @@ export default function DashboardPage() {
   const fileInputRef = useRef(null)
   const messagesEndRef = useRef(null)
   const [expandedLogs, setExpandedLogs] = useState({}) // Track which logs are expanded
+  const [visitedLinks, setVisitedLinks] = useState(() => {
+    // Load visited links from localStorage on mount
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('visitedLinks')
+      return stored ? JSON.parse(stored) : []
+    }
+    return []
+  })
+
+  // Track when a link is clicked
+  const handleLinkClick = useCallback((url) => {
+    if (!visitedLinks.includes(url)) {
+      const updated = [...visitedLinks, url]
+      setVisitedLinks(updated)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('visitedLinks', JSON.stringify(updated))
+      }
+    }
+  }, [visitedLinks])
 
   useEffect(() => {
     if (!mounted || !isAuthenticated) return
@@ -352,7 +371,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'linear-gradient(180deg, #0a0e27 0%, #1a1f3a 30%, #1e40af 60%, #0f172a 100%)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'linear-gradient(180deg, #0a0e27 0%, #1a1f3a 30%, #1e3a8a 60%, #0f172a 100%)' }}>
       {/* SVG Filter for Liquid Glass Effect */}
       <svg width="0" height="0" style={{ position: 'absolute' }}>
         <defs>
@@ -1470,7 +1489,26 @@ export default function DashboardPage() {
                             marginBottom: '0.75rem',
                             color: '#666'
                           }} {...props} />
-                        )
+                        ),
+                        a: ({node, href, ...props}) => {
+                          const isVisited = visitedLinks.includes(href)
+                          return (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => handleLinkClick(href)}
+                              style={{
+                                color: isVisited ? '#BA55D3' : '#00FF00', // Medium orchid purple for visited, green for unvisited
+                                textDecoration: 'underline',
+                                fontWeight: '500',
+                                transition: 'color 0.2s ease',
+                                cursor: 'pointer'
+                              }}
+                              {...props}
+                            />
+                          )
+                        }
                       }}
                     >
                       {msg.content}

@@ -94,7 +94,7 @@ export default function MedicalHistoryPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0a0e27 0%, #1a1f3a 30%, #1e40af 60%, #0f172a 100%)' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0a0e27 0%, #1a1f3a 30%, #1e3a8a 60%, #0f172a 100%)' }}>
       {/* Header */}
       <header className="header">
         <div className="header-content">

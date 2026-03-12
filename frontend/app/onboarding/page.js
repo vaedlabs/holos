@@ -126,15 +126,15 @@ export default function OnboardingPage() {
                   padding: 'var(--spacing-md)',
                   background: step >= 0 
                     ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
-                    : 'var(--bg-tertiary)',
-                  color: step >= 0 ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                  textShadow: step >= 0 ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                    : 'rgba(255, 255, 255, 0.1)',
+                  color: step >= 0 ? 'white' : 'rgba(255, 255, 255, 0.95)',
+                  textShadow: step >= 0 ? '0 1px 2px rgba(0, 0, 0, 0.3)' : '0 1px 2px rgba(0, 0, 0, 0.5)',
                   textAlign: 'center',
                   borderRadius: 'var(--border-radius)',
                   fontWeight: '600',
                   transition: 'all 0.3s ease',
                   boxShadow: step >= 0 ? 'var(--shadow-sm)' : 'none',
-                  border: step >= 0 ? 'none' : '1px solid var(--border-color)'
+                  border: step >= 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)'
                 }}
               >
                 Step 0: Demographics
@@ -145,15 +145,15 @@ export default function OnboardingPage() {
                   padding: 'var(--spacing-md)',
                   background: step >= 1 
                     ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
-                    : 'var(--bg-tertiary)',
-                  color: step >= 1 ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                  textShadow: step >= 1 ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                    : 'rgba(255, 255, 255, 0.1)',
+                  color: step >= 1 ? 'white' : 'rgba(255, 255, 255, 0.95)',
+                  textShadow: step >= 1 ? '0 1px 2px rgba(0, 0, 0, 0.3)' : '0 1px 2px rgba(0, 0, 0, 0.5)',
                   textAlign: 'center',
                   borderRadius: 'var(--border-radius)',
                   fontWeight: '600',
                   transition: 'all 0.3s ease',
                   boxShadow: step >= 1 ? 'var(--shadow-sm)' : 'none',
-                  border: step >= 1 ? 'none' : '1px solid var(--border-color)'
+                  border: step >= 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)'
                 }}
               >
                 Step 1: Medical History
@@ -164,15 +164,15 @@ export default function OnboardingPage() {
                   padding: 'var(--spacing-md)',
                   background: step >= 2 
                     ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
-                    : 'var(--bg-tertiary)',
-                  color: step >= 2 ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                  textShadow: step >= 2 ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                    : 'rgba(255, 255, 255, 0.1)',
+                  color: step >= 2 ? 'white' : 'rgba(255, 255, 255, 0.95)',
+                  textShadow: step >= 2 ? '0 1px 2px rgba(0, 0, 0, 0.3)' : '0 1px 2px rgba(0, 0, 0, 0.5)',
                   textAlign: 'center',
                   borderRadius: 'var(--border-radius)',
                   fontWeight: '600',
                   transition: 'all 0.3s ease',
                   boxShadow: step >= 2 ? 'var(--shadow-sm)' : 'none',
-                  border: step >= 2 ? 'none' : '1px solid var(--border-color)'
+                  border: step >= 2 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)'
                 }}
               >
                 Step 2: Preferences

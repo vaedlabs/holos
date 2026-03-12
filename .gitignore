@@ -2,8 +2,10 @@
 TASKS.md
 plan.plan.md
 .cursor/
-tests/
 uploads/
+tempCodeFile/
+**/.DS_Store
+imgs_diagrams/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

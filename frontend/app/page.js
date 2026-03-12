@@ -1,3 +1,7 @@
+'use client'
+
+import Silk from '@/components/Silk'
+
 export default function Home() {
   return (
     <div style={{ 
@@ -10,11 +14,13 @@ export default function Home() {
       position: 'relative',
       overflow: 'hidden'
     }}>
-      <div className="lava-lamp-bg">
-        <div className="lava-blob blob-1"></div>
-        <div className="lava-blob blob-2"></div>
-        <div className="lava-blob blob-3"></div>
-      </div>
+      <Silk
+        speed={5}
+        scale={1}
+        color="#295eff"
+        noiseIntensity={1.5}
+        rotation={0}
+      />
       <div className="card glassmorphism" style={{ 
         maxWidth: '600px', 
         width: '100%', 
@@ -24,7 +30,7 @@ export default function Home() {
         <h1 style={{ 
           marginBottom: 'var(--spacing-md)', 
           color: 'white',
-          fontSize: '2.5rem',
+          fontSize: '8rem',
           fontWeight: '700',
           textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
         }}>

@@ -1,5 +1,30 @@
 """
-Dietary Service - Handles dietary restriction conflict detection
+Dietary Service - Handles dietary restriction conflict detection.
+
+This module provides dietary restriction management and food conflict detection
+functionality. It implements conflict detection between dietary restrictions and
+food items to prevent recommending foods that violate user restrictions.
+
+Key Features:
+- Dietary restriction retrieval from user preferences
+- Food conflict detection with severity levels
+- Support for multiple restriction formats (JSON, comma-separated)
+- Comprehensive conflict database (DIETARY_CONFLICTS)
+
+Severity Levels:
+- "block": Food should be completely avoided (strict restrictions)
+- "warning": Food may need alternatives (flexible restrictions)
+
+Restriction Types:
+- Dietary preferences: vegan, vegetarian, pescatarian
+- Religious: halal, kosher
+- Allergies/intolerances: nut-free, shellfish-free, dairy-free, lactose-free
+- Health-related: gluten-free
+
+Usage:
+- Used by Nutrition Agent to check meal recommendations
+- Prevents recommending foods that violate user restrictions
+- Provides warnings for foods that may conflict
 """
 
 from typing import Dict, List, Optional
@@ -10,7 +35,29 @@ import re
 
 
 # Dietary conflict mappings
-# Maps dietary restrictions to conflicting food items/ingredients
+# This dictionary maps dietary restrictions to conflicting food items/ingredients.
+# Used by check_dietary_conflicts() to determine if a food violates restrictions.
+#
+# Structure:
+#   {
+#       "restriction_name": {
+#           "conflicting_items": List[str],  # Food items that conflict
+#           "severity": str  # "block" or "warning"
+#       }
+#   }
+#
+# Severity Levels:
+#   "block": Food should be completely avoided (strict restrictions)
+#   "warning": Food may need alternatives (flexible restrictions)
+#
+# Conflict Detection:
+#   - Restrictions are matched by name (case-insensitive)
+#   - Food items are matched using word boundary regex
+#   - Prevents false positives (e.g., "nut" in "peanut" but not "nutshell")
+#
+# Note:
+#   - Used by Nutrition Agent to check meal recommendations
+#   - Helps prevent recommending foods that violate user restrictions
 DIETARY_CONFLICTS = {
     "vegan": {
         "conflicting_items": [
@@ -91,7 +138,24 @@ DIETARY_CONFLICTS = {
 
 
 def get_user_dietary_restrictions(user_id: int, db: Session) -> Optional[str]:
-    """Get dietary restrictions for a user"""
+    """
+    Get dietary restrictions for a user.
+    
+    This function retrieves the dietary restrictions string from user preferences.
+    Returns None if user has no preferences or no dietary restrictions set.
+    
+    Args:
+        user_id: User ID to fetch dietary restrictions for
+        db: Database session for querying
+        
+    Returns:
+        Optional[str]: Dietary restrictions string if exists, None otherwise
+        
+    Note:
+        - Returns raw string (may be JSON or comma-separated)
+        - Use parse_dietary_restrictions() to parse into list
+        - Used by check_dietary_conflicts() to check food recommendations
+    """
     preferences = db.query(UserPreferences).filter(
         UserPreferences.user_id == user_id
     ).first()
@@ -103,8 +167,41 @@ def get_user_dietary_restrictions(user_id: int, db: Session) -> Optional[str]:
 
 def parse_dietary_restrictions(restrictions_str: str) -> List[str]:
     """
-    Parse dietary restrictions from string (can be JSON or comma-separated)
-    Returns list of restriction names in lowercase
+    Parse dietary restrictions from string (can be JSON or comma-separated).
+    
+    This function parses dietary restrictions from various formats and returns
+    a normalized list of restriction names. Supports both JSON arrays and
+    comma-separated strings.
+    
+    Args:
+        restrictions_str: Dietary restrictions string in JSON or comma-separated format
+                         Examples:
+                         - JSON: '["vegan", "gluten-free"]'
+                         - Comma-separated: "vegan, gluten-free"
+                         - Single: "vegan"
+        
+    Returns:
+        List[str]: List of restriction names in lowercase, normalized
+        
+    Parsing Strategy:
+        1. Try to parse as JSON first (handles JSON arrays and strings)
+        2. If JSON parsing fails, parse as comma-separated string
+        3. Normalize all restrictions to lowercase and strip whitespace
+        
+    Examples:
+        parse_dietary_restrictions('["vegan", "gluten-free"]')
+        -> ["vegan", "gluten-free"]
+        
+        parse_dietary_restrictions("vegan, gluten-free")
+        -> ["vegan", "gluten-free"]
+        
+        parse_dietary_restrictions("vegan")
+        -> ["vegan"]
+        
+    Note:
+        - Returns empty list if restrictions_str is empty or None
+        - Handles both JSON and comma-separated formats
+        - Normalizes to lowercase for consistent matching
     """
     if not restrictions_str:
         return []
@@ -112,14 +209,19 @@ def parse_dietary_restrictions(restrictions_str: str) -> List[str]:
     restrictions = []
     
     # Try to parse as JSON first
+    # Handles JSON arrays: ["vegan", "gluten-free"]
+    # Handles JSON strings: "vegan"
     try:
         parsed = json.loads(restrictions_str)
         if isinstance(parsed, list):
+            # JSON array - extract all items
             restrictions = [r.lower().strip() for r in parsed]
         elif isinstance(parsed, str):
+            # JSON string - single restriction
             restrictions = [parsed.lower().strip()]
     except (json.JSONDecodeError, TypeError):
-        # Not JSON, try comma-separated
+        # Not JSON, try comma-separated format
+        # Handles: "vegan, gluten-free, nut-free"
         restrictions = [r.lower().strip() for r in restrictions_str.split(",") if r.strip()]
     
     return restrictions
@@ -127,23 +229,76 @@ def parse_dietary_restrictions(restrictions_str: str) -> List[str]:
 
 def check_dietary_conflicts(user_id: int, food_description: str, db: Session) -> Dict:
     """
-    Check if food description conflicts with user's dietary restrictions
+    Check if food description conflicts with user's dietary restrictions.
+    
+    This function checks if a food description (from image analysis or text)
+    conflicts with any of the user's dietary restrictions. It provides
+    comprehensive conflict information including severity and conflicting items.
+    
+    CRITICAL: This function is used by Nutrition Agent to prevent recommending
+    foods that violate user restrictions. Agents MUST check conflicts before
+    recommending meals.
     
     Args:
-        user_id: User ID
+        user_id: User ID to check dietary restrictions for
         food_description: Description of food/meal (from image analysis or text)
-        db: Database session
-    
+                         Examples: "grilled chicken salad", "pasta with cheese"
+        db: Database session for querying user preferences
+        
     Returns:
-        Dict with:
-            - has_conflict: bool
-            - severity: "block" or "warning" or None
-            - message: Warning message
-            - conflicting_restrictions: List of restriction names that conflict
+        Dict: Conflict information:
+            {
+                "has_conflict": bool,  # True if conflict exists
+                "severity": str or None,  # "block" or "warning" or None
+                "message": str or None,  # Human-readable conflict message
+                "conflicting_restrictions": List[str],  # List of conflicting restrictions
+                "conflicting_items": List[str]  # List of conflicting food items
+            }
+            
+    Conflict Detection:
+        1. Fetch user's dietary restrictions
+        2. Parse restrictions (JSON or comma-separated)
+        3. Normalize food description to lowercase
+        4. Check each restriction against food description
+        5. Use word boundary regex to match conflicting items
+        6. Collect all conflicts and determine highest severity
+        7. Build comprehensive conflict information
+        
+    Severity Precedence:
+        - "block" takes precedence over "warning"
+        - If any restriction blocks food, severity is "block"
+        - If all conflicts are warnings, severity is "warning"
+        
+    Word Boundary Matching:
+        - Uses regex word boundaries (\b) to avoid false positives
+        - Example: "nut" matches "peanut" but not "nutshell"
+        - Prevents matching partial words incorrectly
+        
+    Message Format:
+        - BLOCKED: For strict restrictions (severity="block")
+        - Warning: For flexible restrictions (severity="warning")
+        - Includes conflicting items and restrictions
+        
+    Example:
+        check_dietary_conflicts(123, "grilled chicken salad", db)
+        -> {
+            "has_conflict": True,
+            "severity": "block",
+            "message": "BLOCKED: This meal contains chicken which conflicts...",
+            "conflicting_restrictions": ["vegan"],
+            "conflicting_items": ["chicken"]
+        }
+        
+    Note:
+        - Returns conflict info even if no conflict (has_conflict=False)
+        - Used by Nutrition Agent before recommending meals
+        - This is a safety feature to respect user restrictions
+        - Word boundary matching prevents false positives
     """
-    # Get user's dietary restrictions
+    # Get user's dietary restrictions from preferences
     restrictions_str = get_user_dietary_restrictions(user_id, db)
     if not restrictions_str:
+        # No restrictions - no conflicts
         return {
             "has_conflict": False,
             "severity": None,
@@ -151,9 +306,11 @@ def check_dietary_conflicts(user_id: int, food_description: str, db: Session) ->
             "conflicting_restrictions": []
         }
     
-    # Parse restrictions
+    # Parse restrictions into list
+    # Handles both JSON and comma-separated formats
     user_restrictions = parse_dietary_restrictions(restrictions_str)
     if not user_restrictions:
+        # Empty restrictions list - no conflicts
         return {
             "has_conflict": False,
             "severity": None,
@@ -162,37 +319,44 @@ def check_dietary_conflicts(user_id: int, food_description: str, db: Session) ->
         }
     
     # Normalize food description to lowercase for matching
+    # Case-insensitive matching for consistent results
     food_lower = food_description.lower()
     
-    # Check each restriction
-    conflicts = []
-    max_severity = None
+    # Check each restriction for conflicts
+    conflicts = []  # List of conflict details
+    max_severity = None  # Highest severity found (block > warning)
     
     for restriction in user_restrictions:
         restriction_lower = restriction.lower()
         
         # Check if this restriction has conflict mappings
+        # Only check restrictions that are in DIETARY_CONFLICTS
         if restriction_lower in DIETARY_CONFLICTS:
             conflict_info = DIETARY_CONFLICTS[restriction_lower]
             conflicting_items = conflict_info["conflicting_items"]
             severity = conflict_info["severity"]
             
             # Check if any conflicting item appears in food description
+            # Uses word boundary regex to avoid false positives
             for item in conflicting_items:
                 # Use word boundary matching to avoid false positives
+                # Example: "nut" matches "peanut" but not "nutshell"
                 pattern = r'\b' + re.escape(item.lower()) + r'\b'
                 if re.search(pattern, food_lower):
+                    # Conflict found - add to conflicts list
                     conflicts.append({
-                        "restriction": restriction,
-                        "conflicting_item": item,
-                        "severity": severity
+                        "restriction": restriction,  # Original restriction name
+                        "conflicting_item": item,  # Conflicting food item
+                        "severity": severity  # Severity level
                     })
                     
                     # Track maximum severity (block > warning)
+                    # Block severity takes precedence over warning
                     if severity == "block" or max_severity is None:
                         max_severity = severity
                     break  # Found conflict for this restriction, move to next
     
+    # If no conflicts found, return no conflict
     if not conflicts:
         return {
             "has_conflict": False,
@@ -201,10 +365,12 @@ def check_dietary_conflicts(user_id: int, food_description: str, db: Session) ->
             "conflicting_restrictions": []
         }
     
-    # Build warning message
+    # Build conflict information
+    # Extract unique restrictions and items from conflicts
     conflicting_restrictions = list(set([c["restriction"] for c in conflicts]))
     conflicting_items = list(set([c["conflicting_item"] for c in conflicts]))
     
+    # Build warning message based on severity
     if max_severity == "block":
         message = f"BLOCKED: This meal contains {', '.join(conflicting_items)} which conflicts with your {', '.join(conflicting_restrictions)} dietary restriction(s)."
     else:

@@ -1,10 +1,45 @@
 """
 Physical Fitness Agent prompt component.
-Combines base humanization with fitness-specific role and guidelines.
+
+This module provides the fitness-specific prompt components for the Physical Fitness Agent.
+It combines base humanization guidelines with fitness-specific role, responsibilities,
+and safety protocols.
+
+Key Components:
+- FITNESS_ROLE: Fitness-specific role definition and guidelines
+- get_fitness_prompt(): Function to assemble complete system prompt
+
+Fitness-Specific Features:
+- Exercise recommendations (calisthenics, weight lifting, cardio, HIIT, yoga, Pilates)
+- Workout planning and program creation
+- Form and technique guidance
+- Progression strategies
+- Medical safety integration with severity-based response guidelines
+
+Medical Safety Protocol:
+- Severity-based response guidelines (BLOCK vs WARNING)
+- Autonomous reasoning framework for medical conflicts
+- Safety-first decision making
+- Doctor's approval requirements for high-risk activities
+
+Usage:
+    from app.agents.prompts.fitness_prompt import get_fitness_prompt
+    
+    system_prompt = get_fitness_prompt()
+    # Use in PhysicalFitnessAgent initialization
 """
 
 from .base_humanization import BASE_HUMANIZATION
 
+# Fitness-specific role and guidelines constant
+# This string defines the Physical Fitness Agent's role, responsibilities, and safety protocols
+# Combined with BASE_HUMANIZATION to create the complete system prompt
+# Key sections:
+# - Role definition: Physical Fitness Coach
+# - Core responsibilities: Exercise recommendations, workout planning, form guidance, progression, safety
+# - Medical safety protocol: Severity-based response guidelines (BLOCK vs WARNING)
+# - Autonomous reasoning framework: Decision-making process for medical conflicts
+# - Exercise types: Calisthenics, weight lifting, cardio, HIIT, yoga, Pilates
 FITNESS_ROLE = """
 
 ## Your Role: Physical Fitness Coach
@@ -94,11 +129,29 @@ Be specific, actionable, and safety-focused in all your recommendations. Persona
 
 
 def get_fitness_prompt() -> str:
-    """
-    Get the complete system prompt for the Physical Fitness Agent.
-    
-    Returns:
-        Complete system prompt combining base humanization and fitness-specific guidelines
-    """
-    return BASE_HUMANIZATION + FITNESS_ROLE
-
+   """
+   Get the complete system prompt for the Physical Fitness Agent.
+   
+   This function assembles the complete system prompt by combining:
+   - BASE_HUMANIZATION: Base communication guidelines shared across all agents
+   - FITNESS_ROLE: Fitness-specific role, responsibilities, and safety protocols
+   
+   Returns:
+      str: Complete system prompt string combining:
+           - Base humanization guidelines (linguistic efficiency, tone calibration, etc.)
+           - Fitness-specific role definition
+           - Exercise recommendation guidelines
+           - Workout planning protocols
+           - Medical safety integration with severity-based response guidelines
+           - Autonomous reasoning framework for medical conflicts
+           
+   Usage:
+       Used by PhysicalFitnessAgent to initialize its system prompt.
+       Prompt is cached via PromptCache for efficiency.
+       
+   Note:
+       - Prompt combines shared guidelines with fitness-specific content
+       - Medical safety protocol is emphasized (severity-based responses)
+       - Autonomous reasoning allows agent to make informed decisions about medical conflicts
+   """
+   return BASE_HUMANIZATION + FITNESS_ROLE

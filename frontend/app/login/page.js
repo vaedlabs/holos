@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, setToken } from '@/lib/api'
 import { useRedirectIfAuthenticated } from '@/hooks/useAuth'
+import Silk from '@/components/Silk'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -86,11 +87,13 @@ export default function LoginPage() {
           Holos
         </h1>
       </div>
-      <div className="lava-lamp-bg">
-        <div className="lava-blob blob-1"></div>
-        <div className="lava-blob blob-2"></div>
-        <div className="lava-blob blob-3"></div>
-      </div>
+      <Silk
+        speed={5}
+        scale={1}
+        color="#295eff"
+        noiseIntensity={1.5}
+        rotation={0}
+      />
       <div className="card container-sm glassmorphism" style={{ 
         maxWidth: '400px', 
         width: '100%'
