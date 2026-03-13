@@ -219,17 +219,34 @@ Models in `backend/app/models/`, migrations in `backend/alembic/`.
 - `/preferences` — view/edit preferences
 
 ---
+## 9. Backend Tests (`backend/tests/`)
 
-## 9. Known Limitations
+The backend ships with a mix of fast unit tests and a few heavier, “bring‑up” scripts:
+
+- **Fast tests (good for CI / quick checks)**  
+  Run from `backend/`:
+
+  ```bash
+  cd backend
+  pytest
+  ```
+
+  These cover auth, agents, caching, retries, circuit breaker, prompts, rate limiting, etc. (`test_auth.py`, `test_agent_tracer.py`, `test_tool_cache.py`, `test_prompt_cache.py`, `test_p0_reliability_features.py`, `test_prompt_components.py`, …).
+
+- **Manual / system‑style tests (hit a running server)**  
+  Lives in `backend/manual_tests/` (for example: `agent_endpoints.py`, `image_deletion_check.py`, `test_all_phases.py`, `test_post_mvp_setup.py`, `test_parallel_api.py`, `test_context_sharing.py`, `test_tool_cache_integration.py`, `test_prompt_verification.py`). These expect `uvicorn app.main:app --reload` on `http://localhost:8000`, real env vars, and a live database. Run them with `python` as optional diagnostics when you want end‑to‑end or environment checks, not as part of the default CI loop.
+
+---
+
+## 10. Known Limitations
 
 - **LangChain version compatibility:** Pinned in `requirements.txt`. If you hit `ImportError: cannot import name 'ModelProfileRegistry'`, check `backend/TESTING_INSTRUCTIONS.md` for the fix.
 - **Rate limiting:** Middleware exists at `backend/app/middleware/rate_limit.py` but isn't mounted in `main.py`. Wire it up before going anywhere near production.
-- **Tests:** `pytest` is in requirements, test scripts are referenced in docs but not in the repo yet. Worth adding before this scales.
 - **Common friction:** CORS issues → set frontend origin in `CORS_ORIGINS`. 401s → check token storage. Agent silent → check API keys in `.env` and backend logs.
 
 ---
 
-## 10. Other Docs
+## 11. Other Docs
 
 - **SETUP_GUIDE.md** — full install and troubleshooting
 - **TESTING.md** — end-to-end test flow

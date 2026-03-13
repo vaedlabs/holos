@@ -11,11 +11,26 @@ import os
 os.environ.setdefault('OPENAI_API_KEY', 'test-key')
 os.environ.setdefault('GOOGLE_GEMINI_API_KEY', 'test-key')
 os.environ.setdefault('JWT_SECRET_KEY', 'test-secret-key-minimum-32-characters-long')
+# Make prompt-component tests portable: avoid requiring a Postgres driver at import time.
+# `app.database` builds an engine on import based on DATABASE_URL.
+os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 
 
 class TestPromptComponents:
     """Test prompt component system"""
     
+    @pytest.fixture(autouse=True)
+    def _clear_prompt_cache(self):
+        """
+        PromptCache is a process-wide singleton. Clear it before each test so
+        other test modules can't leak cached prompts into this suite.
+        """
+        from app.services.prompt_cache import prompt_cache
+
+        prompt_cache.clear()
+        yield
+        prompt_cache.clear()
+
     @pytest.fixture
     def mock_db(self):
         """Create a mock database session"""
@@ -26,7 +41,9 @@ class TestPromptComponents:
         from app.agents.prompts.base_humanization import BASE_HUMANIZATION
         assert BASE_HUMANIZATION is not None
         assert len(BASE_HUMANIZATION) > 0
-        assert "Core Communication Principles" in BASE_HUMANIZATION
+        # Anchor on stable sections of the base prompt
+        assert "ROLE:" in BASE_HUMANIZATION
+        assert "COMMUNICATION FRAMEWORK:" in BASE_HUMANIZATION
     
     def test_coordinator_prompt_import(self):
         """Test that coordinator prompt can be imported and generated"""
@@ -34,7 +51,7 @@ class TestPromptComponents:
         prompt = get_coordinator_prompt()
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
         assert "Holos Coordinator Agent" in prompt
     
     def test_fitness_prompt_import(self):
@@ -43,7 +60,7 @@ class TestPromptComponents:
         prompt = get_fitness_prompt()
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
         assert "Physical Fitness Coach" in prompt
     
     def test_nutrition_prompt_import(self):
@@ -52,8 +69,8 @@ class TestPromptComponents:
         prompt = get_nutrition_prompt()
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
-        assert "Nutrition Coach" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
+        assert "nutritional analysis" in prompt.lower()
     
     def test_mental_fitness_prompt_import(self):
         """Test that mental fitness prompt can be imported and generated"""
@@ -61,7 +78,7 @@ class TestPromptComponents:
         prompt = get_mental_fitness_prompt()
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
         assert "Mental Wellness Coach" in prompt
     
     def test_base_agent_uses_prompt_components(self, mock_db):
@@ -73,13 +90,15 @@ class TestPromptComponents:
         
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
         # Should use BASE_HUMANIZATION
         from app.agents.prompts.base_humanization import BASE_HUMANIZATION
         assert prompt == BASE_HUMANIZATION
     
     def test_coordinator_agent_uses_prompt_components(self, mock_db):
         """Test that CoordinatorAgent uses prompt components"""
+        # Coordinator imports NutritionAgent (Gemini SDK); skip if optional dep missing.
+        pytest.importorskip("google.generativeai")
         from app.agents.coordinator_agent import CoordinatorAgent
         
         agent = CoordinatorAgent(user_id=1, db=mock_db)
@@ -87,7 +106,7 @@ class TestPromptComponents:
         
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
         assert "Holos Coordinator Agent" in prompt
     
     def test_physical_fitness_agent_uses_prompt_components(self, mock_db):
@@ -99,11 +118,12 @@ class TestPromptComponents:
         
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
         assert "Physical Fitness Coach" in prompt
     
     def test_nutrition_agent_uses_prompt_components(self, mock_db):
         """Test that NutritionAgent uses prompt components"""
+        pytest.importorskip("google.generativeai")
         from app.agents.nutrition_agent import NutritionAgent
         
         agent = NutritionAgent(user_id=1, db=mock_db)
@@ -111,8 +131,9 @@ class TestPromptComponents:
         
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
-        assert "Nutrition Coach" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
+        # Nutrition prompt currently describes the role as an "authoritative nutritional analysis AI"
+        assert "authoritative nutritional analysis" in prompt
     
     def test_mental_fitness_agent_uses_prompt_components(self, mock_db):
         """Test that MentalFitnessAgent uses prompt components"""
@@ -123,7 +144,7 @@ class TestPromptComponents:
         
         assert prompt is not None
         assert len(prompt) > 0
-        assert "Core Communication Principles" in prompt
+        assert "COMMUNICATION FRAMEWORK:" in prompt
         assert "Mental Wellness Coach" in prompt
     
     def test_prompts_include_base_humanization(self):
