@@ -32,9 +32,14 @@ export default function DashboardPage() {
   const messagesEndRef = useRef(null)
   const [visitedLinks, setVisitedLinks] = useState(() => {
     // Load visited links from localStorage on mount
+    // A corrupted value must not crash the dashboard, so fall back to []
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('visitedLinks')
-      return stored ? JSON.parse(stored) : []
+      try {
+        const parsed = JSON.parse(localStorage.getItem('visitedLinks') || '[]')
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
     }
     return []
   })

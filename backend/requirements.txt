@@ -53,3 +53,6 @@ google-generativeai==0.8.5  # Direct SDK for both text and image analysis
 
 # Image Processing
 Pillow==12.0.0
+
+# Guardrails data files
+PyYAML==6.0.3

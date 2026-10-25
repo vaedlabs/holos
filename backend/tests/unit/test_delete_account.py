@@ -83,6 +83,30 @@ def test_delete_account_with_agent_logs(session_factory):
     db.close()
 
 
+def test_delete_account_removes_every_uploaded_image(session_factory, tmp_path, monkeypatch):
+    # Images uploaded but never attached to a message used to survive deletion
+    monkeypatch.chdir(tmp_path)
+    images = tmp_path / "uploads" / "images"
+    images.mkdir(parents=True)
+    db = session_factory()
+    user = User(email="a@example.com", username="alice", password_hash="x")
+    db.add(user)
+    db.commit()
+    user_id = user.id
+    db.close()
+
+    own = [images / f"{user_id}_0123abcd.jpg", images / f"{user_id}_89abcdef.jpg"]
+    # Another user, including one whose id starts with the same digits
+    others = [images / f"{user_id + 1}_0123abcd.jpg", images / f"{user_id}2_0123abcd.jpg"]
+    for path in own + others:
+        path.write_bytes(b"jpeg")
+
+    response = _client(session_factory, user_id).delete("/auth/delete-account")
+    assert response.status_code == 204
+    assert not any(path.exists() for path in own)
+    assert all(path.exists() for path in others)
+
+
 def test_every_user_foreign_key_is_cleaned_up(session_factory):
     # Guards against a new table referencing users.id without a delete step
     tables = {

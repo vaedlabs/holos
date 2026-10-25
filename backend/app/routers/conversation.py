@@ -52,8 +52,14 @@ import json
 import logging
 import os
 import uuid
+import asyncio
 import base64
+import binascii
+import io
+import re
+import warnings
 from pathlib import Path
+from PIL import Image, UnidentifiedImageError
 from app.dependencies import get_database, get_current_user
 from app.models.user import User
 from app.models.conversation_message import ConversationMessage
@@ -81,6 +87,48 @@ router = APIRouter(prefix="/conversation", tags=["conversation"])
 # Directory is created on module import if it doesn't exist
 UPLOADS_DIR = Path("uploads/images")
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)  # Create directory structure if needed
+
+# Image limits from Plan C.7: content-detected format, size and pixel caps,
+# resized and re-encoded so nothing but a clean JPEG reaches the disk
+MAX_IMAGE_BYTES = 7 * 1024 * 1024
+MAX_IMAGE_SIDE = 1024
+ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
+Image.MAX_IMAGE_PIXELS = 25_000_000
+# Filenames are always "{user_id}_{8 hex}.jpg" (set by upload_image)
+IMAGE_FILENAME = re.compile(r"\d+_[0-9a-f]{8}\.jpg")
+
+
+def _clean_image(image_data: bytes) -> bytes:
+    """Validate an uploaded image and return it as a resized JPEG without metadata.
+
+    Raises HTTPException 415 if the bytes are not a JPEG, PNG or WebP image.
+    """
+    try:
+        # PIL only warns between 1x and 2x MAX_IMAGE_PIXELS; make the cap exact
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            img = Image.open(io.BytesIO(image_data))
+        with img:
+            if img.format not in ALLOWED_IMAGE_FORMATS:
+                raise HTTPException(
+                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                    detail="Image must be JPEG, PNG or WebP.",
+                )
+            img.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))
+            out = io.BytesIO()
+            # Re-encoding drops EXIF (location, device) and any trailing payload
+            img.convert("RGB").save(out, format="JPEG", quality=85)
+            return out.getvalue()
+    except (
+        UnidentifiedImageError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+        OSError,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="File is not a valid JPEG, PNG or WebP image.",
+        ) from None
 
 
 def _parse_warnings(warnings_json: str | None) -> list | None:
@@ -309,13 +357,24 @@ async def upload_image(
             if ',' in image_base64:
                 image_base64 = image_base64.split(',')[1]
 
-            image_data = base64.b64decode(image_base64)
-        except Exception as e:
+            # Reject oversized payloads before decoding (base64 is 4/3 the size)
+            if len(image_base64) > MAX_IMAGE_BYTES * 4 // 3 + 4:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="Image is too large (max 7 MB).",
+                )
+            image_data = base64.b64decode(image_base64, validate=True)
+        except HTTPException:
+            raise
+        except (binascii.Error, ValueError) as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid base64 image data: {str(e)}"
             )
         
+        # Image work is CPU-bound, so keep it off the event loop
+        image_data = await asyncio.to_thread(_clean_image, image_data)
+
         # Generate unique filename
         filename = f"{current_user.id}_{uuid.uuid4().hex[:8]}.jpg"
         file_path = UPLOADS_DIR / filename
@@ -376,6 +435,10 @@ async def get_image(
 
         Returns image file if exists and belongs to current user, 403/404 otherwise
     """
+    # Reject anything not shaped like an uploaded filename (also stops null bytes)
+    if not IMAGE_FILENAME.fullmatch(filename):
+        raise HTTPException(status_code=404, detail="Image not found")
+
     # Ownership check: filename must start with "{current_user.id}_"
     # Filename format is always "{user_id}_{uuid}.jpg" set during upload
     parts = filename.split("_", 1)

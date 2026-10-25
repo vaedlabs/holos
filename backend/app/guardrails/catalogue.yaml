@@ -1,0 +1,901 @@
+# Holos item catalogue (Plan C.14).
+#
+# Exercises and practices: the model may only return these IDs.
+# Conditions: profile text resolves to these IDs through the aliases.
+# Ingredients: aliases map foods to allergen and diet-conflict tags.
+#
+# Tags (vocabulary in guardrails/types.py). A missing tag means "low" for
+# levels and false for flags. Every name and alias must be unique across
+# the whole file, compared after normalise_text().
+#
+# Lactose: only dairy with meaningful lactose carries it. Ghee, butter and
+# hard cheese don't, because most lactose-intolerant people eat them.
+
+version: 1
+
+exercises:
+  # --- Squats and lunges (every variant carries knee_load: high) ---
+  - id: back_squat
+    name: Back squat
+    aliases: [barbell squat, barbell back squat]
+    tags: {knee_load: high, spinal_load: high, abdominal_strain: moderate, exertion: moderate, heavy_load: true}
+  - id: front_squat
+    name: Front squat
+    aliases: [barbell front squat]
+    tags: {knee_load: high, spinal_load: high, wrist_load: moderate, abdominal_strain: moderate, exertion: moderate, heavy_load: true}
+  - id: goblet_squat
+    name: Goblet squat
+    aliases: [dumbbell squat, kettlebell squat]
+    tags: {knee_load: high, spinal_load: moderate, exertion: moderate}
+  - id: bodyweight_squat
+    name: Bodyweight squat
+    aliases: [squat, squats, air squat, air squats]
+    tags: {knee_load: high, exertion: moderate}
+  - id: sumo_squat
+    name: Sumo squat
+    aliases: [wide stance squat, plie squat]
+    tags: {knee_load: high, spinal_load: moderate, exertion: moderate}
+  - id: split_squat
+    name: Split squat
+    aliases: [bulgarian split squat, rear foot elevated split squat]
+    tags: {knee_load: high, ankle_load: moderate, exertion: moderate}
+  - id: pistol_squat
+    name: Pistol squat
+    aliases: [single leg squat, one leg squat]
+    tags: {knee_load: high, ankle_load: moderate, exertion: moderate}
+  - id: hack_squat
+    name: Hack squat
+    aliases: [machine squat]
+    tags: {knee_load: high, spinal_load: moderate, exertion: moderate, heavy_load: true}
+  - id: jump_squat
+    name: Jump squat
+    aliases: [squat jump, squat jumps]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high}
+  - id: cossack_squat
+    name: Cossack squat
+    aliases: [side squat]
+    tags: {knee_load: high, exertion: moderate}
+  - id: wall_sit
+    name: Wall sit
+    aliases: [wall squat hold]
+    tags: {knee_load: moderate, exertion: moderate}
+  - id: forward_lunge
+    name: Forward lunge
+    aliases: [lunge, lunges, front lunge]
+    tags: {knee_load: high, ankle_load: moderate, exertion: moderate}
+  - id: reverse_lunge
+    name: Reverse lunge
+    aliases: [back lunge, backward lunge]
+    tags: {knee_load: high, ankle_load: moderate, exertion: moderate}
+  - id: walking_lunge
+    name: Walking lunge
+    aliases: [walking lunges]
+    tags: {knee_load: high, ankle_load: moderate, exertion: moderate}
+  - id: lateral_lunge
+    name: Lateral lunge
+    aliases: [side lunge]
+    tags: {knee_load: high, ankle_load: moderate, exertion: moderate}
+  - id: jumping_lunge
+    name: Jumping lunge
+    aliases: [lunge jump, split jump]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high}
+  - id: step_up
+    name: Step-up
+    aliases: [step ups, box step up]
+    tags: {knee_load: high, ankle_load: moderate, exertion: moderate}
+
+  # --- Other lower body ---
+  - id: leg_press
+    name: Leg press
+    aliases: [machine leg press]
+    tags: {knee_load: high, spinal_load: moderate, abdominal_strain: moderate, heavy_load: true}
+  - id: leg_extension
+    name: Leg extension
+    aliases: [knee extension machine, quad extension]
+    tags: {knee_load: high}
+  - id: leg_curl
+    name: Leg curl
+    aliases: [hamstring curl, lying leg curl]
+    tags: {knee_load: moderate}
+  - id: nordic_curl
+    name: Nordic hamstring curl
+    aliases: [nordic curl, nordic hamstring curls]
+    tags: {knee_load: high, exertion: moderate}
+  - id: deadlift
+    name: Deadlift
+    aliases: [deadlifts, conventional deadlift, barbell deadlift, dead lift]
+    tags: {knee_load: moderate, spinal_load: high, wrist_load: moderate, abdominal_strain: high, exertion: high, heavy_load: true}
+  - id: romanian_deadlift
+    name: Romanian deadlift
+    aliases: [rdl, stiff leg deadlift, stiff legged deadlift]
+    tags: {spinal_load: high, abdominal_strain: moderate, exertion: moderate, heavy_load: true}
+  - id: sumo_deadlift
+    name: Sumo deadlift
+    aliases: []
+    tags: {knee_load: moderate, spinal_load: high, abdominal_strain: high, exertion: high, heavy_load: true}
+  - id: trap_bar_deadlift
+    name: Trap bar deadlift
+    aliases: [hex bar deadlift]
+    tags: {knee_load: moderate, spinal_load: moderate, abdominal_strain: high, exertion: high, heavy_load: true}
+  - id: good_morning
+    name: Good morning
+    aliases: [good mornings, barbell good morning]
+    tags: {spinal_load: high, heavy_load: true}
+  - id: hip_thrust
+    name: Hip thrust
+    aliases: [barbell hip thrust]
+    tags: {spinal_load: moderate, abdominal_strain: moderate, heavy_load: true}
+  - id: glute_bridge
+    name: Glute bridge
+    aliases: [hip bridge, bridge pose lift]
+    tags: {supine: true}
+  - id: single_leg_glute_bridge
+    name: Single-leg glute bridge
+    aliases: [single leg bridge, one leg glute bridge]
+    tags: {supine: true}
+  - id: calf_raise
+    name: Calf raise
+    aliases: [calf raises, standing calf raise, heel raise]
+    tags: {ankle_load: moderate}
+  - id: seated_calf_raise
+    name: Seated calf raise
+    aliases: []
+    tags: {ankle_load: moderate}
+  - id: clamshell
+    name: Clamshell
+    aliases: [clamshells, clam exercise]
+    tags: {}
+  - id: side_lying_leg_raise
+    name: Side-lying leg raise
+    aliases: [side leg raise, lying hip abduction]
+    tags: {}
+  - id: hip_abduction_machine
+    name: Hip abduction machine
+    aliases: [seated hip abduction]
+    tags: {}
+  - id: kettlebell_swing
+    name: Kettlebell swing
+    aliases: [kb swing, kettlebell swings]
+    tags: {spinal_load: high, abdominal_strain: moderate, exertion: high}
+
+  # --- Plyometrics and conditioning ---
+  - id: box_jump
+    name: Box jump
+    aliases: [box jumps]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high}
+  - id: broad_jump
+    name: Broad jump
+    aliases: [standing long jump]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high}
+  - id: jump_rope
+    name: Jump rope
+    aliases: [skipping, skipping rope, rope skipping]
+    tags: {knee_load: moderate, ankle_load: high, impact: high, exertion: high}
+  - id: jumping_jacks
+    name: Jumping jacks
+    aliases: [star jumps]
+    tags: {knee_load: moderate, ankle_load: high, impact: high, exertion: moderate}
+  - id: burpee
+    name: Burpee
+    aliases: [burpees]
+    tags: {knee_load: high, ankle_load: high, wrist_load: moderate, impact: high, exertion: high}
+  - id: mountain_climber
+    name: Mountain climber
+    aliases: [mountain climbers]
+    tags: {wrist_load: high, shoulder_load: moderate, abdominal_strain: moderate, exertion: high}
+  - id: hiit_workout
+    name: HIIT workout
+    aliases: [hiit, high intensity interval training, tabata]
+    tags: {knee_load: high, impact: high, exertion: high}
+  - id: circuit_training
+    name: Circuit training
+    aliases: [circuit workout, bootcamp workout]
+    tags: {knee_load: moderate, impact: moderate, exertion: high}
+
+  # --- Upper body push ---
+  - id: bench_press
+    name: Bench press
+    aliases: [barbell bench press, flat bench press, chest press]
+    tags: {shoulder_load: moderate, wrist_load: moderate, abdominal_strain: moderate, exertion: moderate, heavy_load: true, supine: true}
+  - id: incline_bench_press
+    name: Incline bench press
+    aliases: [incline press]
+    tags: {shoulder_load: high, wrist_load: moderate, exertion: moderate, heavy_load: true}
+  - id: dumbbell_bench_press
+    name: Dumbbell bench press
+    aliases: [dumbbell chest press, db bench press]
+    tags: {shoulder_load: moderate, wrist_load: moderate, exertion: moderate, supine: true}
+  - id: push_up
+    name: Push-up
+    aliases: [push up, push ups, pushups, pushup, press up, press ups]
+    tags: {shoulder_load: moderate, wrist_load: high, abdominal_strain: moderate, exertion: moderate}
+  - id: knee_push_up
+    name: Knee push-up
+    aliases: [kneeling push up, modified push up]
+    tags: {shoulder_load: moderate, wrist_load: high}
+  - id: incline_push_up
+    name: Incline push-up
+    aliases: [wall push up, wall push ups]
+    tags: {shoulder_load: low, wrist_load: moderate}
+  - id: dip
+    name: Dip
+    aliases: [dips, parallel bar dip, bench dip, bench dips, tricep dips]
+    tags: {shoulder_load: high, wrist_load: high, exertion: moderate}
+  - id: overhead_press
+    name: Overhead press
+    aliases: [military press, barbell overhead press, standing shoulder press, ohp]
+    tags: {shoulder_load: high, spinal_load: high, neck_load: moderate, wrist_load: moderate, abdominal_strain: moderate, exertion: moderate, heavy_load: true}
+  - id: dumbbell_shoulder_press
+    name: Dumbbell shoulder press
+    aliases: [shoulder press, seated shoulder press, db shoulder press]
+    tags: {shoulder_load: high, spinal_load: moderate, wrist_load: moderate}
+  - id: arnold_press
+    name: Arnold press
+    aliases: []
+    tags: {shoulder_load: high, spinal_load: moderate}
+  - id: lateral_raise
+    name: Lateral raise
+    aliases: [lateral raises, side raise, side raises, side lateral raise]
+    tags: {shoulder_load: high}
+  - id: front_raise
+    name: Front raise
+    aliases: [front raises]
+    tags: {shoulder_load: moderate}
+  - id: upright_row
+    name: Upright row
+    aliases: [upright rows]
+    tags: {shoulder_load: high, wrist_load: moderate}
+  - id: chest_fly
+    name: Chest fly
+    aliases: [dumbbell fly, chest flye, cable fly]
+    tags: {shoulder_load: moderate}
+  - id: pec_deck
+    name: Pec deck
+    aliases: [machine fly, butterfly machine]
+    tags: {shoulder_load: moderate}
+  - id: skull_crusher
+    name: Skull crusher
+    aliases: [lying tricep extension, skull crushers]
+    tags: {wrist_load: moderate, supine: true}
+  - id: overhead_tricep_extension
+    name: Overhead tricep extension
+    aliases: [overhead triceps extension]
+    tags: {shoulder_load: moderate}
+  - id: tricep_pushdown
+    name: Tricep pushdown
+    aliases: [triceps pushdown, cable pushdown, rope pushdown]
+    tags: {}
+
+  # --- Upper body pull ---
+  - id: pull_up
+    name: Pull-up
+    aliases: [pull up, pull ups, pullups, pullup]
+    tags: {shoulder_load: high, exertion: moderate}
+  - id: chin_up
+    name: Chin-up
+    aliases: [chin up, chin ups, chinups]
+    tags: {shoulder_load: high, exertion: moderate}
+  - id: lat_pulldown
+    name: Lat pulldown
+    aliases: [lat pull down, pulldown]
+    tags: {shoulder_load: moderate}
+  - id: seated_cable_row
+    name: Seated cable row
+    aliases: [cable row, seated row]
+    tags: {spinal_load: moderate}
+  - id: bent_over_row
+    name: Bent-over row
+    aliases: [barbell row, bent over row, bent over rows]
+    tags: {spinal_load: high, abdominal_strain: moderate, heavy_load: true}
+  - id: dumbbell_row
+    name: Dumbbell row
+    aliases: [one arm row, single arm dumbbell row]
+    tags: {spinal_load: moderate}
+  - id: face_pull
+    name: Face pull
+    aliases: [face pulls]
+    tags: {}
+  - id: band_pull_apart
+    name: Band pull-apart
+    aliases: [band pull apart, band pull aparts]
+    tags: {}
+  - id: bicep_curl
+    name: Bicep curl
+    aliases: [biceps curl, bicep curls, dumbbell curl, barbell curl]
+    tags: {wrist_load: moderate}
+  - id: hammer_curl
+    name: Hammer curl
+    aliases: [hammer curls]
+    tags: {wrist_load: moderate}
+  - id: wrist_curl
+    name: Wrist curl
+    aliases: [wrist curls, forearm curl]
+    tags: {wrist_load: high}
+  - id: shrug
+    name: Shrug
+    aliases: [shrugs, shoulder shrug, dumbbell shrug]
+    tags: {neck_load: moderate}
+  - id: farmer_carry
+    name: Farmer's carry
+    aliases: [farmer carry, farmers walk, farmer's walk]
+    tags: {spinal_load: moderate, wrist_load: moderate, abdominal_strain: moderate}
+
+  # --- Core ---
+  - id: plank
+    name: Plank
+    aliases: [forearm plank, front plank]
+    tags: {abdominal_strain: moderate}
+  - id: high_plank
+    name: High plank
+    aliases: [straight arm plank]
+    tags: {wrist_load: high, abdominal_strain: moderate}
+  - id: side_plank
+    name: Side plank
+    aliases: [side planks]
+    tags: {shoulder_load: moderate, abdominal_strain: moderate}
+  - id: crunch
+    name: Crunch
+    aliases: [crunches, abdominal crunch, abdominal crunches, ab crunches]
+    tags: {abdominal_strain: high, neck_load: moderate, supine: true}
+  - id: sit_up
+    name: Sit-up
+    aliases: [sit up, sit ups, situps]
+    tags: {abdominal_strain: high, spinal_load: moderate, neck_load: moderate, supine: true}
+  - id: bicycle_crunch
+    name: Bicycle crunch
+    aliases: [bicycle crunches, bicycle kicks]
+    tags: {abdominal_strain: high, neck_load: moderate, supine: true}
+  - id: v_up
+    name: V-up
+    aliases: [v ups, v sit up, jackknife sit up]
+    tags: {abdominal_strain: high, spinal_load: moderate, supine: true}
+  - id: lying_leg_raise
+    name: Lying leg raise
+    aliases: [leg raise, leg raises, leg lifts]
+    tags: {abdominal_strain: high, spinal_load: moderate, supine: true}
+  - id: hanging_leg_raise
+    name: Hanging leg raise
+    aliases: [hanging knee raise, hanging leg raises]
+    tags: {abdominal_strain: high, shoulder_load: moderate}
+  - id: russian_twist
+    name: Russian twist
+    aliases: [russian twists, seated twist]
+    tags: {abdominal_strain: high, spinal_load: moderate}
+  - id: dead_bug
+    name: Dead bug
+    aliases: [dead bugs]
+    tags: {abdominal_strain: moderate, supine: true}
+  - id: bird_dog
+    name: Bird dog
+    aliases: [bird dogs, quadruped arm and leg raise]
+    tags: {wrist_load: moderate}
+  - id: ab_wheel_rollout
+    name: Ab wheel rollout
+    aliases: [ab rollout, ab wheel, ab roller]
+    tags: {abdominal_strain: high, spinal_load: high, shoulder_load: moderate, wrist_load: moderate}
+  - id: back_extension
+    name: Back extension
+    aliases: [back extensions, hyperextension, roman chair extension]
+    tags: {spinal_load: high}
+  - id: superman_hold
+    name: Superman hold
+    aliases: [superman, supermans, superman exercise]
+    tags: {spinal_load: moderate, neck_load: moderate}
+  - id: pallof_press
+    name: Pallof press
+    aliases: [anti rotation press]
+    tags: {abdominal_strain: moderate}
+
+  # --- Cardio ---
+  - id: walking
+    name: Walking
+    aliases: [walk, easy walk]
+    tags: {}
+  - id: brisk_walking
+    name: Brisk walking
+    aliases: [power walking, fast walking, brisk walk]
+    tags: {exertion: moderate}
+  - id: hiking
+    name: Hiking
+    aliases: [hike, trekking]
+    tags: {knee_load: moderate, ankle_load: moderate, impact: moderate, exertion: moderate}
+  - id: jogging
+    name: Jogging
+    aliases: [jog, easy run, light jogging]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: moderate}
+  - id: running
+    name: Running
+    aliases: [run, runs, road running, treadmill running]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: moderate}
+  - id: interval_running
+    name: Interval running
+    aliases: [run intervals, running intervals, fartlek]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high}
+  - id: sprinting
+    name: Sprinting
+    aliases: [sprint, sprints, hill sprints]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high}
+  - id: long_distance_running
+    name: Long-distance running
+    aliases: [marathon, marathon training, half marathon, endurance running, ultramarathon]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high}
+  - id: stair_climbing
+    name: Stair climbing
+    aliases: [stairs, climbing stairs, stair climber, stairmaster]
+    tags: {knee_load: high, ankle_load: moderate, exertion: moderate}
+  - id: cycling
+    name: Cycling
+    aliases: [bike ride, outdoor cycling, bicycling]
+    tags: {knee_load: moderate, exertion: moderate}
+  - id: stationary_cycling
+    name: Stationary cycling
+    aliases: [stationary bike, exercise bike, recumbent bike]
+    tags: {knee_load: low, exertion: moderate}
+  - id: spin_class
+    name: Spin class
+    aliases: [spinning, indoor cycling class]
+    tags: {knee_load: moderate, exertion: high}
+  - id: rowing_machine
+    name: Rowing machine
+    aliases: [rowing, rower, indoor rowing, erg]
+    tags: {spinal_load: moderate, knee_load: moderate, exertion: high}
+  - id: elliptical
+    name: Elliptical
+    aliases: [elliptical trainer, cross trainer]
+    tags: {knee_load: low, exertion: moderate}
+  - id: swimming
+    name: Swimming
+    aliases: [swim, lap swimming]
+    tags: {shoulder_load: moderate, exertion: moderate}
+  - id: aqua_aerobics
+    name: Aqua aerobics
+    aliases: [water aerobics, aqua jogging]
+    tags: {}
+  - id: dance_workout
+    name: Dance workout
+    aliases: [dance cardio, zumba, aerobics]
+    tags: {knee_load: moderate, impact: moderate, exertion: moderate}
+
+  # --- Mobility, yoga and stretching ---
+  - id: yoga_flow
+    name: Gentle yoga flow
+    aliases: [yoga, hatha yoga, gentle yoga]
+    tags: {}
+  - id: sun_salutation
+    name: Sun salutation
+    aliases: [surya namaskar, sun salutations]
+    tags: {wrist_load: moderate, spinal_load: moderate, exertion: moderate}
+  - id: downward_dog
+    name: Downward dog
+    aliases: [downward facing dog, adho mukha svanasana]
+    tags: {wrist_load: moderate, shoulder_load: moderate}
+  - id: childs_pose
+    name: Child's pose
+    aliases: [child pose, balasana]
+    tags: {}
+  - id: cat_cow
+    name: Cat-cow stretch
+    aliases: [cat cow, cat camel]
+    tags: {wrist_load: moderate}
+  - id: hamstring_stretch
+    name: Hamstring stretch
+    aliases: [hamstring stretches]
+    tags: {}
+  - id: quad_stretch
+    name: Quad stretch
+    aliases: [quadriceps stretch, standing quad stretch]
+    tags: {}
+  - id: hip_flexor_stretch
+    name: Hip flexor stretch
+    aliases: [kneeling hip flexor stretch]
+    tags: {}
+  - id: chest_doorway_stretch
+    name: Doorway chest stretch
+    aliases: [doorway stretch, pec stretch]
+    tags: {}
+  - id: neck_mobility
+    name: Gentle neck mobility
+    aliases: [neck rolls, neck stretches]
+    tags: {}
+  - id: foam_rolling
+    name: Foam rolling
+    aliases: [foam roller, self myofascial release]
+    tags: {}
+  - id: tai_chi
+    name: Tai chi
+    aliases: [taichi, tai chi chuan]
+    tags: {}
+  - id: pilates_mat
+    name: Mat Pilates
+    aliases: [pilates, pilates workout]
+    tags: {abdominal_strain: moderate, supine: true}
+  - id: headstand
+    name: Headstand
+    aliases: [sirsasana, head stand]
+    tags: {inversion: true, neck_load: high, shoulder_load: moderate}
+  - id: shoulder_stand
+    name: Shoulder stand
+    aliases: [sarvangasana, shoulderstand]
+    tags: {inversion: true, neck_load: high}
+  - id: handstand
+    name: Handstand
+    aliases: [handstands, handstand hold, handstand push up]
+    tags: {inversion: true, shoulder_load: high, wrist_load: high, neck_load: moderate}
+  - id: neck_bridge
+    name: Neck bridge
+    aliases: [wrestler bridge, neck bridges]
+    tags: {neck_load: high, spinal_load: moderate}
+
+practices:
+  - id: box_breathing
+    name: Box breathing
+    aliases: [square breathing, four square breathing]
+    tags: {breath_hold: true}
+  - id: breathing_4_7_8
+    name: 4-7-8 breathing
+    aliases: [4 7 8 breathing, relaxing breath]
+    tags: {breath_hold: true}
+  - id: breath_retention
+    name: Breath retention
+    aliases: [kumbhaka, breath holding]
+    tags: {breath_hold: true}
+  - id: wim_hof_breathing
+    name: Wim Hof breathing
+    aliases: [wim hof method]
+    tags: {breath_hold: true, forceful_breathing: true}
+  - id: kapalbhati
+    name: Kapalbhati
+    aliases: [kapalabhati, skull shining breath]
+    tags: {forceful_breathing: true}
+  - id: bhastrika
+    name: Bhastrika
+    aliases: [bellows breath, bhastrika pranayama]
+    tags: {forceful_breathing: true}
+  - id: diaphragmatic_breathing
+    name: Diaphragmatic breathing
+    aliases: [belly breathing, abdominal breathing, deep breathing]
+    tags: {}
+  - id: coherent_breathing
+    name: Coherent breathing
+    aliases: [resonant breathing, paced breathing, slow breathing]
+    tags: {}
+  - id: extended_exhale_breathing
+    name: Extended exhale breathing
+    aliases: [long exhale breathing, physiological sigh]
+    tags: {}
+  - id: alternate_nostril_breathing
+    name: Alternate nostril breathing
+    aliases: [nadi shodhana, anulom vilom]
+    tags: {}
+  - id: bhramari
+    name: Bhramari
+    aliases: [humming bee breath, bee breath, bhramari pranayama]
+    tags: {}
+  - id: mindfulness_meditation
+    name: Mindfulness meditation
+    aliases: [mindfulness, breath awareness meditation, meditation]
+    tags: {}
+  - id: body_scan
+    name: Body scan
+    aliases: [body scan meditation]
+    tags: {}
+  - id: loving_kindness_meditation
+    name: Loving-kindness meditation
+    aliases: [metta, metta meditation, loving kindness]
+    tags: {}
+  - id: guided_imagery
+    name: Guided imagery
+    aliases: [visualisation, visualization, guided visualisation]
+    tags: {}
+  - id: yoga_nidra
+    name: Yoga nidra
+    aliases: [yogic sleep]
+    tags: {}
+  - id: mantra_meditation
+    name: Mantra meditation
+    aliases: [om chanting, chanting meditation]
+    tags: {}
+  - id: trataka
+    name: Trataka
+    aliases: [candle gazing, candle meditation]
+    tags: {}
+  - id: walking_meditation
+    name: Walking meditation
+    aliases: [mindful walking]
+    tags: {}
+  - id: progressive_muscle_relaxation
+    name: Progressive muscle relaxation
+    aliases: [pmr, muscle relaxation]
+    tags: {}
+  - id: grounding_54321
+    name: 5-4-3-2-1 grounding
+    aliases: [5 4 3 2 1 grounding, grounding exercise, grounding technique]
+    tags: {}
+  - id: self_compassion_break
+    name: Self-compassion break
+    aliases: [self compassion, self-compassion exercise]
+    tags: {}
+  - id: gratitude_journaling
+    name: Gratitude journaling
+    aliases: [gratitude journal, gratitude list]
+    tags: {}
+  - id: expressive_journaling
+    name: Expressive journaling
+    aliases: [journaling, journalling, expressive writing]
+    tags: {}
+  - id: thought_record
+    name: Thought record
+    aliases: [cognitive reframing, reframing thoughts, cbt thought record]
+    tags: {}
+  - id: scheduled_worry_time
+    name: Scheduled worry time
+    aliases: [worry time, worry period]
+    tags: {}
+  - id: sleep_wind_down
+    name: Sleep wind-down routine
+    aliases: [wind down routine, bedtime routine, sleep routine]
+    tags: {}
+
+conditions:
+  - id: knee_ligament_injury
+    name: Knee ligament injury
+    aliases: [acl tear, torn acl, acl injury, acl, acl reconstruction, mcl injury, mcl tear, pcl injury, knee ligament tear]
+  - id: knee_injury
+    name: Knee injury or pain
+    aliases: [knee pain, knee problems, bad knee, bad knees, meniscus tear, torn meniscus, runner's knee, patellar tendinitis, jumper's knee]
+  - id: lower_back_injury
+    name: Lower back injury
+    aliases: [back injury, herniated disc, slipped disc, bulging disc, disc prolapse, sciatica]
+  - id: back_pain
+    name: Back pain
+    aliases: [lower back pain, chronic back pain, back ache, backache]
+  - id: shoulder_injury
+    name: Shoulder injury
+    aliases: [rotator cuff, rotator cuff tear, rotator cuff injury, frozen shoulder, shoulder dislocation, shoulder impingement]
+  - id: shoulder_pain
+    name: Shoulder pain
+    aliases: [sore shoulder, shoulder ache]
+  - id: wrist_injury
+    name: Wrist injury or pain
+    aliases: [wrist pain, carpal tunnel, carpal tunnel syndrome, sprained wrist]
+  - id: ankle_injury
+    name: Ankle injury or pain
+    aliases: [ankle pain, ankle sprain, sprained ankle, achilles tendinitis, achilles injury]
+  - id: neck_injury
+    name: Neck injury or pain
+    aliases: [neck pain, cervical spondylosis, whiplash, stiff neck]
+  - id: heart_condition
+    name: Heart condition
+    aliases: [heart disease, heart problem, heart problems, coronary artery disease, heart failure, cardiac condition, angina]
+  - id: arrhythmia
+    name: Arrhythmia
+    aliases: [irregular heartbeat, atrial fibrillation, afib, palpitations]
+  - id: hypertension
+    name: High blood pressure
+    aliases: [high bp, high blood pressure problem, hypertensive]
+  - id: osteoporosis
+    name: Osteoporosis
+    aliases: [osteopenia, low bone density, brittle bones]
+  - id: arthritis
+    name: Arthritis
+    aliases: [osteoarthritis, rheumatoid arthritis, joint arthritis]
+  - id: asthma
+    name: Asthma
+    aliases: [asthmatic, exercise induced asthma]
+  - id: copd
+    name: COPD
+    aliases: [chronic obstructive pulmonary disease, emphysema, chronic bronchitis]
+  - id: pregnancy
+    name: Pregnancy
+    aliases: [pregnant, expecting a baby]
+  - id: hernia
+    name: Hernia
+    aliases: [inguinal hernia, umbilical hernia, hiatal hernia]
+  - id: diabetes
+    name: Diabetes
+    aliases: [type 1 diabetes, type 2 diabetes, diabetic, sugar problem]
+  - id: anxiety
+    name: Anxiety
+    aliases: [anxiety disorder, generalised anxiety, generalized anxiety, anxious]
+  - id: panic_disorder
+    name: Panic attacks
+    aliases: [panic attack, panic disorder]
+  - id: depression
+    name: Depression
+    aliases: [depressed, low mood, major depression]
+  - id: insomnia
+    name: Insomnia
+    aliases: [trouble sleeping, sleep problems, can't sleep]
+  - id: ptsd
+    name: PTSD
+    aliases: [post traumatic stress, post-traumatic stress disorder, trauma]
+  - id: epilepsy
+    name: Epilepsy
+    aliases: [seizures, seizure disorder]
+
+ingredients:
+  # --- Meat, fish and seafood ---
+  - {name: chicken, aliases: [murgh, murga, chicken breast, chicken thigh], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: mutton, aliases: [goat meat, gosht], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: lamb, aliases: [lamb chops], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: beef, aliases: [steak, ground beef, minced beef], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: keema, aliases: [mince, minced meat], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: turkey, aliases: [turkey breast], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: duck, aliases: [], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: pork, aliases: [pork chop, pork belly], allergens: [], diet_conflicts: [animal_product, meat, pork]}
+  - {name: bacon, aliases: [], allergens: [], diet_conflicts: [animal_product, meat, pork]}
+  - {name: ham, aliases: [], allergens: [], diet_conflicts: [animal_product, meat, pork]}
+  - {name: pepperoni, aliases: [salami, prosciutto, chorizo], allergens: [], diet_conflicts: [animal_product, meat, pork]}
+  - {name: sausage, aliases: [sausages], allergens: [], diet_conflicts: [animal_product, meat, pork]}
+  - {name: chicken sausage, aliases: [], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: lard, aliases: [], allergens: [], diet_conflicts: [animal_product, meat, pork]}
+  - {name: bone broth, aliases: [chicken stock, beef stock, meat stock], allergens: [], diet_conflicts: [animal_product, meat]}
+  - {name: fish, aliases: [machli, machhli, white fish, fish fillet], allergens: [fish], diet_conflicts: [animal_product, fish]}
+  - {name: salmon, aliases: [], allergens: [fish], diet_conflicts: [animal_product, fish]}
+  - {name: tuna, aliases: [canned tuna], allergens: [fish], diet_conflicts: [animal_product, fish]}
+  - {name: sardine, aliases: [sardines], allergens: [fish], diet_conflicts: [animal_product, fish]}
+  - {name: anchovy, aliases: [anchovies], allergens: [fish], diet_conflicts: [animal_product, fish]}
+  - {name: rohu, aliases: [katla, pomfret, surmai, hilsa], allergens: [fish], diet_conflicts: [animal_product, fish]}
+  - {name: fish sauce, aliases: [], allergens: [fish], diet_conflicts: [animal_product, fish]}
+  - {name: worcestershire sauce, aliases: [], allergens: [fish], diet_conflicts: [animal_product, fish]}
+  - {name: prawn, aliases: [prawns, shrimp, shrimps, jhinga], allergens: [crustacean], diet_conflicts: [animal_product, shellfish]}
+  - {name: crab, aliases: [], allergens: [crustacean], diet_conflicts: [animal_product, shellfish]}
+  - {name: lobster, aliases: [], allergens: [crustacean], diet_conflicts: [animal_product, shellfish]}
+  - {name: squid, aliases: [calamari, octopus], allergens: [mollusc], diet_conflicts: [animal_product, shellfish]}
+  - {name: mussels, aliases: [clams, oysters, scallops], allergens: [mollusc], diet_conflicts: [animal_product, shellfish]}
+  - {name: oyster sauce, aliases: [], allergens: [mollusc], diet_conflicts: [animal_product, shellfish]}
+
+  # --- Eggs, dairy, honey, gelatin ---
+  - {name: egg, aliases: [eggs, anda, ande, boiled egg, omelette, egg white, egg whites, egg yolk], allergens: [egg], diet_conflicts: [animal_product, egg]}
+  - {name: mayonnaise, aliases: [mayo], allergens: [egg], diet_conflicts: [animal_product, egg]}
+  - {name: milk, aliases: [doodh, cow milk, whole milk, skim milk, toned milk], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: curd, aliases: [dahi, yogurt, yoghurt, greek yogurt, raita], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: buttermilk, aliases: [chaas, chhaach, lassi], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: paneer, aliases: [cottage cheese], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: cheese, aliases: [cheddar, mozzarella, parmesan, feta], allergens: [milk], diet_conflicts: [animal_product]}
+  - {name: butter, aliases: [makhan, makkhan], allergens: [milk], diet_conflicts: [animal_product]}
+  - {name: ghee, aliases: [clarified butter, desi ghee], allergens: [milk], diet_conflicts: [animal_product]}
+  - {name: cream, aliases: [malai, fresh cream, heavy cream, sour cream], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: khoya, aliases: [mawa, khoa], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: condensed milk, aliases: [milkmaid], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: whey protein, aliases: [whey, casein, milk protein], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: ice cream, aliases: [kulfi], allergens: [milk], diet_conflicts: [animal_product, lactose]}
+  - {name: milk chocolate, aliases: [], allergens: [milk, soy], diet_conflicts: [animal_product, lactose]}
+  - {name: honey, aliases: [shahad, madhu], allergens: [], diet_conflicts: [animal_product, honey]}
+  - {name: gelatin, aliases: [gelatine, jelly], allergens: [], diet_conflicts: [animal_product, gelatin]}
+
+  # --- Nuts and seeds ---
+  - {name: almond, aliases: [almonds, badam], allergens: [tree_nut], diet_conflicts: []}
+  - {name: cashew, aliases: [cashews, kaju], allergens: [tree_nut], diet_conflicts: []}
+  - {name: walnut, aliases: [walnuts, akhrot], allergens: [tree_nut], diet_conflicts: []}
+  - {name: pistachio, aliases: [pistachios, pista], allergens: [tree_nut], diet_conflicts: []}
+  - {name: hazelnut, aliases: [hazelnuts], allergens: [tree_nut], diet_conflicts: []}
+  - {name: pecan, aliases: [pecans], allergens: [tree_nut], diet_conflicts: []}
+  - {name: macadamia, aliases: [macadamia nuts], allergens: [tree_nut], diet_conflicts: []}
+  - {name: pine nut, aliases: [pine nuts, chilgoza], allergens: [tree_nut], diet_conflicts: []}
+  - {name: mixed nuts, aliases: [dry fruits, nuts, trail mix], allergens: [tree_nut, peanut], diet_conflicts: []}
+  - {name: almond milk, aliases: [], allergens: [tree_nut], diet_conflicts: []}
+  - {name: pesto, aliases: [], allergens: [tree_nut, milk], diet_conflicts: [animal_product]}
+  - {name: marzipan, aliases: [badam paste], allergens: [tree_nut], diet_conflicts: []}
+  - {name: praline, aliases: [nutella, hazelnut spread], allergens: [tree_nut, milk], diet_conflicts: [animal_product, lactose]}
+  - {name: peanut, aliases: [peanuts, moongphali, mungfali, groundnut, groundnuts], allergens: [peanut], diet_conflicts: []}
+  - {name: peanut butter, aliases: [], allergens: [peanut], diet_conflicts: []}
+  - {name: groundnut oil, aliases: [peanut oil], allergens: [peanut], diet_conflicts: []}
+  - {name: sesame, aliases: [sesame seeds, til], allergens: [sesame], diet_conflicts: []}
+  - {name: tahini, aliases: [sesame paste], allergens: [sesame], diet_conflicts: []}
+  - {name: hummus, aliases: [], allergens: [sesame], diet_conflicts: []}
+  - {name: sesame oil, aliases: [til oil, gingelly oil], allergens: [sesame], diet_conflicts: []}
+  - {name: mustard seeds, aliases: [rai, sarson seeds], allergens: [mustard], diet_conflicts: []}
+  - {name: mustard oil, aliases: [sarson ka tel, sarson oil], allergens: [mustard], diet_conflicts: []}
+  - {name: mustard sauce, aliases: [mustard, dijon mustard, kasundi], allergens: [mustard], diet_conflicts: []}
+  - {name: chia seeds, aliases: [chia], allergens: [], diet_conflicts: []}
+  - {name: flaxseed, aliases: [flax seeds, alsi], allergens: [], diet_conflicts: []}
+  - {name: pumpkin seeds, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: sunflower seeds, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: coconut, aliases: [nariyal, desiccated coconut, coconut milk], allergens: [], diet_conflicts: []}
+
+  # --- Grains and flours ---
+  - {name: wheat, aliases: [gehun, whole wheat, wheat flour], allergens: [gluten], diet_conflicts: []}
+  - {name: atta, aliases: [chakki atta], allergens: [gluten], diet_conflicts: []}
+  - {name: maida, aliases: [all purpose flour, refined flour, white flour], allergens: [gluten], diet_conflicts: []}
+  - {name: semolina, aliases: [sooji, suji, rava, upma], allergens: [gluten], diet_conflicts: []}
+  - {name: dalia, aliases: [broken wheat, bulgur, cracked wheat], allergens: [gluten], diet_conflicts: []}
+  - {name: roti, aliases: [chapati, chapatti, phulka], allergens: [gluten], diet_conflicts: []}
+  - {name: paratha, aliases: [parantha], allergens: [gluten], diet_conflicts: []}
+  - {name: naan, aliases: [kulcha], allergens: [gluten, milk], diet_conflicts: [animal_product, lactose]}
+  - {name: bread, aliases: [white bread, brown bread, whole wheat bread, toast], allergens: [gluten], diet_conflicts: []}
+  - {name: pasta, aliases: [spaghetti, penne, macaroni], allergens: [gluten], diet_conflicts: []}
+  - {name: noodles, aliases: [hakka noodles, ramen], allergens: [gluten], diet_conflicts: []}
+  - {name: couscous, aliases: [], allergens: [gluten], diet_conflicts: []}
+  - {name: barley, aliases: [jau], allergens: [gluten], diet_conflicts: []}
+  - {name: rye, aliases: [rye bread], allergens: [gluten], diet_conflicts: []}
+  - {name: oats, aliases: [oatmeal, rolled oats, porridge oats], allergens: [gluten], diet_conflicts: []}
+  - {name: seitan, aliases: [wheat gluten], allergens: [gluten], diet_conflicts: []}
+  - {name: rice, aliases: [chawal, basmati rice, brown rice, white rice], allergens: [], diet_conflicts: []}
+  - {name: poha, aliases: [flattened rice, beaten rice], allergens: [], diet_conflicts: []}
+  - {name: quinoa, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: ragi, aliases: [finger millet, nachni], allergens: [], diet_conflicts: []}
+  - {name: bajra, aliases: [pearl millet], allergens: [], diet_conflicts: []}
+  - {name: jowar, aliases: [sorghum], allergens: [], diet_conflicts: []}
+  - {name: corn, aliases: [makka, makki, maize, sweet corn], allergens: [], diet_conflicts: []}
+  - {name: besan, aliases: [gram flour, chickpea flour], allergens: [], diet_conflicts: []}
+  - {name: lupin flour, aliases: [lupini beans, lupin], allergens: [lupin], diet_conflicts: []}
+
+  # --- Pulses and soy ---
+  - {name: chickpeas, aliases: [chana, chole, kabuli chana, garbanzo beans], allergens: [], diet_conflicts: []}
+  - {name: lentils, aliases: [dal, daal, masoor dal, toor dal, arhar dal], allergens: [], diet_conflicts: []}
+  - {name: moong dal, aliases: [mung beans, green gram, moong], allergens: [], diet_conflicts: []}
+  - {name: urad dal, aliases: [black gram], allergens: [], diet_conflicts: []}
+  - {name: kidney beans, aliases: [rajma], allergens: [], diet_conflicts: []}
+  - {name: black beans, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: sprouts, aliases: [moong sprouts, sprouted moong], allergens: [], diet_conflicts: []}
+  - {name: tofu, aliases: [bean curd], allergens: [soy], diet_conflicts: []}
+  - {name: soy milk, aliases: [soya milk], allergens: [soy], diet_conflicts: []}
+  - {name: soya chunks, aliases: [soy chunks, nutrela, textured vegetable protein], allergens: [soy], diet_conflicts: []}
+  - {name: edamame, aliases: [soybeans, soya beans], allergens: [soy], diet_conflicts: []}
+  - {name: tempeh, aliases: [], allergens: [soy], diet_conflicts: []}
+  - {name: soy sauce, aliases: [soya sauce], allergens: [soy, gluten], diet_conflicts: []}
+
+  # --- Root vegetables (Jain) ---
+  - {name: onion, aliases: [onions, pyaz, pyaaz, kanda, spring onion], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: garlic, aliases: [lehsun, lahsun, garlic paste], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: potato, aliases: [potatoes, aloo, alu], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: sweet potato, aliases: [shakarkandi], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: carrot, aliases: [carrots, gajar], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: beetroot, aliases: [beet, chukandar], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: radish, aliases: [mooli], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: ginger, aliases: [adrak, ginger paste], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: taro, aliases: [arbi, colocasia], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: yam, aliases: [suran, jimikand, elephant foot yam], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: turnip, aliases: [shalgam], allergens: [], diet_conflicts: [root_vegetable]}
+
+  # --- Other vegetables and fruit ---
+  - {name: spinach, aliases: [palak], allergens: [], diet_conflicts: []}
+  - {name: fenugreek leaves, aliases: [methi], allergens: [], diet_conflicts: []}
+  - {name: mustard greens, aliases: [sarson ka saag], allergens: [], diet_conflicts: []}
+  - {name: tomato, aliases: [tomatoes, tamatar], allergens: [], diet_conflicts: []}
+  - {name: cucumber, aliases: [kheera, kakdi], allergens: [], diet_conflicts: []}
+  - {name: broccoli, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: cauliflower, aliases: [gobhi, phool gobhi], allergens: [], diet_conflicts: []}
+  - {name: cabbage, aliases: [patta gobhi, band gobhi], allergens: [], diet_conflicts: []}
+  - {name: green peas, aliases: [peas, matar, mattar], allergens: [], diet_conflicts: []}
+  - {name: okra, aliases: [bhindi, lady finger], allergens: [], diet_conflicts: []}
+  - {name: brinjal, aliases: [eggplant, aubergine, baingan], allergens: [], diet_conflicts: []}
+  - {name: bell pepper, aliases: [capsicum, shimla mirch], allergens: [], diet_conflicts: []}
+  - {name: bottle gourd, aliases: [lauki, doodhi], allergens: [], diet_conflicts: []}
+  - {name: pumpkin, aliases: [kaddu], allergens: [], diet_conflicts: []}
+  - {name: mushroom, aliases: [mushrooms], allergens: [], diet_conflicts: []}
+  - {name: lettuce, aliases: [salad greens, mixed greens], allergens: [], diet_conflicts: []}
+  - {name: celery, aliases: [celery stalks, celeriac], allergens: [celery], diet_conflicts: []}
+  - {name: avocado, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: banana, aliases: [bananas, kela], allergens: [], diet_conflicts: []}
+  - {name: apple, aliases: [apples, seb], allergens: [], diet_conflicts: []}
+  - {name: mango, aliases: [aam], allergens: [], diet_conflicts: []}
+  - {name: papaya, aliases: [papita], allergens: [], diet_conflicts: []}
+  - {name: berries, aliases: [strawberries, blueberries], allergens: [], diet_conflicts: []}
+  - {name: orange, aliases: [oranges, santra], allergens: [], diet_conflicts: []}
+  - {name: lemon, aliases: [lime, nimbu], allergens: [], diet_conflicts: []}
+  - {name: dates, aliases: [khajur], allergens: [], diet_conflicts: []}
+  - {name: dried apricots, aliases: [khumani], allergens: [sulphites], diet_conflicts: []}
+  - {name: raisins, aliases: [kishmish], allergens: [sulphites], diet_conflicts: []}
+
+  # --- Drinks with alcohol or sulphites ---
+  - {name: wine, aliases: [red wine, white wine], allergens: [sulphites], diet_conflicts: [alcohol]}
+  - {name: beer, aliases: [], allergens: [gluten], diet_conflicts: [alcohol]}
+  - {name: spirits, aliases: [rum, vodka, whisky, whiskey, gin], allergens: [], diet_conflicts: [alcohol]}
+
+  # --- Oils, sweeteners, spices, basics ---
+  - {name: olive oil, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: coconut oil, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: vegetable oil, aliases: [sunflower oil, refined oil, rice bran oil], allergens: [], diet_conflicts: []}
+  - {name: sugar, aliases: [cheeni, brown sugar], allergens: [], diet_conflicts: []}
+  - {name: jaggery, aliases: [gur, gud], allergens: [], diet_conflicts: []}
+  - {name: dark chocolate, aliases: [cocoa, cacao], allergens: [], diet_conflicts: []}
+  - {name: salt, aliases: [namak, rock salt, sendha namak], allergens: [], diet_conflicts: []}
+  - {name: turmeric powder, aliases: [haldi], allergens: [], diet_conflicts: []}
+  - {name: cumin, aliases: [jeera], allergens: [], diet_conflicts: []}
+  - {name: coriander, aliases: [dhania, cilantro], allergens: [], diet_conflicts: []}
+  - {name: chilli, aliases: [green chilli, red chilli, mirch, chili], allergens: [], diet_conflicts: []}
+  - {name: garam masala, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: asafoetida, aliases: [hing], allergens: [], diet_conflicts: []}
+  - {name: water, aliases: [], allergens: [], diet_conflicts: []}

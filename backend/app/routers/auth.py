@@ -305,25 +305,16 @@ async def delete_account(
     try:
         user_id = current_user.id  # Get user ID from authenticated user
         
-        # 1. Delete conversation messages and associated images
-        # Fetch all conversation messages for this user
-        messages = db.query(ConversationMessage).filter(
-            ConversationMessage.user_id == user_id
-        ).all()
-        
-        # Delete associated image files from filesystem
-        # Images are stored in uploads/images directory
+        # 1. Delete every image the user uploaded
+        # Uploads are named "{user_id}_{hex}.jpg", so this also catches images
+        # that were uploaded but never attached to a message
         UPLOADS_DIR = Path("uploads/images")
-        for msg in messages:
-            if msg.image_path:
-                # Extract filename from image path
-                image_file = UPLOADS_DIR / msg.image_path.split('/')[-1]
-                if image_file.exists():
-                    try:
-                        image_file.unlink()  # Delete image file
-                    except OSError as e:
-                        logger.warning("Failed to delete image file %s: %s", image_file, e)
-        
+        for image_file in UPLOADS_DIR.glob(f"{user_id}_*.jpg"):
+            try:
+                image_file.unlink()
+            except OSError as e:
+                logger.warning("Failed to delete image file %s: %s", image_file, e)
+
         # Delete conversation messages from database
         db.query(ConversationMessage).filter(
             ConversationMessage.user_id == user_id

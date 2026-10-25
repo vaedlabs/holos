@@ -1,0 +1,353 @@
+# Holos safety rules (Plan C.14). Rules refer to catalogue tags and IDs,
+# never to item names. Every rule has an id, a severity and a reason.
+#
+#   when:     what in the user's profile turns the rule on
+#   block:    the item tags the rule matches (a value or a list of values)
+#   severity: block (remove the item) or warn (keep it, add the reason as a caveat)
+#
+# Owner sign-off 25 Oct 2026 (Plan Part E #7, #8). The crisis text is an
+# interim draft the owner may revise before launch.
+
+version: 1
+
+exercise:
+  # Knees
+  - id: EX-KNEE-01
+    when: {condition: knee_ligament_injury}
+    block: {knee_load: high}
+    severity: block
+    reason: High knee load with a knee ligament injury
+  - id: EX-KNEE-02
+    when: {condition: knee_ligament_injury}
+    block: {impact: high}
+    severity: block
+    reason: High-impact movement with a knee ligament injury
+  - id: EX-KNEE-03
+    when: {condition: knee_injury}
+    block: {knee_load: high}
+    severity: block
+    reason: High knee load with a knee injury
+
+  # Back
+  - id: EX-BACK-01
+    when: {condition: lower_back_injury}
+    block: {spinal_load: high}
+    severity: block
+    reason: High spinal load with a back injury
+  - id: EX-BACK-02
+    when: {condition: lower_back_injury}
+    block: {heavy_load: true}
+    severity: block
+    reason: Heavy loading with a back injury
+  - id: EX-BACK-03
+    when: {condition: back_pain}
+    block: {spinal_load: high}
+    severity: warn
+    reason: High spinal load can aggravate back pain
+
+  # Shoulders
+  - id: EX-SHLD-01
+    when: {condition: shoulder_injury}
+    block: {shoulder_load: high}
+    severity: block
+    reason: High shoulder load with a shoulder injury
+  - id: EX-SHLD-02
+    when: {condition: shoulder_pain}
+    block: {shoulder_load: high}
+    severity: warn
+    reason: High shoulder load can aggravate shoulder pain
+
+  # Wrists and ankles
+  - id: EX-WRIST-01
+    when: {condition: wrist_injury}
+    block: {wrist_load: high}
+    severity: warn
+    reason: Weight on the hands can aggravate a wrist injury
+  - id: EX-ANKLE-01
+    when: {condition: ankle_injury}
+    block: {ankle_load: high}
+    severity: warn
+    reason: High ankle load with an ankle injury
+  - id: EX-ANKLE-02
+    when: {condition: ankle_injury}
+    block: {impact: high}
+    severity: warn
+    reason: High-impact movement with an ankle injury
+
+  # Neck
+  - id: EX-NECK-01
+    when: {condition: neck_injury}
+    block: {neck_load: high}
+    severity: block
+    reason: High neck load with a neck injury
+  - id: EX-NECK-02
+    when: {condition: neck_injury}
+    block: {inversion: true}
+    severity: block
+    reason: Inversions put weight on the neck
+
+  # Heart and blood pressure
+  - id: EX-HEART-01
+    when: {condition: [heart_condition, arrhythmia]}
+    block: {exertion: high}
+    severity: block
+    reason: High-intensity exercise with a heart condition
+  - id: EX-HEART-02
+    when: {condition: [heart_condition, arrhythmia]}
+    block: {heavy_load: true}
+    severity: block
+    reason: Heavy lifting with a heart condition
+  - id: EX-BP-01
+    when: {condition: hypertension}
+    block: {heavy_load: true}
+    severity: warn
+    reason: Heavy lifting raises blood pressure sharply
+  - id: EX-BP-02
+    when: {condition: hypertension}
+    block: {exertion: high}
+    severity: warn
+    reason: Very intense exercise with high blood pressure
+  - id: EX-BP-03
+    when: {condition: hypertension}
+    block: {inversion: true}
+    severity: block
+    reason: Inversions raise blood pressure in the head
+
+  # Bones and joints
+  - id: EX-BONE-01
+    when: {condition: osteoporosis}
+    block: {impact: high}
+    severity: block
+    reason: High-impact movement with osteoporosis
+  - id: EX-BONE-02
+    when: {condition: osteoporosis}
+    block: {heavy_load: true}
+    severity: block
+    reason: Heavy loading with osteoporosis
+  - id: EX-BONE-03
+    when: {condition: osteoporosis}
+    block: {spinal_load: high}
+    severity: block
+    reason: High spinal load with osteoporosis
+  - id: EX-JOINT-01
+    when: {condition: arthritis}
+    block: {impact: high}
+    severity: warn
+    reason: High-impact movement can aggravate arthritis
+
+  # Lungs
+  - id: EX-LUNG-01
+    when: {condition: asthma}
+    block: {exertion: high}
+    severity: warn
+    reason: Very intense exercise can trigger asthma
+  - id: EX-LUNG-02
+    when: {condition: copd}
+    block: {exertion: high}
+    severity: block
+    reason: High-intensity exercise with COPD
+
+  # Pregnancy and hernia
+  - id: EX-PREG-01
+    when: {condition: pregnancy}
+    block: {impact: high}
+    severity: warn
+    reason: High-impact movement during pregnancy
+  - id: EX-PREG-02
+    when: {condition: pregnancy}
+    block: {heavy_load: true}
+    severity: warn
+    reason: Heavy lifting during pregnancy
+  - id: EX-PREG-03
+    when: {condition: pregnancy}
+    block: {supine: true}
+    severity: warn
+    reason: Lying flat on the back during pregnancy
+  - id: EX-PREG-04
+    when: {condition: pregnancy}
+    block: {abdominal_strain: high}
+    severity: warn
+    reason: Strong abdominal strain during pregnancy
+  - id: EX-HERNIA-01
+    when: {condition: hernia}
+    block: {heavy_load: true}
+    severity: block
+    reason: Heavy lifting with a hernia
+  - id: EX-HERNIA-02
+    when: {condition: hernia}
+    block: {abdominal_strain: high}
+    severity: block
+    reason: Strong abdominal strain with a hernia
+
+dietary:
+  - id: DI-ALG-01
+    when: {allergen: any}          # the user's own allergen tags
+    block: {allergen: same}
+    severity: block
+    reason: Contains an allergen in your profile
+  - id: DI-VEGAN-01
+    when: {diet: vegan}
+    block: {diet_conflict: animal_product}
+    severity: block
+    reason: Contains an animal product
+  - id: DI-VEG-01
+    when: {diet: [vegetarian, eggetarian]}
+    block: {diet_conflict: [meat, fish, shellfish, gelatin]}
+    severity: block
+    reason: Contains meat, fish or gelatin
+  - id: DI-JAIN-01
+    when: {diet: jain}
+    block: {diet_conflict: [meat, fish, shellfish, gelatin, egg, honey, root_vegetable]}
+    severity: block
+    reason: Not suitable for a Jain diet
+  - id: DI-HALAL-01
+    when: {diet: halal}
+    block: {diet_conflict: [pork, alcohol]}
+    severity: block
+    reason: Contains pork or alcohol
+  - id: DI-HALAL-02
+    when: {diet: halal}
+    block: {diet_conflict: [meat, gelatin]}
+    severity: warn
+    reason: Check that the meat or gelatin is halal
+  - id: DI-KOSHER-01
+    when: {diet: kosher}
+    block: {diet_conflict: [pork, shellfish]}
+    severity: block
+    reason: Contains pork or shellfish
+  - id: DI-KOSHER-02
+    when: {diet: kosher}
+    block: {diet_conflict: [meat, gelatin]}
+    severity: warn
+    reason: Check that the meat is kosher and isn't served with dairy
+  - id: DI-PESC-01
+    when: {diet: pescatarian}
+    block: {diet_conflict: [meat, gelatin]}
+    severity: block
+    reason: Contains meat or gelatin
+  - id: DI-LACT-01
+    when: {diet: lactose_free}
+    block: {diet_conflict: lactose}
+    severity: warn
+    reason: Contains lactose; choose a lactose-free version if you can
+
+mental:
+  - id: MN-BREATH-01
+    when: {condition: [heart_condition, asthma]}
+    block: {breath_hold: true}
+    severity: block
+    reason: Breath-holding with a heart condition or asthma
+  - id: MN-BREATH-02
+    when: {condition: [heart_condition, hypertension, pregnancy, epilepsy]}
+    block: {forceful_breathing: true}
+    severity: block
+    reason: Forceful breathing isn't safe with this condition
+  - id: MN-HARM-01
+    when: {always: true}
+    block:
+      text:
+        - hurt yourself
+        - harm yourself
+        - punish yourself
+        - starve yourself
+        - stop eating
+        - skip meals to
+        - make yourself throw up
+        - make yourself sick
+        - you deserve to suffer
+        - you deserve the pain
+        - nobody would miss you
+        - no one would miss you
+        - give up on life
+        - end your life
+        - kill yourself
+    severity: block
+    reason: Reply encourages self-harm
+
+crisis:
+  # DRAFT for the owner: Plan C.16 says the owner writes this wording.
+  message: >-
+    It sounds like you're going through something really painful, and you
+    don't have to face it alone. If you or someone you know might be in
+    danger, please reach out now. Tele-MANAS (India): call 14416, free and
+    open 24/7. 988 Suicide & Crisis Lifeline (US): call or text 988.
+    Anywhere else: findahelpline.com. If you are in immediate danger, call
+    your local emergency number.
+  reminder: >-
+    If things feel heavy, help is there: Tele-MANAS 14416 (India),
+    988 (US), findahelpline.com.
+  helplines:
+    - {name: Tele-MANAS, region: India, contact: "14416"}
+    - {name: 988 Suicide & Crisis Lifeline, region: US, contact: "988"}
+    - {name: Find a Helpline, region: Worldwide, contact: findahelpline.com}
+  phrases:
+    en:
+      - kill myself
+      - killing myself
+      - end my life
+      - ending my life
+      - end it all
+      - take my own life
+      - take my life
+      - want to die
+      - wanna die
+      - wish i was dead
+      - wish i were dead
+      - better off dead
+      - don't want to live
+      - dont want to live
+      - no reason to live
+      - not worth living
+      - suicide
+      - suicidal
+      - self harm
+      - self-harm
+      - selfharm
+      - hurt myself
+      - hurting myself
+      - cut myself
+      - cutting myself
+      - overdose
+      - hang myself
+      - can't go on
+      - cant go on
+    hi_latn:
+      - khudkushi
+      - khudkhushi
+      - aatmahatya
+      - atmahatya
+      - marna chahta
+      - marna chahti
+      - mar jana chahta
+      - mar jana chahti
+      - mar jaana chahta
+      - mar jaana chahti
+      - jeena nahi chahta
+      - jeena nahi chahti
+      - jina nahi chahta
+      - jina nahi chahti
+      - zindagi khatam
+      - apni jaan le
+      - khud ko khatam
+      - khud ko nuksan
+    hi_deva:
+      - आत्महत्या
+      - ख़ुदकुशी
+      - खुदकुशी
+      - मरना चाहता
+      - मरना चाहती
+      - जीना नहीं चाहता
+      - जीना नहीं चाहती
+      - ज़िंदगी खत्म
+      - अपनी जान ले
+  exceptions:
+    - suicide sprint
+    - suicide sprints
+    - suicide drill
+    - suicide drills
+    - suicide run
+    - suicide runs
+    - suicide squeeze
+    - suicide squad
+  normalise:
+    leet: {"0": o, "1": i, "3": e, "@": a, "$": s}
