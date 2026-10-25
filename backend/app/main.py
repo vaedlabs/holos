@@ -25,7 +25,6 @@ The application uses a modular architecture with separate routers for:
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import os
 from pathlib import Path
@@ -265,17 +264,11 @@ app.include_router(conversation.router)   # Conversation endpoints (/conversatio
 app.include_router(logs.router)         # Log endpoints (/logs/*)
 app.include_router(cache.router)        # Cache management endpoints (/cache/*)
 
-# Serve uploaded images statically
-# This allows the frontend to access uploaded images via URL paths
-# Path object for the uploads directory - relative to project root
+# Ensure the uploads directory exists at startup
+# Images are served via the authenticated /conversation/images/{filename} endpoint,
+# not as static files, so no StaticFiles mount is needed here.
 uploads_dir = Path("uploads/images")
-# Create directory structure if it doesn't exist
-# parents=True creates parent directories, exist_ok=True prevents errors if directory exists
 uploads_dir.mkdir(parents=True, exist_ok=True)
-# Mount static file directory at /uploads URL path
-# This makes files in the "uploads" directory accessible at /uploads/* URLs
-# The "name" parameter is used for reverse URL generation
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 if __name__ == "__main__":
     """

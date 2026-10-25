@@ -19,9 +19,12 @@ Agent Types:
 - coordinator: Coordinator Agent
 """
 
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
 from datetime import datetime
+
+# Shared literal type for agent names — used in request schemas and query params
+AgentType = Literal["coordinator", "physical-fitness", "nutrition", "mental-fitness"]
 
 
 class ConversationMessageCreate(BaseModel):
@@ -69,7 +72,7 @@ class ConversationMessageCreate(BaseModel):
     content: str
     warnings: Optional[List[str]] = None
     image_path: Optional[str] = None  # Path to stored image
-    agent_type: Optional[str] = 'coordinator'  # 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'
+    agent_type: Optional[AgentType] = 'coordinator'  # 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'
 
 
 class ConversationMessageResponse(BaseModel):

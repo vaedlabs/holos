@@ -44,6 +44,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.services.medical_service import get_medical_history
 from app.models.user_preferences import UserPreferences
+from app.models.user import User
 import logging
 
 # Logger instance for this module
@@ -204,18 +205,18 @@ class ContextManager:
         # Fetch fresh context from database
         # Cache miss or expired - fetch from database
         logger.debug(f"Fetching fresh context for user {user_id}")
-        
-        # Fetch medical history
+
+        # Fetch user identity, medical history, and preferences in one pass
+        user = db.query(User).filter(User.id == user_id).first()
         medical_history = get_medical_history(user_id, db)
-        
-        # Fetch user preferences
         preferences = db.query(UserPreferences).filter(
             UserPreferences.user_id == user_id
         ).first()
-        
+
         # Build context dictionary
         # Structure matches what agents expect for shared context
         context = {
+            "username": user.username if user else None,
             "medical_history": {
                 "conditions": medical_history.conditions if medical_history else None,
                 "limitations": medical_history.limitations if medical_history else None,

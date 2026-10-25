@@ -43,12 +43,13 @@ Usage:
     DELETE /conversation/messages - Clear conversation history
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
+import logging
 import os
 import uuid
 import base64
@@ -57,10 +58,18 @@ from app.dependencies import get_database, get_current_user
 from app.models.user import User
 from app.models.conversation_message import ConversationMessage
 from app.schemas.conversation import (
+    AgentType,
     ConversationMessageCreate,
     ConversationMessageResponse,
     ConversationHistoryResponse
 )
+
+logger = logging.getLogger(__name__)
+
+
+class ImageUploadRequest(BaseModel):
+    image_base64: str
+
 
 # FastAPI router for conversation endpoints
 # Prefix: /conversation (all routes will be prefixed with /conversation)
@@ -72,6 +81,17 @@ router = APIRouter(prefix="/conversation", tags=["conversation"])
 # Directory is created on module import if it doesn't exist
 UPLOADS_DIR = Path("uploads/images")
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)  # Create directory structure if needed
+
+
+def _parse_warnings(warnings_json: str | None) -> list | None:
+    """Parse warnings JSON string back to list. Returns None on missing or malformed input."""
+    if not warnings_json:
+        return None
+    try:
+        return json.loads(warnings_json)
+    except json.JSONDecodeError:
+        logger.warning("Could not parse warnings JSON: %s", warnings_json)
+        return None
 
 
 @router.post("/messages", response_model=ConversationMessageResponse)
@@ -155,12 +175,7 @@ async def create_message(
         
         # Parse warnings back to list for response
         # Warnings are stored as JSON, parsed back to list when returning
-        warnings = None
-        if db_message.warnings:
-            try:
-                warnings = json.loads(db_message.warnings)
-            except:
-                warnings = None  # Handle JSON parsing errors gracefully
+        warnings = _parse_warnings(db_message.warnings)
         
         # Return saved message with parsed warnings
         return ConversationMessageResponse(
@@ -183,7 +198,7 @@ async def create_message(
 
 @router.get("/messages", response_model=ConversationHistoryResponse)
 async def get_conversation_history(
-    agent_type: Optional[str] = None,
+    agent_type: Optional[AgentType] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_database)
 ):
@@ -256,12 +271,7 @@ async def get_conversation_history(
         message_responses = []
         for msg in messages:
             # Parse warnings from JSON back to list
-            warnings = None
-            if msg.warnings:
-                try:
-                    warnings = json.loads(msg.warnings)
-                except:
-                    warnings = None  # Handle JSON parsing errors gracefully
+            warnings = _parse_warnings(msg.warnings)
             
             # Create response object with parsed warnings
             message_responses.append(ConversationMessageResponse(
@@ -286,7 +296,7 @@ async def get_conversation_history(
 
 @router.post("/upload-image")
 async def upload_image(
-    image_base64: str = Form(...),
+    data: ImageUploadRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_database)
 ):
@@ -294,10 +304,11 @@ async def upload_image(
     try:
         # Decode base64 image
         try:
-            # Remove data URL prefix if present
+            image_base64 = data.image_base64
+            # Remove data URL prefix if present (e.g. "data:image/jpeg;base64,...")
             if ',' in image_base64:
                 image_base64 = image_base64.split(',')[1]
-            
+
             image_data = base64.b64decode(image_base64)
         except Exception as e:
             raise HTTPException(
@@ -327,47 +338,60 @@ async def upload_image(
 
 
 @router.get("/images/{filename}")
-async def get_image(filename: str):
+async def get_image(
+    filename: str,
+    current_user: User = Depends(get_current_user)
+):
     """
     Serve stored images.
-    
+
     This endpoint serves images stored in the uploads/images directory.
     Images are referenced by filename (from image_path in conversation messages).
     Used to display images in conversation history.
-    
+
     Args:
         filename: str - Image filename (e.g., "123_a1b2c3d4.jpg")
                   Filename format: {user_id}_{uuid}.jpg
-    
+
     Returns:
         FileResponse: Image file response with appropriate content type
-        
+
     Raises:
+        HTTPException 403: If image does not belong to the current user or path is invalid
         HTTPException 404: If image file not found
-        
+
     Security:
-        - No authentication required (images are public)
-        - Filename validation prevents directory traversal
+        - Requires authentication (get_current_user dependency)
+        - Ownership enforced: filename prefix must match current user's ID
+        - Path traversal prevented via resolve() + is_relative_to() check
         - Images are user-specific (filename includes user_id)
-        
+
     Note:
         - Images are served directly from file system
         - Content type inferred from file extension
         - Used to display images in conversation UI
-        
+
     Example:
         GET /conversation/images/123_a1b2c3d4.jpg
-        
-        Returns image file if exists, 404 if not found
+
+        Returns image file if exists and belongs to current user, 403/404 otherwise
     """
-    # Construct file path from filename
-    # Images stored in uploads/images directory
-    file_path = UPLOADS_DIR / filename
-    
+    # Ownership check: filename must start with "{current_user.id}_"
+    # Filename format is always "{user_id}_{uuid}.jpg" set during upload
+    parts = filename.split("_", 1)
+    if len(parts) < 2 or parts[0] != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Resolve path and verify it stays inside UPLOADS_DIR (prevents directory traversal)
+    # Path.resolve() collapses ".." segments; is_relative_to() confirms containment
+    file_path = (UPLOADS_DIR / filename).resolve()
+    if not file_path.is_relative_to(UPLOADS_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Invalid image path")
+
     # Check if image file exists
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
-    
+
     # Return image file response
     # FastAPI FileResponse handles content type and file serving
     return FileResponse(file_path)
@@ -438,8 +462,8 @@ async def clear_conversation_history(
                 if image_file.exists():
                     try:
                         image_file.unlink()  # Delete image file
-                    except:
-                        pass  # Continue even if image deletion fails (non-critical)
+                    except OSError as e:
+                        logger.warning("Failed to delete image file %s: %s", image_file, e)
         
         # Delete messages from database
         # All user's conversation messages are deleted

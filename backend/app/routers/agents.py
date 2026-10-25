@@ -56,6 +56,7 @@ from app.agents.mental_fitness_agent import MentalFitnessAgent
 from app.agents.coordinator_agent import CoordinatorAgent
 from app.schemas.agents import AgentChatRequest, AgentChatResponse
 from app.schemas.agent_logs import AgentExecutionLogResponse, AgentExecutionLogsListResponse
+from app.schemas.conversation import AgentType
 from app.services.agent_tracer import AgentTracer
 
 # FastAPI router for agent interaction endpoints
@@ -678,7 +679,7 @@ async def chat_with_coordinator_agent(
 async def get_agent_execution_logs(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_database),
-    agent_type: Optional[str] = Query(default=None, description="Filter by agent type (coordinator, physical-fitness, nutrition, mental-fitness)"),
+    agent_type: Optional[AgentType] = Query(default=None, description="Filter by agent type (coordinator, physical-fitness, nutrition, mental-fitness)"),
     limit: Optional[int] = Query(default=50, ge=1, le=100, description="Maximum number of logs to return"),
     offset: Optional[int] = Query(default=0, ge=0, description="Number of logs to skip")
 ):
