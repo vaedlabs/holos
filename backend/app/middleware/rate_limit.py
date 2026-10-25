@@ -13,9 +13,9 @@ Key Features:
 - Bypass logic: Health checks and docs endpoints bypass rate limiting
 
 Rate Limit Tiers:
-- Agent endpoints (/agents/*): Most restrictive (default: 20 requests/minute)
-- Auth endpoints (/auth/*): Very restrictive (default: 10 requests/minute)
-- General endpoints: Default limit (default: 60 requests/minute)
+- Agent endpoints (/agents/*): Most restrictive (default: 60 requests/minute)
+- Auth endpoints (/auth/*): Very restrictive (default: 30 requests/minute)
+- General endpoints: Default limit (default: 200 requests/minute)
 
 Rate Limit Headers:
 - X-RateLimit-Limit: Total requests allowed per window
@@ -82,11 +82,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         default_requests_per_minute: int = 60,
         agent_requests_per_minute: int = 20,
         auth_requests_per_minute: int = 10,
-        window_seconds: int = 60
+        window_seconds: int = 60,
+        allowed_origins: list = None
     ):
         """
         Initialize rate limiting middleware.
-        
+
         Args:
             app: FastAPI application instance
                   Middleware wraps this app instance
@@ -101,6 +102,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             window_seconds: Time window for rate limiting
                           Requests counted within this window
                           Default: 60 seconds (1 minute)
+            allowed_origins: List of allowed CORS origins. 429 responses will include
+                           CORS headers for these origins so the browser can read
+                           the error response (rate limiter runs outside CORSMiddleware).
         """
         super().__init__(app)
         # Rate limit configuration
@@ -109,13 +113,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.agent_requests_per_minute = agent_requests_per_minute  # Agent endpoints: 20/min (more restrictive)
         self.auth_requests_per_minute = auth_requests_per_minute  # Auth endpoints: 10/min (most restrictive)
         self.window_seconds = window_seconds  # Time window: 60 seconds
-        
+        self.allowed_origins = set(allowed_origins or [])  # Origins allowed to receive 429 CORS headers
+
         # Store request timestamps per client IP
         # Format: {client_ip: [timestamp1, timestamp2, ...]}
         # Timestamps are Unix timestamps (time.time())
         # Old timestamps are cleaned up automatically
         self.requests: Dict[str, list] = defaultdict(list)  # Request timestamps per client IP
-        
+
         # Lock for thread safety (if needed in future)
         # Currently not used (FastAPI is async, but could add for thread safety)
         self._lock = None
@@ -360,9 +365,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             - Includes limit, remaining, reset time
             - Retry-After header added when rate limited
         """
-        # Skip rate limiting for health check and root endpoints
-        # These endpoints should not be rate limited (monitoring, docs)
-        if request.url.path in ["/health", "/", "/docs", "/openapi.json", "/redoc"]:
+        # Skip rate limiting for health check, docs, and CORS preflight requests
+        # OPTIONS preflight must never be rate-limited — a 429 on a preflight is
+        # indistinguishable from a CORS error in the browser and causes misleading
+        # "Cannot connect" failures even when the server is healthy.
+        if request.method == "OPTIONS" or request.url.path in ["/health", "/", "/docs", "/openapi.json", "/redoc"]:
             return await call_next(request)  # Bypass rate limiting
         
         # Get client identifier
@@ -403,7 +410,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # Headers help clients understand rate limit status
             self._add_rate_limit_headers(response, 0, limit, reset_time)  # 0 remaining (rate limited)
             response.headers["Retry-After"] = str(self.window_seconds)  # Retry-After header
-            
+
+            # Inject CORS headers for allowed origins so the browser can read this 429
+            # response. The rate limiter runs outside CORSMiddleware, so CORS headers
+            # are not added automatically — without them the browser treats any non-2xx
+            # preflight-blocked response as a network error ("Failed to fetch").
+            origin = request.headers.get("origin")
+            if origin and origin in self.allowed_origins:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                response.headers["Vary"] = "Origin"
+
             return response
         
         # Record this request
@@ -426,43 +443,30 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def get_rate_limit_config() -> Dict[str, int]:
+def get_rate_limit_config(allowed_origins: list = None) -> dict:
     """
     Get rate limit configuration from environment variables.
-    
-    This function reads rate limit configuration from environment variables,
-    providing defaults if not set. Allows runtime configuration without code changes.
-    
+
     Environment Variables:
-        - RATE_LIMIT_DEFAULT: Default rate limit for general endpoints (default: 60)
-        - RATE_LIMIT_AGENT: Rate limit for agent endpoints (default: 20)
-        - RATE_LIMIT_AUTH: Rate limit for auth endpoints (default: 10)
+        - RATE_LIMIT_DEFAULT: Default rate limit for general endpoints (default: 200)
+        - RATE_LIMIT_AGENT: Rate limit for agent endpoints (default: 60)
+        - RATE_LIMIT_AUTH: Rate limit for auth endpoints (default: 30)
         - RATE_LIMIT_WINDOW: Time window in seconds (default: 60)
-    
+
+    Args:
+        allowed_origins: CORS allowed origins list passed from main.py so the
+                        middleware can inject CORS headers into 429 responses.
+
     Returns:
-        Dict[str, int]: Dictionary with rate limit settings:
-            - default_requests_per_minute: int (general endpoints)
-            - agent_requests_per_minute: int (agent endpoints)
-            - auth_requests_per_minute: int (auth endpoints)
-            - window_seconds: int (time window)
-            
-    Usage:
-        config = get_rate_limit_config()
-        app.add_middleware(RateLimitMiddleware, **config)
-        
-    Note:
-        - Values are converted to integers
-        - Defaults provided if environment variables not set
-        - Allows configuration via .env file or environment variables
+        dict: Keyword arguments ready to unpack into RateLimitMiddleware(**config).
     """
     import os
-    
-    # Read rate limit configuration from environment variables
-    # Defaults provided if environment variables not set
+
     return {
-        "default_requests_per_minute": int(os.getenv("RATE_LIMIT_DEFAULT", "60")),  # General endpoints: 60/min
-        "agent_requests_per_minute": int(os.getenv("RATE_LIMIT_AGENT", "20")),  # Agent endpoints: 20/min
-        "auth_requests_per_minute": int(os.getenv("RATE_LIMIT_AUTH", "10")),  # Auth endpoints: 10/min
-        "window_seconds": int(os.getenv("RATE_LIMIT_WINDOW", "60"))  # Time window: 60 seconds
+        "default_requests_per_minute": int(os.getenv("RATE_LIMIT_DEFAULT", "200")),
+        "agent_requests_per_minute": int(os.getenv("RATE_LIMIT_AGENT", "60")),
+        "auth_requests_per_minute": int(os.getenv("RATE_LIMIT_AUTH", "30")),
+        "window_seconds": int(os.getenv("RATE_LIMIT_WINDOW", "60")),
+        "allowed_origins": allowed_origins or [],
     }
 

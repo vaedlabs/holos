@@ -48,7 +48,10 @@ class TestRateLimitMiddleware:
         assert "agent_requests_per_minute" in config
         assert "auth_requests_per_minute" in config
         assert "window_seconds" in config
-        assert all(isinstance(v, int) for v in config.values())
+        assert config["allowed_origins"] == []
+        int_keys = {k: v for k, v in config.items() if k != "allowed_origins"}
+        assert all(isinstance(v, int) for v in int_keys.values())
+        assert get_rate_limit_config(["http://x"])["allowed_origins"] == ["http://x"]
     
     def test_default_rate_limit(self, app_with_rate_limit):
         """Test default rate limiting on general endpoints"""

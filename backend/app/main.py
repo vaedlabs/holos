@@ -187,23 +187,34 @@ register_error_handlers(app)
 # CORS allows the frontend (running on a different origin) to make requests to this API
 # Load allowed origins from environment variable (comma-separated list)
 # Default to localhost ports 3000 and 3001 for local development
-cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
+cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001")
 # Parse comma-separated string into list, stripping whitespace and filtering empty strings
 allowed_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
-# Add CORS middleware to the application
-# This middleware handles CORS headers for all requests
+# Middleware registration order: Starlette runs middleware in reverse registration order
+# (last registered = outermost). Rate limiting is outermost so it can short-circuit
+# expensive requests early. CORS is inner so it handles preflight responses.
+# The RateLimitMiddleware bypasses OPTIONS requests and manually injects CORS headers
+# into any 429 responses it generates, so the browser always gets valid CORS headers.
+#
+# Execution order:
+#   Request:  RateLimitMiddleware → CORSMiddleware → route handler
+#   Response: route handler → CORSMiddleware → RateLimitMiddleware
+
+# 1. Register CORS first (runs second / inside rate limiting)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,  # List of allowed origins from environment variable
-    allow_credentials=True,  # Allow cookies and authentication headers
-    # Restrict to only the HTTP methods we actually use
-    # OPTIONS is included for CORS preflight requests
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    # Restrict to only the headers we actually need
-    # Content-Type for request bodies, Authorization for JWT tokens
     allow_headers=["Content-Type", "Authorization"],
 )
+
+# 2. Register rate limiting last (runs first / outermost)
+# Rate limits: /agents/* = 20 req/min, /auth/* = 10 req/min, general = 60 req/min
+# 429 responses include CORS headers (injected by RateLimitMiddleware itself)
+from app.middleware.rate_limit import RateLimitMiddleware, get_rate_limit_config
+app.add_middleware(RateLimitMiddleware, **get_rate_limit_config(allowed_origins=allowed_origins))
 
 @app.get("/")
 async def root():
