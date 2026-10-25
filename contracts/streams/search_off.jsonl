@@ -1,0 +1,11 @@
+{"event":"accepted","data":{"seq":0,"trace_id":"tr_search_off","contract_version":1,"mode":"account"}}
+{"event":"step","data":{"seq":1,"trace_id":"tr_search_off","name":"admitted"}}
+{"event":"step","data":{"seq":2,"trace_id":"tr_search_off","name":"routed","agent":"mental","detail":"mental"}}
+{"event":"step","data":{"seq":3,"trace_id":"tr_search_off","name":"agent_started","agent":"mental"}}
+{"event":"step","data":{"seq":4,"trace_id":"tr_search_off","name":"tool_call","agent":"mental","detail":"web_search unavailable"}}
+{"event":"step","data":{"seq":5,"trace_id":"tr_search_off","name":"composing"}}
+{"event":"notice","data":{"seq":6,"trace_id":"tr_search_off","code":"search_off","message":"Web search is off for now, so this answer has no sources."}}
+{"event":"section_start","data":{"seq":7,"trace_id":"tr_search_off","agent":"mental","kind":"answer"}}
+{"event":"text","data":{"seq":8,"trace_id":"tr_search_off","agent":"mental","chunk":"Slow breathing with a longer exhale can calm the body within a few minutes."}}
+{"event":"section_end","data":{"seq":9,"trace_id":"tr_search_off","agent":"mental","removed_count":0,"decisions":[]}}
+{"event":"done","data":{"seq":10,"trace_id":"tr_search_off","trace":{"trace_id":"tr_search_off","route":"mental","steps":[{"name":"routed","agent":null,"start_ms":0,"duration_ms":4,"queue_ms":0},{"name":"agent_started","agent":"mental","start_ms":5,"duration_ms":2700,"queue_ms":0}],"tools":[{"name":"web_search","args":"{\"query\": \"breathing anxiety evidence\"}","duration_ms":1,"status":"unavailable"}],"decisions":[],"retries":0,"sources":[],"usage":{"tokens_in":2950,"tokens_out":380,"cost_usd":0.0009}},"usage":{"tokens_in":2950,"tokens_out":380,"cost_usd":0.0009}}}

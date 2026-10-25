@@ -1,0 +1,25 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "days": {
+      "maximum": 14,
+      "minimum": 1,
+      "title": "Days",
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "workout",
+        "meal",
+        "practice"
+      ],
+      "title": "Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "days"
+  ],
+  "type": "object"
+}

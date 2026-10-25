@@ -42,6 +42,8 @@ jobs:
           cache-dependency-path: backend/requirements*.txt
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
+      - name: Contracts are up to date
+        run: python -m app.contracts.generate --check
       - run: pytest -m "not paid and not load"
 
   frontend:

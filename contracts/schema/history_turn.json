@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "content": {
+      "maxLength": 2000,
+      "title": "Content",
+      "type": "string"
+    },
+    "role": {
+      "enum": [
+        "user",
+        "assistant"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "route": {
+      "anyOf": [
+        {
+          "enum": [
+            "physical",
+            "nutrition",
+            "mental",
+            "holistic",
+            "greeting",
+            "meta",
+            "off_topic"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Route"
+    },
+    "ts": {
+      "format": "date-time",
+      "title": "Ts",
+      "type": "string"
+    }
+  },
+  "required": [
+    "role",
+    "content",
+    "ts"
+  ],
+  "title": "HistoryTurn",
+  "type": "object"
+}

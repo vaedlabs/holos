@@ -311,6 +311,17 @@ crisis:
       - hang myself
       - can't go on
       - cant go on
+      # Curly apostrophes (phone keyboards); NFKC keeps them as they are
+      - don’t want to live
+      - can’t go on
+      # About someone else (Plan C.16: these match too)
+      - kill himself
+      - kill herself
+      - kill themselves
+      - wants to die
+      - end his life
+      - end her life
+      - end their life
     hi_latn:
       - khudkushi
       - khudkhushi

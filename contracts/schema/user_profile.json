@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "Allergen": {
+      "description": "Allergen tags (Plan C.3).",
+      "enum": [
+        "peanut",
+        "tree_nut",
+        "milk",
+        "egg",
+        "fish",
+        "crustacean",
+        "mollusc",
+        "soy",
+        "gluten",
+        "sesame",
+        "mustard",
+        "celery",
+        "lupin",
+        "sulphites"
+      ],
+      "title": "Allergen",
+      "type": "string"
+    },
+    "Diet": {
+      "description": "Diet tags a profile can carry (Plan C.3).",
+      "enum": [
+        "vegan",
+        "vegetarian",
+        "eggetarian",
+        "jain",
+        "halal",
+        "kosher",
+        "pescatarian",
+        "lactose_free"
+      ],
+      "title": "Diet",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "allergen_tags": {
+      "items": {
+        "$ref": "#/$defs/Allergen"
+      },
+      "maxItems": 14,
+      "title": "Allergen Tags",
+      "type": "array"
+    },
+    "condition_ids": {
+      "items": {
+        "maxLength": 40,
+        "pattern": "^[a-z0-9_]+$",
+        "type": "string"
+      },
+      "maxItems": 30,
+      "title": "Condition Ids",
+      "type": "array"
+    },
+    "diet_tags": {
+      "items": {
+        "$ref": "#/$defs/Diet"
+      },
+      "maxItems": 8,
+      "title": "Diet Tags",
+      "type": "array"
+    },
+    "notes": {
+      "maxLength": 1000,
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "condition_ids",
+    "allergen_tags",
+    "diet_tags",
+    "notes"
+  ],
+  "title": "UserProfile",
+  "type": "object"
+}

@@ -56,3 +56,6 @@ Pillow==12.0.0
 
 # Guardrails data files
 PyYAML==6.0.3
+
+# Token counting for the contract size rule (Plan C.3)
+tiktoken==0.12.0

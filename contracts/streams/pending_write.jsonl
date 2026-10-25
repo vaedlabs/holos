@@ -1,0 +1,14 @@
+{"event":"accepted","data":{"seq":0,"trace_id":"tr_pending","contract_version":1,"mode":"account"}}
+{"event":"step","data":{"seq":1,"trace_id":"tr_pending","name":"admitted"}}
+{"event":"step","data":{"seq":2,"trace_id":"tr_pending","name":"routed","agent":"nutrition","detail":"nutrition"}}
+{"event":"step","data":{"seq":3,"trace_id":"tr_pending","name":"agent_started","agent":"nutrition"}}
+{"event":"step","data":{"seq":4,"trace_id":"tr_pending","name":"tool_call","agent":"nutrition","detail":"web_search"}}
+{"event":"step","data":{"seq":5,"trace_id":"tr_pending","name":"tool_call","agent":"nutrition","detail":"log_meal"}}
+{"event":"step","data":{"seq":6,"trace_id":"tr_pending","name":"gate","agent":"nutrition"}}
+{"event":"step","data":{"seq":7,"trace_id":"tr_pending","name":"composing"}}
+{"event":"section_start","data":{"seq":8,"trace_id":"tr_pending","agent":"nutrition","kind":"log_ack"}}
+{"event":"text","data":{"seq":9,"trace_id":"tr_pending","agent":"nutrition","chunk":"Poha with peanuts is about 350 kcal. Confirm below to add it to your log."}}
+{"event":"sources","data":{"seq":10,"trace_id":"tr_pending","agent":"nutrition","sources":[{"id":"s1","title":"Protein in common Indian breakfasts","url":"https://example.org/protein"}]}}
+{"event":"section_end","data":{"seq":11,"trace_id":"tr_pending","agent":"nutrition","removed_count":0,"decisions":[]}}
+{"event":"pending_write","data":{"seq":12,"trace_id":"tr_pending","summary":"Breakfast: poha with peanuts (about 350 kcal)","write_id":"pw_3c9a","expires_at":"2026-10-25T09:45:00Z"}}
+{"event":"done","data":{"seq":13,"trace_id":"tr_pending","trace":{"trace_id":"tr_pending","route":"nutrition","steps":[{"name":"routed","agent":null,"start_ms":0,"duration_ms":5,"queue_ms":0},{"name":"agent_started","agent":"nutrition","start_ms":6,"duration_ms":5200,"queue_ms":0}],"tools":[{"name":"web_search","args":"{\"query\": \"poha calories protein\"}","duration_ms":840,"status":"ok"},{"name":"log_meal","args":"{\"meal\": \"breakfast\", \"foods\": [...]}","duration_ms":9,"status":"staged"}],"decisions":[],"retries":0,"sources":[{"id":"s1","title":"Protein in common Indian breakfasts","url":"https://example.org/protein"}],"usage":{"tokens_in":3880,"tokens_out":702,"cost_usd":0.0012}},"usage":{"tokens_in":3880,"tokens_out":702,"cost_usd":0.0012}}}

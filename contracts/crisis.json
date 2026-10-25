@@ -1,0 +1,115 @@
+{
+  "contract_version": 1,
+  "exceptions": [
+    "suicide sprint",
+    "suicide sprints",
+    "suicide drill",
+    "suicide drills",
+    "suicide run",
+    "suicide runs",
+    "suicide squeeze",
+    "suicide squad"
+  ],
+  "helplines": [
+    {
+      "contact": "14416",
+      "name": "Tele-MANAS",
+      "region": "India"
+    },
+    {
+      "contact": "988",
+      "name": "988 Suicide & Crisis Lifeline",
+      "region": "US"
+    },
+    {
+      "contact": "findahelpline.com",
+      "name": "Find a Helpline",
+      "region": "Worldwide"
+    }
+  ],
+  "message": "It sounds like you're going through something really painful, and you don't have to face it alone. If you or someone you know might be in danger, please reach out now. Tele-MANAS (India): call 14416, free and open 24/7. 988 Suicide & Crisis Lifeline (US): call or text 988. Anywhere else: findahelpline.com. If you are in immediate danger, call your local emergency number.",
+  "normalise": {
+    "leet": {
+      "$": "s",
+      "0": "o",
+      "1": "i",
+      "3": "e",
+      "@": "a"
+    }
+  },
+  "phrases": {
+    "en": [
+      "kill myself",
+      "killing myself",
+      "end my life",
+      "ending my life",
+      "end it all",
+      "take my own life",
+      "take my life",
+      "want to die",
+      "wanna die",
+      "wish i was dead",
+      "wish i were dead",
+      "better off dead",
+      "don't want to live",
+      "dont want to live",
+      "no reason to live",
+      "not worth living",
+      "suicide",
+      "suicidal",
+      "self harm",
+      "self-harm",
+      "selfharm",
+      "hurt myself",
+      "hurting myself",
+      "cut myself",
+      "cutting myself",
+      "overdose",
+      "hang myself",
+      "can't go on",
+      "cant go on",
+      "don’t want to live",
+      "can’t go on",
+      "kill himself",
+      "kill herself",
+      "kill themselves",
+      "wants to die",
+      "end his life",
+      "end her life",
+      "end their life"
+    ],
+    "hi_deva": [
+      "आत्महत्या",
+      "ख़ुदकुशी",
+      "खुदकुशी",
+      "मरना चाहता",
+      "मरना चाहती",
+      "जीना नहीं चाहता",
+      "जीना नहीं चाहती",
+      "ज़िंदगी खत्म",
+      "अपनी जान ले"
+    ],
+    "hi_latn": [
+      "khudkushi",
+      "khudkhushi",
+      "aatmahatya",
+      "atmahatya",
+      "marna chahta",
+      "marna chahti",
+      "mar jana chahta",
+      "mar jana chahti",
+      "mar jaana chahta",
+      "mar jaana chahti",
+      "jeena nahi chahta",
+      "jeena nahi chahti",
+      "jina nahi chahta",
+      "jina nahi chahti",
+      "zindagi khatam",
+      "apni jaan le",
+      "khud ko khatam",
+      "khud ko nuksan"
+    ]
+  },
+  "reminder": "If things feel heavy, help is there: Tele-MANAS 14416 (India), 988 (US), findahelpline.com.",
+  "rules_version": 1
+}

@@ -1,0 +1,251 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "follow_up": {
+      "description": "At most 200 characters.",
+      "title": "Follow Up",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "items": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "catalogue_id": {
+            "enum": [
+              "back_squat",
+              "front_squat",
+              "goblet_squat",
+              "bodyweight_squat",
+              "sumo_squat",
+              "split_squat",
+              "pistol_squat",
+              "hack_squat",
+              "jump_squat",
+              "cossack_squat",
+              "wall_sit",
+              "forward_lunge",
+              "reverse_lunge",
+              "walking_lunge",
+              "lateral_lunge",
+              "jumping_lunge",
+              "step_up",
+              "leg_press",
+              "leg_extension",
+              "leg_curl",
+              "nordic_curl",
+              "deadlift",
+              "romanian_deadlift",
+              "sumo_deadlift",
+              "trap_bar_deadlift",
+              "good_morning",
+              "hip_thrust",
+              "glute_bridge",
+              "single_leg_glute_bridge",
+              "calf_raise",
+              "seated_calf_raise",
+              "clamshell",
+              "side_lying_leg_raise",
+              "hip_abduction_machine",
+              "kettlebell_swing",
+              "box_jump",
+              "broad_jump",
+              "jump_rope",
+              "jumping_jacks",
+              "burpee",
+              "mountain_climber",
+              "hiit_workout",
+              "circuit_training",
+              "bench_press",
+              "incline_bench_press",
+              "dumbbell_bench_press",
+              "push_up",
+              "knee_push_up",
+              "incline_push_up",
+              "dip",
+              "overhead_press",
+              "dumbbell_shoulder_press",
+              "arnold_press",
+              "lateral_raise",
+              "front_raise",
+              "upright_row",
+              "chest_fly",
+              "pec_deck",
+              "skull_crusher",
+              "overhead_tricep_extension",
+              "tricep_pushdown",
+              "pull_up",
+              "chin_up",
+              "lat_pulldown",
+              "seated_cable_row",
+              "bent_over_row",
+              "dumbbell_row",
+              "face_pull",
+              "band_pull_apart",
+              "bicep_curl",
+              "hammer_curl",
+              "wrist_curl",
+              "shrug",
+              "farmer_carry",
+              "plank",
+              "high_plank",
+              "side_plank",
+              "crunch",
+              "sit_up",
+              "bicycle_crunch",
+              "v_up",
+              "lying_leg_raise",
+              "hanging_leg_raise",
+              "russian_twist",
+              "dead_bug",
+              "bird_dog",
+              "ab_wheel_rollout",
+              "back_extension",
+              "superman_hold",
+              "pallof_press",
+              "walking",
+              "brisk_walking",
+              "hiking",
+              "jogging",
+              "running",
+              "interval_running",
+              "sprinting",
+              "long_distance_running",
+              "stair_climbing",
+              "cycling",
+              "stationary_cycling",
+              "spin_class",
+              "rowing_machine",
+              "elliptical",
+              "swimming",
+              "aqua_aerobics",
+              "dance_workout",
+              "yoga_flow",
+              "sun_salutation",
+              "downward_dog",
+              "childs_pose",
+              "cat_cow",
+              "hamstring_stretch",
+              "quad_stretch",
+              "hip_flexor_stretch",
+              "chest_doorway_stretch",
+              "neck_mobility",
+              "foam_rolling",
+              "tai_chi",
+              "pilates_mat",
+              "headstand",
+              "shoulder_stand",
+              "handstand",
+              "neck_bridge"
+            ],
+            "title": "ExerciseId",
+            "type": "string"
+          },
+          "duration_s": {
+            "maximum": 3600,
+            "minimum": 1,
+            "title": "Duration S",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "intensity": {
+            "enum": [
+              "low",
+              "moderate",
+              "high"
+            ],
+            "title": "Intensity",
+            "type": "string"
+          },
+          "note": {
+            "description": "At most 120 characters.",
+            "title": "Note",
+            "type": "string"
+          },
+          "reps": {
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Reps",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sets": {
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Sets",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "catalogue_id",
+          "sets",
+          "reps",
+          "duration_s",
+          "intensity",
+          "note"
+        ],
+        "title": "ExerciseItem",
+        "type": "object"
+      },
+      "maxItems": 8,
+      "title": "Items",
+      "type": "array"
+    },
+    "kind": {
+      "enum": [
+        "plan",
+        "answer",
+        "log_ack",
+        "clarify"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "notes": {
+      "items": {
+        "description": "At most 200 characters.",
+        "type": "string"
+      },
+      "maxItems": 3,
+      "title": "Notes",
+      "type": "array"
+    },
+    "risk_flag": {
+      "title": "Risk Flag",
+      "type": "boolean"
+    },
+    "source_ids": {
+      "items": {
+        "description": "At most 20 characters.",
+        "type": "string"
+      },
+      "maxItems": 5,
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "summary": {
+      "description": "At most 400 characters.",
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "summary",
+    "notes",
+    "source_ids",
+    "follow_up",
+    "risk_flag",
+    "items"
+  ],
+  "type": "object"
+}

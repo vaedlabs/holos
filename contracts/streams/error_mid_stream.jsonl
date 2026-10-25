@@ -1,0 +1,7 @@
+{"event":"accepted","data":{"seq":0,"trace_id":"tr_error","contract_version":1,"mode":"account"}}
+{"event":"step","data":{"seq":1,"trace_id":"tr_error","name":"admitted"}}
+{"event":"step","data":{"seq":2,"trace_id":"tr_error","name":"routed","agent":"physical","detail":"physical"}}
+{"event":"step","data":{"seq":3,"trace_id":"tr_error","name":"agent_started","agent":"physical"}}
+{"event":"section_start","data":{"seq":4,"trace_id":"tr_error","agent":"physical","kind":"plan"}}
+{"event":"item","data":{"seq":5,"trace_id":"tr_error","agent":"physical","item":{"catalogue_id":"walking","sets":null,"reps":null,"duration_s":1200,"intensity":"low","note":"Easy pace"},"display":"Walking: 20 min","caveats":[]}}
+{"event":"error","data":{"seq":6,"trace_id":"tr_error","code":"provider_unavailable","message":"The coach is unavailable right now. Please try again in a minute.","retry_after":60}}

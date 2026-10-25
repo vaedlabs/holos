@@ -1,0 +1,121 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "follow_up": {
+      "description": "At most 200 characters.",
+      "title": "Follow Up",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "items": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "catalogue_id": {
+            "enum": [
+              "box_breathing",
+              "breathing_4_7_8",
+              "breath_retention",
+              "wim_hof_breathing",
+              "kapalbhati",
+              "bhastrika",
+              "diaphragmatic_breathing",
+              "coherent_breathing",
+              "extended_exhale_breathing",
+              "alternate_nostril_breathing",
+              "bhramari",
+              "mindfulness_meditation",
+              "body_scan",
+              "loving_kindness_meditation",
+              "guided_imagery",
+              "yoga_nidra",
+              "mantra_meditation",
+              "trataka",
+              "walking_meditation",
+              "progressive_muscle_relaxation",
+              "grounding_54321",
+              "self_compassion_break",
+              "gratitude_journaling",
+              "expressive_journaling",
+              "thought_record",
+              "scheduled_worry_time",
+              "sleep_wind_down"
+            ],
+            "title": "PracticeId",
+            "type": "string"
+          },
+          "duration_min": {
+            "maximum": 60,
+            "minimum": 1,
+            "title": "Duration Min",
+            "type": "integer"
+          },
+          "note": {
+            "description": "At most 120 characters.",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "catalogue_id",
+          "duration_min",
+          "note"
+        ],
+        "title": "PracticeItem",
+        "type": "object"
+      },
+      "maxItems": 5,
+      "title": "Items",
+      "type": "array"
+    },
+    "kind": {
+      "enum": [
+        "plan",
+        "answer",
+        "log_ack",
+        "clarify"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "notes": {
+      "items": {
+        "description": "At most 200 characters.",
+        "type": "string"
+      },
+      "maxItems": 3,
+      "title": "Notes",
+      "type": "array"
+    },
+    "risk_flag": {
+      "title": "Risk Flag",
+      "type": "boolean"
+    },
+    "source_ids": {
+      "items": {
+        "description": "At most 20 characters.",
+        "type": "string"
+      },
+      "maxItems": 5,
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "summary": {
+      "description": "At most 400 characters.",
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "summary",
+    "notes",
+    "source_ids",
+    "follow_up",
+    "risk_flag",
+    "items"
+  ],
+  "type": "object"
+}

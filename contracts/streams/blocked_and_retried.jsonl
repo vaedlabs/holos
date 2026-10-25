@@ -1,0 +1,13 @@
+{"event":"accepted","data":{"seq":0,"trace_id":"tr_blocked","contract_version":1,"mode":"account"}}
+{"event":"step","data":{"seq":1,"trace_id":"tr_blocked","name":"admitted"}}
+{"event":"step","data":{"seq":2,"trace_id":"tr_blocked","name":"routed","agent":"physical","detail":"physical"}}
+{"event":"step","data":{"seq":3,"trace_id":"tr_blocked","name":"agent_started","agent":"physical"}}
+{"event":"step","data":{"seq":4,"trace_id":"tr_blocked","name":"gate","agent":"physical","detail":"1 item blocked"}}
+{"event":"step","data":{"seq":5,"trace_id":"tr_blocked","name":"retry","agent":"physical","detail":"EX-KNEE-01"}}
+{"event":"step","data":{"seq":6,"trace_id":"tr_blocked","name":"gate","agent":"physical","detail":"1 item blocked"}}
+{"event":"step","data":{"seq":7,"trace_id":"tr_blocked","name":"composing"}}
+{"event":"section_start","data":{"seq":8,"trace_id":"tr_blocked","agent":"physical","kind":"plan"}}
+{"event":"item","data":{"seq":9,"trace_id":"tr_blocked","agent":"physical","item":{"catalogue_id":"leg_curl","sets":3,"reps":12,"duration_s":null,"intensity":"low","note":"Slow and controlled"},"display":"Leg curl: 3 x 12","caveats":[]}}
+{"event":"item","data":{"seq":10,"trace_id":"tr_blocked","agent":"physical","item":{"catalogue_id":"glute_bridge","sets":3,"reps":15,"duration_s":null,"intensity":"low","note":"Pause at the top"},"display":"Glute bridge: 3 x 15","caveats":[]}}
+{"event":"section_end","data":{"seq":11,"trace_id":"tr_blocked","agent":"physical","removed_count":1,"decisions":[{"action":"block","rule_id":"EX-KNEE-01","rules_version":1,"reason":"High knee load with a knee ligament injury","offending_items":["back_squat"]}]}}
+{"event":"done","data":{"seq":12,"trace_id":"tr_blocked","trace":{"trace_id":"tr_blocked","route":"physical","steps":[{"name":"routed","agent":null,"start_ms":0,"duration_ms":5,"queue_ms":0},{"name":"agent_started","agent":"physical","start_ms":6,"duration_ms":8800,"queue_ms":0}],"tools":[],"decisions":[{"action":"block","rule_id":"EX-KNEE-01","rules_version":1,"reason":"High knee load with a knee ligament injury","offending_items":["back_squat"]},{"action":"block","rule_id":"EX-KNEE-01","rules_version":1,"reason":"High knee load with a knee ligament injury","offending_items":["back_squat"]}],"retries":1,"sources":[],"usage":{"tokens_in":5030,"tokens_out":1210,"cost_usd":0.0044}},"usage":{"tokens_in":5030,"tokens_out":1210,"cost_usd":0.0044}}}

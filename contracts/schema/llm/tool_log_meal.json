@@ -1,0 +1,122 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "foods": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "allergen_tags": {
+            "items": {
+              "description": "Allergen tags (Plan C.3).",
+              "enum": [
+                "peanut",
+                "tree_nut",
+                "milk",
+                "egg",
+                "fish",
+                "crustacean",
+                "mollusc",
+                "soy",
+                "gluten",
+                "sesame",
+                "mustard",
+                "celery",
+                "lupin",
+                "sulphites"
+              ],
+              "title": "Allergen",
+              "type": "string"
+            },
+            "maxItems": 14,
+            "title": "Allergen Tags",
+            "type": "array"
+          },
+          "calories": {
+            "maximum": 5000,
+            "minimum": 0,
+            "title": "Calories",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "diet_tags": {
+            "items": {
+              "description": "Diet tags a profile can carry (Plan C.3).",
+              "enum": [
+                "vegan",
+                "vegetarian",
+                "eggetarian",
+                "jain",
+                "halal",
+                "kosher",
+                "pescatarian",
+                "lactose_free"
+              ],
+              "title": "Diet",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Diet Tags",
+            "type": "array"
+          },
+          "ingredients": {
+            "items": {
+              "description": "At most 30 characters.",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "name": {
+            "description": "At most 60 characters.",
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "description": "At most 120 characters.",
+            "title": "Note",
+            "type": "string"
+          },
+          "portion": {
+            "description": "At most 40 characters.",
+            "title": "Portion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "ingredients",
+          "allergen_tags",
+          "diet_tags",
+          "portion",
+          "calories",
+          "note"
+        ],
+        "title": "FoodItem",
+        "type": "object"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "title": "Foods",
+      "type": "array"
+    },
+    "meal": {
+      "enum": [
+        "breakfast",
+        "lunch",
+        "dinner",
+        "snack"
+      ],
+      "title": "Meal",
+      "type": "string"
+    }
+  },
+  "required": [
+    "meal",
+    "foods"
+  ],
+  "type": "object"
+}

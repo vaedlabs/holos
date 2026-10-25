@@ -1,0 +1,270 @@
+{
+  "$defs": {
+    "Decision": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "allow",
+            "warn",
+            "block"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "offending_items": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Offending Items",
+          "type": "array"
+        },
+        "reason": {
+          "maxLength": 200,
+          "title": "Reason",
+          "type": "string"
+        },
+        "rule_id": {
+          "maxLength": 40,
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rules_version": {
+          "minimum": 1,
+          "title": "Rules Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action",
+        "rule_id",
+        "rules_version",
+        "reason"
+      ],
+      "title": "Decision",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 20,
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2000,
+          "pattern": "^https?://",
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "url"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "TraceStep": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "enum": [
+                "physical",
+                "nutrition",
+                "mental"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 40,
+          "title": "Name",
+          "type": "string"
+        },
+        "queue_ms": {
+          "minimum": 0,
+          "title": "Queue Ms",
+          "type": "integer"
+        },
+        "start_ms": {
+          "minimum": 0,
+          "title": "Start Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "start_ms",
+        "duration_ms",
+        "queue_ms"
+      ],
+      "title": "TraceStep",
+      "type": "object"
+    },
+    "TraceTool": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "maxLength": 120,
+          "title": "Args",
+          "type": "string"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 40,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "error",
+            "refused",
+            "staged",
+            "unavailable"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "args",
+        "duration_ms",
+        "status"
+      ],
+      "title": "TraceTool",
+      "type": "object"
+    },
+    "Usage": {
+      "additionalProperties": false,
+      "properties": {
+        "cost_usd": {
+          "minimum": 0,
+          "title": "Cost Usd",
+          "type": "number"
+        },
+        "tokens_in": {
+          "minimum": 0,
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "minimum": 0,
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tokens_in",
+        "tokens_out",
+        "cost_usd"
+      ],
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "decisions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Decision"
+      },
+      "title": "Decisions",
+      "type": "array"
+    },
+    "retries": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Retries",
+      "type": "integer"
+    },
+    "route": {
+      "anyOf": [
+        {
+          "enum": [
+            "physical",
+            "nutrition",
+            "mental",
+            "holistic",
+            "greeting",
+            "meta",
+            "off_topic"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "crisis",
+          "type": "string"
+        }
+      ],
+      "title": "Route"
+    },
+    "sources": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "steps": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TraceStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "tools": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TraceTool"
+      },
+      "title": "Tools",
+      "type": "array"
+    },
+    "trace_id": {
+      "maxLength": 64,
+      "title": "Trace Id",
+      "type": "string"
+    },
+    "usage": {
+      "$ref": "#/$defs/Usage"
+    }
+  },
+  "required": [
+    "trace_id",
+    "route",
+    "usage"
+  ],
+  "title": "TraceView",
+  "type": "object"
+}

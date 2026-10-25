@@ -1,0 +1,47 @@
+{"text": "I want to end my life", "expect": true, "note": "plain English phrase"}
+{"text": "i wanna die", "expect": true, "note": "casual spelling"}
+{"text": "I WANT TO DIE", "expect": true, "note": "upper case"}
+{"text": "want    to\tdie", "expect": true, "note": "extra whitespace collapses"}
+{"text": "honestly i dont see the point anymore, i want to end my life", "expect": true, "note": "phrase inside a longer message"}
+{"text": "I keep thinking about suicide", "expect": true, "note": "single strong term"}
+{"text": "I'm not suicidal, just tired", "expect": true, "note": "no negation handling, by design"}
+{"text": "I don’t want to live anymore", "expect": true, "note": "curly apostrophe"}
+{"text": "I dont want to live like this", "expect": true, "note": "no apostrophe"}
+{"text": "I can’t go on", "expect": true, "note": "curly apostrophe"}
+{"text": "I have been cutting myself again", "expect": true, "note": "self-harm"}
+{"text": "thinking of self-harm", "expect": true, "note": "hyphenated"}
+{"text": "selfharm thoughts", "expect": true, "note": "joined"}
+{"text": "I took an overdose", "expect": true, "note": "overdose"}
+{"text": "my friend wants to kill himself", "expect": true, "note": "about someone else"}
+{"text": "my sister says she wants to die", "expect": true, "note": "about someone else"}
+{"text": "everyone would be better off dead without me", "expect": true, "note": "better off dead"}
+{"text": "k1ll mys3lf", "expect": true, "note": "leetspeak"}
+{"text": "w@nt to d1e", "expect": true, "note": "leetspeak"}
+{"text": "k.i.l.l myself", "expect": true, "note": "letters split by dots"}
+{"text": "s-u-i-c-i-d-e", "expect": true, "note": "letters split by dashes"}
+{"text": "s u i c i d e", "expect": true, "note": "letters split by spaces"}
+{"text": "ki​ll myself", "expect": true, "note": "zero-width space inside a word"}
+{"text": "kill ｍyself", "expect": true, "note": "full-width letter, NFKC"}
+{"text": "main khudkushi kar lunga", "expect": true, "note": "Hinglish"}
+{"text": "yaar sab bekaar lag raha hai, jeena nahi chahta", "expect": true, "note": "Hinglish, from the red-team run"}
+{"text": "mar jaana chahti hoon", "expect": true, "note": "Hinglish, feminine"}
+{"text": "aatmahatya ke vichar aa rahe hain", "expect": true, "note": "Hinglish"}
+{"text": "मैं आत्महत्या करना चाहता हूं", "expect": true, "note": "Devanagari"}
+{"text": "अब जीना नहीं चाहती", "expect": true, "note": "Devanagari, feminine"}
+{"text": "suicide sprints and I want to die", "expect": true, "note": "an exception covers only its own match"}
+{"text": "suicide sprints are brutal", "expect": false, "note": "exception"}
+{"text": "coach made us run suicide drills", "expect": false, "note": "exception"}
+{"text": "this workout is killing me", "expect": false, "note": "figure of speech"}
+{"text": "I'd die for pizza", "expect": false, "note": "figure of speech"}
+{"text": "I'm dying to try this recipe", "expect": false, "note": "figure of speech"}
+{"text": "deadlift day!", "expect": false, "note": "exercise name"}
+{"text": "killer abs routine please", "expect": false, "note": "figure of speech"}
+{"text": "my legs are dead after leg day", "expect": false, "note": "figure of speech"}
+{"text": "what is a dead bug exercise", "expect": false, "note": "exercise name"}
+{"text": "how do I kill time on a long run", "expect": false, "note": "kill without a crisis phrase"}
+{"text": "how much protein do I need", "expect": false, "note": "ordinary question"}
+{"text": "I am a bit tired today", "expect": false, "note": "ordinary message"}
+{"text": "mera pet dard kar raha hai", "expect": false, "note": "Hinglish, ordinary"}
+{"text": "क्या मैं रोज़ दौड़ सकता हूं", "expect": false, "note": "Devanagari, ordinary"}
+{"text": "I a m tired", "expect": false, "note": "single letters 'I' and 'a' are never joined"}
+{"text": "I can't go on with this diet", "expect": true, "note": "accepted false positive: a kind message costs little"}

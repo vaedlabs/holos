@@ -1,0 +1,18 @@
+{"event":"accepted","data":{"seq":0,"trace_id":"tr_holistic","contract_version":1,"mode":"guest"}}
+{"event":"step","data":{"seq":1,"trace_id":"tr_holistic","name":"admitted"}}
+{"event":"step","data":{"seq":2,"trace_id":"tr_holistic","name":"routed","detail":"holistic"}}
+{"event":"step","data":{"seq":3,"trace_id":"tr_holistic","name":"agent_started","agent":"physical"}}
+{"event":"step","data":{"seq":4,"trace_id":"tr_holistic","name":"agent_started","agent":"nutrition"}}
+{"event":"step","data":{"seq":5,"trace_id":"tr_holistic","name":"agent_started","agent":"mental"}}
+{"event":"step","data":{"seq":6,"trace_id":"tr_holistic","name":"composing"}}
+{"event":"section_start","data":{"seq":7,"trace_id":"tr_holistic","agent":"physical","kind":"plan"}}
+{"event":"item","data":{"seq":8,"trace_id":"tr_holistic","agent":"physical","item":{"catalogue_id":"brisk_walking","sets":null,"reps":null,"duration_s":1800,"intensity":"moderate","note":"Daily, after dinner"},"display":"Brisk walking: 30 min","caveats":[]}}
+{"event":"section_end","data":{"seq":9,"trace_id":"tr_holistic","agent":"physical","removed_count":0,"decisions":[]}}
+{"event":"section_start","data":{"seq":10,"trace_id":"tr_holistic","agent":"nutrition","kind":"plan"}}
+{"event":"item","data":{"seq":11,"trace_id":"tr_holistic","agent":"nutrition","item":{"name":"Moong dal chilla","ingredients":["moong dal","spinach","cumin"],"allergen_tags":[],"diet_tags":["vegan","vegetarian","jain"],"portion":"2 chillas","calories":280,"note":"Add curd if you eat dairy"},"display":"Moong dal chilla (2 chillas, about 280 kcal)","caveats":[]}}
+{"event":"section_end","data":{"seq":12,"trace_id":"tr_holistic","agent":"nutrition","removed_count":0,"decisions":[]}}
+{"event":"section_start","data":{"seq":13,"trace_id":"tr_holistic","agent":"mental","kind":"plan"}}
+{"event":"item","data":{"seq":14,"trace_id":"tr_holistic","agent":"mental","item":{"catalogue_id":"coherent_breathing","duration_min":5,"note":"Before bed"},"display":"Coherent breathing: 5 min","caveats":[]}}
+{"event":"section_end","data":{"seq":15,"trace_id":"tr_holistic","agent":"mental","removed_count":0,"decisions":[]}}
+{"event":"text","data":{"seq":16,"trace_id":"tr_holistic","summary":true,"chunk":"Walk after dinner, keep breakfast high in protein, and wind down with slow breathing."}}
+{"event":"done","data":{"seq":17,"trace_id":"tr_holistic","trace":{"trace_id":"tr_holistic","route":"holistic","steps":[{"name":"routed","agent":null,"start_ms":0,"duration_ms":6,"queue_ms":0},{"name":"agent_started","agent":"physical","start_ms":7,"duration_ms":3100,"queue_ms":0},{"name":"agent_started","agent":"nutrition","start_ms":7,"duration_ms":4200,"queue_ms":0},{"name":"agent_started","agent":"mental","start_ms":7,"duration_ms":2600,"queue_ms":0}],"tools":[],"decisions":[],"retries":0,"sources":[],"usage":{"tokens_in":7120,"tokens_out":1490,"cost_usd":0.0063}},"usage":{"tokens_in":7120,"tokens_out":1490,"cost_usd":0.0063},"turn":{"role":"assistant","content":"Walk after dinner, keep breakfast high in protein, and wind down with slow breathing.","route":"holistic","ts":"2026-10-25T09:30:00Z"}}}

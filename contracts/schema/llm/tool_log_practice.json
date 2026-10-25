@@ -1,0 +1,75 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "catalogue_id": {
+      "enum": [
+        "box_breathing",
+        "breathing_4_7_8",
+        "breath_retention",
+        "wim_hof_breathing",
+        "kapalbhati",
+        "bhastrika",
+        "diaphragmatic_breathing",
+        "coherent_breathing",
+        "extended_exhale_breathing",
+        "alternate_nostril_breathing",
+        "bhramari",
+        "mindfulness_meditation",
+        "body_scan",
+        "loving_kindness_meditation",
+        "guided_imagery",
+        "yoga_nidra",
+        "mantra_meditation",
+        "trataka",
+        "walking_meditation",
+        "progressive_muscle_relaxation",
+        "grounding_54321",
+        "self_compassion_break",
+        "gratitude_journaling",
+        "expressive_journaling",
+        "thought_record",
+        "scheduled_worry_time",
+        "sleep_wind_down"
+      ],
+      "title": "PracticeId",
+      "type": "string"
+    },
+    "duration_min": {
+      "maximum": 60,
+      "minimum": 1,
+      "title": "Duration Min",
+      "type": "integer"
+    },
+    "mood_after": {
+      "maximum": 5,
+      "minimum": 1,
+      "title": "Mood After",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "mood_before": {
+      "maximum": 5,
+      "minimum": 1,
+      "title": "Mood Before",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "note": {
+      "description": "At most 120 characters.",
+      "title": "Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "catalogue_id",
+    "duration_min",
+    "mood_before",
+    "mood_after",
+    "note"
+  ],
+  "type": "object"
+}

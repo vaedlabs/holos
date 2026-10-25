@@ -1,0 +1,161 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "follow_up": {
+      "description": "At most 200 characters.",
+      "title": "Follow Up",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "items": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "allergen_tags": {
+            "items": {
+              "description": "Allergen tags (Plan C.3).",
+              "enum": [
+                "peanut",
+                "tree_nut",
+                "milk",
+                "egg",
+                "fish",
+                "crustacean",
+                "mollusc",
+                "soy",
+                "gluten",
+                "sesame",
+                "mustard",
+                "celery",
+                "lupin",
+                "sulphites"
+              ],
+              "title": "Allergen",
+              "type": "string"
+            },
+            "maxItems": 14,
+            "title": "Allergen Tags",
+            "type": "array"
+          },
+          "calories": {
+            "maximum": 5000,
+            "minimum": 0,
+            "title": "Calories",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "diet_tags": {
+            "items": {
+              "description": "Diet tags a profile can carry (Plan C.3).",
+              "enum": [
+                "vegan",
+                "vegetarian",
+                "eggetarian",
+                "jain",
+                "halal",
+                "kosher",
+                "pescatarian",
+                "lactose_free"
+              ],
+              "title": "Diet",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Diet Tags",
+            "type": "array"
+          },
+          "ingredients": {
+            "items": {
+              "description": "At most 30 characters.",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "name": {
+            "description": "At most 60 characters.",
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "description": "At most 120 characters.",
+            "title": "Note",
+            "type": "string"
+          },
+          "portion": {
+            "description": "At most 40 characters.",
+            "title": "Portion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "ingredients",
+          "allergen_tags",
+          "diet_tags",
+          "portion",
+          "calories",
+          "note"
+        ],
+        "title": "FoodItem",
+        "type": "object"
+      },
+      "maxItems": 5,
+      "title": "Items",
+      "type": "array"
+    },
+    "kind": {
+      "enum": [
+        "plan",
+        "answer",
+        "log_ack",
+        "clarify"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "notes": {
+      "items": {
+        "description": "At most 200 characters.",
+        "type": "string"
+      },
+      "maxItems": 3,
+      "title": "Notes",
+      "type": "array"
+    },
+    "risk_flag": {
+      "title": "Risk Flag",
+      "type": "boolean"
+    },
+    "source_ids": {
+      "items": {
+        "description": "At most 20 characters.",
+        "type": "string"
+      },
+      "maxItems": 5,
+      "title": "Source Ids",
+      "type": "array"
+    },
+    "summary": {
+      "description": "At most 400 characters.",
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "summary",
+    "notes",
+    "source_ids",
+    "follow_up",
+    "risk_flag",
+    "items"
+  ],
+  "type": "object"
+}

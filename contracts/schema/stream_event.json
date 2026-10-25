@@ -1,0 +1,1850 @@
+{
+  "$defs": {
+    "AcceptedData": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "minimum": 1,
+          "title": "Contract Version",
+          "type": "integer"
+        },
+        "mode": {
+          "enum": [
+            "guest",
+            "account"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "contract_version",
+        "mode"
+      ],
+      "title": "AcceptedData",
+      "type": "object"
+    },
+    "AcceptedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AcceptedData"
+        },
+        "event": {
+          "const": "accepted",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "AcceptedEvent",
+      "type": "object"
+    },
+    "Allergen": {
+      "description": "Allergen tags (Plan C.3).",
+      "enum": [
+        "peanut",
+        "tree_nut",
+        "milk",
+        "egg",
+        "fish",
+        "crustacean",
+        "mollusc",
+        "soy",
+        "gluten",
+        "sesame",
+        "mustard",
+        "celery",
+        "lupin",
+        "sulphites"
+      ],
+      "title": "Allergen",
+      "type": "string"
+    },
+    "CommittedData": {
+      "additionalProperties": false,
+      "properties": {
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "writes": {
+          "items": {
+            "$ref": "#/$defs/CommittedWrite"
+          },
+          "minItems": 1,
+          "title": "Writes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "writes"
+      ],
+      "title": "CommittedData",
+      "type": "object"
+    },
+    "CommittedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/CommittedData"
+        },
+        "event": {
+          "const": "committed",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "CommittedEvent",
+      "type": "object"
+    },
+    "CommittedWrite": {
+      "additionalProperties": false,
+      "properties": {
+        "entry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StagedWrite"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "enum": [
+            "workout",
+            "meal",
+            "practice"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 300,
+          "title": "Summary",
+          "type": "string"
+        },
+        "write_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Write Id"
+        }
+      },
+      "required": [
+        "kind",
+        "summary"
+      ],
+      "title": "CommittedWrite",
+      "type": "object"
+    },
+    "CrisisData": {
+      "additionalProperties": false,
+      "properties": {
+        "helplines": {
+          "items": {
+            "$ref": "#/$defs/Helpline"
+          },
+          "minItems": 1,
+          "title": "Helplines",
+          "type": "array"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "text",
+        "helplines"
+      ],
+      "title": "CrisisData",
+      "type": "object"
+    },
+    "CrisisEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/CrisisData"
+        },
+        "event": {
+          "const": "crisis",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "CrisisEvent",
+      "type": "object"
+    },
+    "Decision": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "allow",
+            "warn",
+            "block"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "offending_items": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Offending Items",
+          "type": "array"
+        },
+        "reason": {
+          "maxLength": 200,
+          "title": "Reason",
+          "type": "string"
+        },
+        "rule_id": {
+          "maxLength": 40,
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rules_version": {
+          "minimum": 1,
+          "title": "Rules Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action",
+        "rule_id",
+        "rules_version",
+        "reason"
+      ],
+      "title": "Decision",
+      "type": "object"
+    },
+    "Diet": {
+      "description": "Diet tags a profile can carry (Plan C.3).",
+      "enum": [
+        "vegan",
+        "vegetarian",
+        "eggetarian",
+        "jain",
+        "halal",
+        "kosher",
+        "pescatarian",
+        "lactose_free"
+      ],
+      "title": "Diet",
+      "type": "string"
+    },
+    "DoneData": {
+      "additionalProperties": false,
+      "properties": {
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace": {
+          "$ref": "#/$defs/TraceView"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "turn": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HistoryTurn"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "trace",
+        "usage"
+      ],
+      "title": "DoneData",
+      "type": "object"
+    },
+    "DoneEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/DoneData"
+        },
+        "event": {
+          "const": "done",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "DoneEvent",
+      "type": "object"
+    },
+    "ErrorData": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "maxLength": 40,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 300,
+          "title": "Message",
+          "type": "string"
+        },
+        "retry_after": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry After"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "code",
+        "message"
+      ],
+      "title": "ErrorData",
+      "type": "object"
+    },
+    "ErrorEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ErrorData"
+        },
+        "event": {
+          "const": "error",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "ErrorEvent",
+      "type": "object"
+    },
+    "ExerciseId": {
+      "enum": [
+        "back_squat",
+        "front_squat",
+        "goblet_squat",
+        "bodyweight_squat",
+        "sumo_squat",
+        "split_squat",
+        "pistol_squat",
+        "hack_squat",
+        "jump_squat",
+        "cossack_squat",
+        "wall_sit",
+        "forward_lunge",
+        "reverse_lunge",
+        "walking_lunge",
+        "lateral_lunge",
+        "jumping_lunge",
+        "step_up",
+        "leg_press",
+        "leg_extension",
+        "leg_curl",
+        "nordic_curl",
+        "deadlift",
+        "romanian_deadlift",
+        "sumo_deadlift",
+        "trap_bar_deadlift",
+        "good_morning",
+        "hip_thrust",
+        "glute_bridge",
+        "single_leg_glute_bridge",
+        "calf_raise",
+        "seated_calf_raise",
+        "clamshell",
+        "side_lying_leg_raise",
+        "hip_abduction_machine",
+        "kettlebell_swing",
+        "box_jump",
+        "broad_jump",
+        "jump_rope",
+        "jumping_jacks",
+        "burpee",
+        "mountain_climber",
+        "hiit_workout",
+        "circuit_training",
+        "bench_press",
+        "incline_bench_press",
+        "dumbbell_bench_press",
+        "push_up",
+        "knee_push_up",
+        "incline_push_up",
+        "dip",
+        "overhead_press",
+        "dumbbell_shoulder_press",
+        "arnold_press",
+        "lateral_raise",
+        "front_raise",
+        "upright_row",
+        "chest_fly",
+        "pec_deck",
+        "skull_crusher",
+        "overhead_tricep_extension",
+        "tricep_pushdown",
+        "pull_up",
+        "chin_up",
+        "lat_pulldown",
+        "seated_cable_row",
+        "bent_over_row",
+        "dumbbell_row",
+        "face_pull",
+        "band_pull_apart",
+        "bicep_curl",
+        "hammer_curl",
+        "wrist_curl",
+        "shrug",
+        "farmer_carry",
+        "plank",
+        "high_plank",
+        "side_plank",
+        "crunch",
+        "sit_up",
+        "bicycle_crunch",
+        "v_up",
+        "lying_leg_raise",
+        "hanging_leg_raise",
+        "russian_twist",
+        "dead_bug",
+        "bird_dog",
+        "ab_wheel_rollout",
+        "back_extension",
+        "superman_hold",
+        "pallof_press",
+        "walking",
+        "brisk_walking",
+        "hiking",
+        "jogging",
+        "running",
+        "interval_running",
+        "sprinting",
+        "long_distance_running",
+        "stair_climbing",
+        "cycling",
+        "stationary_cycling",
+        "spin_class",
+        "rowing_machine",
+        "elliptical",
+        "swimming",
+        "aqua_aerobics",
+        "dance_workout",
+        "yoga_flow",
+        "sun_salutation",
+        "downward_dog",
+        "childs_pose",
+        "cat_cow",
+        "hamstring_stretch",
+        "quad_stretch",
+        "hip_flexor_stretch",
+        "chest_doorway_stretch",
+        "neck_mobility",
+        "foam_rolling",
+        "tai_chi",
+        "pilates_mat",
+        "headstand",
+        "shoulder_stand",
+        "handstand",
+        "neck_bridge"
+      ],
+      "title": "ExerciseId",
+      "type": "string"
+    },
+    "ExerciseItem": {
+      "additionalProperties": false,
+      "properties": {
+        "catalogue_id": {
+          "$ref": "#/$defs/ExerciseId"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "maximum": 3600,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration S"
+        },
+        "intensity": {
+          "enum": [
+            "low",
+            "moderate",
+            "high"
+          ],
+          "title": "Intensity",
+          "type": "string"
+        },
+        "note": {
+          "maxLength": 120,
+          "title": "Note",
+          "type": "string"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reps"
+        },
+        "sets": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sets"
+        }
+      },
+      "required": [
+        "catalogue_id",
+        "sets",
+        "reps",
+        "duration_s",
+        "intensity",
+        "note"
+      ],
+      "title": "ExerciseItem",
+      "type": "object"
+    },
+    "FoodItem": {
+      "additionalProperties": false,
+      "properties": {
+        "allergen_tags": {
+          "items": {
+            "$ref": "#/$defs/Allergen"
+          },
+          "maxItems": 14,
+          "title": "Allergen Tags",
+          "type": "array"
+        },
+        "calories": {
+          "anyOf": [
+            {
+              "maximum": 5000,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Calories"
+        },
+        "diet_tags": {
+          "items": {
+            "$ref": "#/$defs/Diet"
+          },
+          "maxItems": 8,
+          "title": "Diet Tags",
+          "type": "array"
+        },
+        "ingredients": {
+          "items": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Ingredients",
+          "type": "array"
+        },
+        "name": {
+          "maxLength": 60,
+          "title": "Name",
+          "type": "string"
+        },
+        "note": {
+          "maxLength": 120,
+          "title": "Note",
+          "type": "string"
+        },
+        "portion": {
+          "maxLength": 40,
+          "title": "Portion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "ingredients",
+        "allergen_tags",
+        "diet_tags",
+        "portion",
+        "calories",
+        "note"
+      ],
+      "title": "FoodItem",
+      "type": "object"
+    },
+    "Helpline": {
+      "additionalProperties": false,
+      "properties": {
+        "contact": {
+          "title": "Contact",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "region": {
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "region",
+        "contact"
+      ],
+      "title": "Helpline",
+      "type": "object"
+    },
+    "HistoryTurn": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "maxLength": 2000,
+          "title": "Content",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "user",
+            "assistant"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "enum": [
+                "physical",
+                "nutrition",
+                "mental",
+                "holistic",
+                "greeting",
+                "meta",
+                "off_topic"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Route"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "content",
+        "ts"
+      ],
+      "title": "HistoryTurn",
+      "type": "object"
+    },
+    "ItemData": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "enum": [
+            "physical",
+            "nutrition",
+            "mental"
+          ],
+          "title": "Agent",
+          "type": "string"
+        },
+        "caveats": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Caveats",
+          "type": "array"
+        },
+        "display": {
+          "maxLength": 300,
+          "title": "Display",
+          "type": "string"
+        },
+        "item": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExerciseItem"
+            },
+            {
+              "$ref": "#/$defs/FoodItem"
+            },
+            {
+              "$ref": "#/$defs/PracticeItem"
+            }
+          ],
+          "title": "Item"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "agent",
+        "item",
+        "display"
+      ],
+      "title": "ItemData",
+      "type": "object"
+    },
+    "ItemEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ItemData"
+        },
+        "event": {
+          "const": "item",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "ItemEvent",
+      "type": "object"
+    },
+    "LogMealArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "foods": {
+          "items": {
+            "$ref": "#/$defs/FoodItem"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "title": "Foods",
+          "type": "array"
+        },
+        "meal": {
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "title": "Meal",
+          "type": "string"
+        }
+      },
+      "required": [
+        "meal",
+        "foods"
+      ],
+      "title": "LogMealArgs",
+      "type": "object"
+    },
+    "LogPracticeArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "catalogue_id": {
+          "$ref": "#/$defs/PracticeId"
+        },
+        "duration_min": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Duration Min",
+          "type": "integer"
+        },
+        "mood_after": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mood After"
+        },
+        "mood_before": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mood Before"
+        },
+        "note": {
+          "maxLength": 120,
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalogue_id",
+        "duration_min",
+        "mood_before",
+        "mood_after",
+        "note"
+      ],
+      "title": "LogPracticeArgs",
+      "type": "object"
+    },
+    "LogWorkoutArgs": {
+      "additionalProperties": false,
+      "properties": {
+        "catalogue_id": {
+          "$ref": "#/$defs/ExerciseId"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "maximum": 3600,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration S"
+        },
+        "note": {
+          "maxLength": 120,
+          "title": "Note",
+          "type": "string"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reps"
+        },
+        "sets": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sets"
+        }
+      },
+      "required": [
+        "catalogue_id",
+        "sets",
+        "reps",
+        "duration_s",
+        "note"
+      ],
+      "title": "LogWorkoutArgs",
+      "type": "object"
+    },
+    "NoticeData": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "cap_reached",
+            "search_off",
+            "partial_result",
+            "month_budget_used"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 300,
+          "title": "Message",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "code",
+        "message"
+      ],
+      "title": "NoticeData",
+      "type": "object"
+    },
+    "NoticeEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/NoticeData"
+        },
+        "event": {
+          "const": "notice",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "NoticeEvent",
+      "type": "object"
+    },
+    "PendingWriteData": {
+      "additionalProperties": false,
+      "properties": {
+        "entry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StagedWrite"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "profile_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Profile Hash"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "summary": {
+          "maxLength": 300,
+          "title": "Summary",
+          "type": "string"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "write_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Write Id"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "summary"
+      ],
+      "title": "PendingWriteData",
+      "type": "object"
+    },
+    "PendingWriteEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/PendingWriteData"
+        },
+        "event": {
+          "const": "pending_write",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "PendingWriteEvent",
+      "type": "object"
+    },
+    "PracticeId": {
+      "enum": [
+        "box_breathing",
+        "breathing_4_7_8",
+        "breath_retention",
+        "wim_hof_breathing",
+        "kapalbhati",
+        "bhastrika",
+        "diaphragmatic_breathing",
+        "coherent_breathing",
+        "extended_exhale_breathing",
+        "alternate_nostril_breathing",
+        "bhramari",
+        "mindfulness_meditation",
+        "body_scan",
+        "loving_kindness_meditation",
+        "guided_imagery",
+        "yoga_nidra",
+        "mantra_meditation",
+        "trataka",
+        "walking_meditation",
+        "progressive_muscle_relaxation",
+        "grounding_54321",
+        "self_compassion_break",
+        "gratitude_journaling",
+        "expressive_journaling",
+        "thought_record",
+        "scheduled_worry_time",
+        "sleep_wind_down"
+      ],
+      "title": "PracticeId",
+      "type": "string"
+    },
+    "PracticeItem": {
+      "additionalProperties": false,
+      "properties": {
+        "catalogue_id": {
+          "$ref": "#/$defs/PracticeId"
+        },
+        "duration_min": {
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Duration Min",
+          "type": "integer"
+        },
+        "note": {
+          "maxLength": 120,
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalogue_id",
+        "duration_min",
+        "note"
+      ],
+      "title": "PracticeItem",
+      "type": "object"
+    },
+    "SectionEndData": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "enum": [
+            "physical",
+            "nutrition",
+            "mental"
+          ],
+          "title": "Agent",
+          "type": "string"
+        },
+        "decisions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Decision"
+          },
+          "title": "Decisions",
+          "type": "array"
+        },
+        "removed_count": {
+          "minimum": 0,
+          "title": "Removed Count",
+          "type": "integer"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "agent",
+        "removed_count"
+      ],
+      "title": "SectionEndData",
+      "type": "object"
+    },
+    "SectionEndEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/SectionEndData"
+        },
+        "event": {
+          "const": "section_end",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "SectionEndEvent",
+      "type": "object"
+    },
+    "SectionStartData": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "enum": [
+            "physical",
+            "nutrition",
+            "mental"
+          ],
+          "title": "Agent",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "plan",
+            "answer",
+            "log_ack",
+            "clarify"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "agent",
+        "kind"
+      ],
+      "title": "SectionStartData",
+      "type": "object"
+    },
+    "SectionStartEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/SectionStartData"
+        },
+        "event": {
+          "const": "section_start",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "SectionStartEvent",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 20,
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2000,
+          "pattern": "^https?://",
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "url"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "SourcesData": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "enum": [
+            "physical",
+            "nutrition",
+            "mental"
+          ],
+          "title": "Agent",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "agent",
+        "sources"
+      ],
+      "title": "SourcesData",
+      "type": "object"
+    },
+    "SourcesEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/SourcesData"
+        },
+        "event": {
+          "const": "sources",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "SourcesEvent",
+      "type": "object"
+    },
+    "StagedWrite": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LogWorkoutArgs"
+            },
+            {
+              "$ref": "#/$defs/LogMealArgs"
+            },
+            {
+              "$ref": "#/$defs/LogPracticeArgs"
+            }
+          ],
+          "title": "Args"
+        },
+        "kind": {
+          "enum": [
+            "workout",
+            "meal",
+            "practice"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "args"
+      ],
+      "title": "StagedWrite",
+      "type": "object"
+    },
+    "StepData": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "enum": [
+                "physical",
+                "nutrition",
+                "mental"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "name": {
+          "enum": [
+            "admitted",
+            "routed",
+            "agent_started",
+            "tool_call",
+            "gate",
+            "retry",
+            "composing"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "name"
+      ],
+      "title": "StepData",
+      "type": "object"
+    },
+    "StepEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/StepData"
+        },
+        "event": {
+          "const": "step",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "StepEvent",
+      "type": "object"
+    },
+    "TextData": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "enum": [
+                "physical",
+                "nutrition",
+                "mental"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "chunk": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Chunk",
+          "type": "string"
+        },
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "summary": {
+          "default": false,
+          "title": "Summary",
+          "type": "boolean"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "chunk"
+      ],
+      "title": "TextData",
+      "type": "object"
+    },
+    "TextEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/TextData"
+        },
+        "event": {
+          "const": "text",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "TextEvent",
+      "type": "object"
+    },
+    "TraceStep": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "enum": [
+                "physical",
+                "nutrition",
+                "mental"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 40,
+          "title": "Name",
+          "type": "string"
+        },
+        "queue_ms": {
+          "minimum": 0,
+          "title": "Queue Ms",
+          "type": "integer"
+        },
+        "start_ms": {
+          "minimum": 0,
+          "title": "Start Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "start_ms",
+        "duration_ms",
+        "queue_ms"
+      ],
+      "title": "TraceStep",
+      "type": "object"
+    },
+    "TraceTool": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "maxLength": 120,
+          "title": "Args",
+          "type": "string"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 40,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "error",
+            "refused",
+            "staged",
+            "unavailable"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "args",
+        "duration_ms",
+        "status"
+      ],
+      "title": "TraceTool",
+      "type": "object"
+    },
+    "TraceView": {
+      "additionalProperties": false,
+      "properties": {
+        "decisions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Decision"
+          },
+          "title": "Decisions",
+          "type": "array"
+        },
+        "retries": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Retries",
+          "type": "integer"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "enum": [
+                "physical",
+                "nutrition",
+                "mental",
+                "holistic",
+                "greeting",
+                "meta",
+                "off_topic"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "crisis",
+              "type": "string"
+            }
+          ],
+          "title": "Route"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "steps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TraceStep"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "tools": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TraceTool"
+          },
+          "title": "Tools",
+          "type": "array"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        }
+      },
+      "required": [
+        "trace_id",
+        "route",
+        "usage"
+      ],
+      "title": "TraceView",
+      "type": "object"
+    },
+    "Usage": {
+      "additionalProperties": false,
+      "properties": {
+        "cost_usd": {
+          "minimum": 0,
+          "title": "Cost Usd",
+          "type": "number"
+        },
+        "tokens_in": {
+          "minimum": 0,
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "minimum": 0,
+          "title": "Tokens Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tokens_in",
+        "tokens_out",
+        "cost_usd"
+      ],
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "accepted": "#/$defs/AcceptedEvent",
+      "committed": "#/$defs/CommittedEvent",
+      "crisis": "#/$defs/CrisisEvent",
+      "done": "#/$defs/DoneEvent",
+      "error": "#/$defs/ErrorEvent",
+      "item": "#/$defs/ItemEvent",
+      "notice": "#/$defs/NoticeEvent",
+      "pending_write": "#/$defs/PendingWriteEvent",
+      "section_end": "#/$defs/SectionEndEvent",
+      "section_start": "#/$defs/SectionStartEvent",
+      "sources": "#/$defs/SourcesEvent",
+      "step": "#/$defs/StepEvent",
+      "text": "#/$defs/TextEvent"
+    },
+    "propertyName": "event"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/AcceptedEvent"
+    },
+    {
+      "$ref": "#/$defs/StepEvent"
+    },
+    {
+      "$ref": "#/$defs/SectionStartEvent"
+    },
+    {
+      "$ref": "#/$defs/ItemEvent"
+    },
+    {
+      "$ref": "#/$defs/TextEvent"
+    },
+    {
+      "$ref": "#/$defs/SourcesEvent"
+    },
+    {
+      "$ref": "#/$defs/SectionEndEvent"
+    },
+    {
+      "$ref": "#/$defs/PendingWriteEvent"
+    },
+    {
+      "$ref": "#/$defs/CommittedEvent"
+    },
+    {
+      "$ref": "#/$defs/CrisisEvent"
+    },
+    {
+      "$ref": "#/$defs/NoticeEvent"
+    },
+    {
+      "$ref": "#/$defs/ErrorEvent"
+    },
+    {
+      "$ref": "#/$defs/DoneEvent"
+    }
+  ]
+}
