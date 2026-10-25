@@ -2,10 +2,13 @@
 TASKS.md
 plan.plan.md
 .cursor/
+.vscode/
 uploads/
 tempCodeFile/
 **/.DS_Store
 imgs_diagrams/
+zPlan/
+docs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
