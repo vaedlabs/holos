@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { api, removeToken, API_URL } from '@/lib/api'
+import { api, removeToken } from '@/lib/api'
 import MedicalWarning from '@/components/MedicalWarning'
+import AuthImage from '@/components/AuthImage'
 import { useRequireAuth } from '@/hooks/useAuth'
 
 export default function DashboardPage() {
@@ -29,7 +30,6 @@ export default function DashboardPage() {
   const [fileInputKey, setFileInputKey] = useState(0) // Key to force file input remount
   const fileInputRef = useRef(null)
   const messagesEndRef = useRef(null)
-  const [expandedLogs, setExpandedLogs] = useState({}) // Track which logs are expanded
   const [visitedLinks, setVisitedLinks] = useState(() => {
     // Load visited links from localStorage on mount
     if (typeof window !== 'undefined') {
@@ -80,8 +80,8 @@ export default function DashboardPage() {
             }
             // If message has an image path, construct the image URL
             if (msg.image_path) {
-              const imageUrl = `${API_URL}/uploads/${msg.image_path}`
-              messageObj.imagePreview = imageUrl
+              // Store the raw path — AuthImage fetches it via the authenticated endpoint
+              messageObj.image_path = msg.image_path
             }
             return messageObj
           })
@@ -245,10 +245,11 @@ export default function DashboardPage() {
         try {
           const uploadResult = await api.uploadImage(imageBase64)
           imagePath = uploadResult.image_path
-          console.log('Image uploaded, path:', imagePath)
         } catch (uploadErr) {
-          console.warn('Failed to upload image:', uploadErr)
-          // Continue without image path
+          // Surface the failure to the user and abort — don't silently send without the image
+          setError(`Image upload failed: ${uploadErr.message}`)
+          setLoading(false)
+          return
         }
       }
 
@@ -1389,12 +1390,12 @@ export default function DashboardPage() {
             >
               {msg.role === 'user' ? (
                 <div>
-                  {/* Show image if present */}
+                  {/* In-session preview: data URL available immediately */}
                   {msg.imagePreview && (
                     <div style={{ marginBottom: '0.75rem' }}>
-                      <img 
-                        src={msg.imagePreview} 
-                        alt="Uploaded food" 
+                      <img
+                        src={msg.imagePreview}
+                        alt="Uploaded food"
                         style={{
                           maxWidth: '300px',
                           maxHeight: '300px',
@@ -1405,7 +1406,22 @@ export default function DashboardPage() {
                       />
                     </div>
                   )}
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content || (msg.imagePreview ? '' : '')}</div>
+                  {/* History image: fetched from authenticated endpoint */}
+                  {msg.image_path && !msg.imagePreview && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <AuthImage
+                        imagePath={msg.image_path}
+                        style={{
+                          maxWidth: '300px',
+                          maxHeight: '300px',
+                          borderRadius: 'var(--border-radius)',
+                          objectFit: 'cover',
+                          border: '1px solid rgba(255,255,255,0.2)'
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content || (msg.imagePreview || msg.image_path ? '' : '')}</div>
                 </div>
               ) : (
                 <div>
