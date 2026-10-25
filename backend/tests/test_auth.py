@@ -97,10 +97,10 @@ class TestJWTTokens:
         assert "exp" in payload
         
         # Expiration should be in the future
-        from datetime import datetime
+        from datetime import datetime, timezone
         exp_timestamp = payload["exp"]
-        exp_datetime = datetime.fromtimestamp(exp_timestamp)
-        assert exp_datetime > datetime.utcnow()
+        exp_datetime = datetime.fromtimestamp(exp_timestamp, timezone.utc)
+        assert exp_datetime > datetime.now(timezone.utc)
     
     def test_jwt_token_custom_expiration(self):
         """Test JWT token with custom expiration"""
