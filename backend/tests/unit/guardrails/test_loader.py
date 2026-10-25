@@ -103,6 +103,17 @@ def test_pescatarian_and_lactose_free(guardrails):
         assert "lactose" not in foods[name]
 
 
+def test_vegetarian_excludes_egg_but_eggetarian_does_not(guardrails):
+    """Owner decision (Part E #17): eggetarian means vegetarian plus eggs."""
+    rules = {r.id: r for r in guardrails.rules.dietary}
+    vegetarian, eggetarian = rules["DI-VEG-01"], rules["DI-EGGT-01"]
+    assert vegetarian.when.diet == ["vegetarian"] and eggetarian.when.diet == ["eggetarian"]
+    assert "egg" in vegetarian.block["diet_conflict"]
+    assert "egg" not in eggetarian.block["diet_conflict"]
+    assert set(eggetarian.block["diet_conflict"]) < set(vegetarian.block["diet_conflict"])
+    assert guardrails.rules.version >= 2
+
+
 def test_hindi_ingredient_names_resolve(guardrails):
     """Plan C.14 names ghee, paneer, kaju, badam, moongphali, til, atta, maida, besan."""
     terms = {

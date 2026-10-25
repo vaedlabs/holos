@@ -39,6 +39,7 @@ Usage:
 import logging
 import os
 from fastapi import Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -157,21 +158,24 @@ def register_error_handlers(app):
             POST /api/users with invalid email
             -> Returns 422 with validation error details
         """
-        # Log validation errors
+        # Errors from custom validators carry the exception object in "ctx", which
+        # isn't JSON; encoding it as text keeps this a 422 instead of a crash (a 500
+        # without CORS headers, which the browser reports as "cannot connect").
+        details = jsonable_encoder(exc.errors(), custom_encoder={BaseException: str})
+
         # Validation errors are logged at WARNING level (not ERROR - expected behavior)
-        logger.warning(
-            f"Validation error on {request.method} {request.url.path}: {exc.errors()}"
-        )
-        
-        # Return validation error response
-        # Includes detailed validation errors for client debugging
+        logger.warning(f"Validation error on {request.method} {request.url.path}: {details}")
+
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,  # 422 Unprocessable Entity
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={
-                "error": "Validation error",  # Generic error message
-                "status_code": 422,  # HTTP status code
-                "details": exc.errors(),  # Detailed validation errors (field, message, type)
-                "path": str(request.url.path)  # Request path for debugging
+                "error": "Validation error",
+                "status_code": 422,
+                # "detail" is what the frontend reads (FastAPI's own shape); "details"
+                # stays for existing clients
+                "detail": details,
+                "details": details,
+                "path": str(request.url.path),
             }
         )
     

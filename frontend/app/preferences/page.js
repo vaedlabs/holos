@@ -97,10 +97,11 @@ export default function PreferencesPage() {
   }
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }))
   }
 
   const handleSubmit = async (e) => {
@@ -428,7 +429,7 @@ export default function PreferencesPage() {
                   'Inner Peace'
                 ]}
                 value={formData.goals}
-                onChange={(value) => setFormData({ ...formData, goals: value })}
+                onChange={(value) => setFormData(prev => ({ ...prev, goals: value }))}
                 placeholder="Type other goals (comma-separated)..."
               />
               
@@ -452,7 +453,7 @@ export default function PreferencesPage() {
                   'Stretching'
                 ]}
                 value={formData.exercise_types}
-                onChange={(value) => setFormData({ ...formData, exercise_types: value })}
+                onChange={(value) => setFormData(prev => ({ ...prev, exercise_types: value }))}
                 placeholder="Type other exercise types (comma-separated)..."
               />
               <div className="form-group">
@@ -571,7 +572,7 @@ export default function PreferencesPage() {
                   'Sugar-Free'
                 ]}
                 value={formData.dietary_restrictions}
-                onChange={(value) => setFormData({ ...formData, dietary_restrictions: value })}
+                onChange={(value) => setFormData(prev => ({ ...prev, dietary_restrictions: value }))}
                 placeholder="Type other dietary restrictions (comma-separated)..."
                 conflicts={{
                   'Vegan': ['Non-vegetarian', 'Pescatarian', 'Vegetarian'],

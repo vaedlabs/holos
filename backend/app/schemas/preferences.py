@@ -118,6 +118,9 @@ class UserPreferencesCreate(BaseModel):
             - Validation ensures consistent gender data format
             - Used for gender-specific recommendations and metabolic calculations
         """
+        # "Prefer not to say" and an untouched dropdown send "": that means not given
+        if v is None or not v.strip():
+            return None
         if v is not None:
             valid_genders = ['XX', 'XY', 'other']
             if v not in valid_genders:

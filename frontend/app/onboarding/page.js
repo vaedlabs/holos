@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import MedicalHistoryForm from '@/components/MedicalHistoryForm'
@@ -26,10 +26,59 @@ export default function OnboardingPage() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Saved answers are loaded first, so finishing onboarding again can't overwrite
+  // the user's medical history with an empty form
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!mounted || !isAuthenticated) return
+    let cancelled = false
+    Promise.allSettled([api.getMedicalHistory(), api.getUserPreferences()]).then(
+      ([medical, prefs]) => {
+        if (cancelled) return
+        if (medical.status === 'fulfilled' && medical.value) {
+          const m = medical.value
+          setMedicalData({
+            conditions: m.conditions || '',
+            limitations: m.limitations || '',
+            medications: m.medications || '',
+            notes: m.notes || '',
+          })
+        }
+        if (prefs.status === 'fulfilled' && prefs.value) {
+          const p = prefs.value
+          setDemographicsData({
+            age: p.age ?? '',
+            gender: p.gender || '',
+            lifestyle: p.lifestyle || '',
+          })
+          setPreferencesData({
+            goals: p.goals || '',
+            exercise_types: p.exercise_types || '',
+            activity_level: p.activity_level || '',
+            location: p.location || '',
+            dietary_restrictions: p.dietary_restrictions || '',
+          })
+        }
+        setLoaded(true)
+      }
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [mounted, isAuthenticated])
 
   // Don't render until mounted and authenticated
   if (!mounted || !isAuthenticated) {
     return null
+  }
+
+  if (!loaded) {
+    return (
+      <div style={{ padding: 'var(--spacing-xl)', color: 'var(--text-light)', textAlign: 'center' }}>
+        Loading your profile…
+      </div>
+    )
   }
 
   const handleDemographicsSubmit = (e) => {
@@ -53,10 +102,10 @@ export default function OnboardingPage() {
 
   const handleDemographicsChange = (e) => {
     const { name, value } = e.target
-    setDemographicsData({
-      ...demographicsData,
+    setDemographicsData(prev => ({
+      ...prev,
       [name]: name === 'age' ? (value === '' ? '' : parseInt(value) || '') : value,
-    })
+    }))
   }
 
   const handleMedicalSubmit = (data) => {
@@ -107,10 +156,11 @@ export default function OnboardingPage() {
   }
 
   const handlePreferencesChange = (e) => {
-    setPreferencesData({
-      ...preferencesData,
-      [e.target.name]: e.target.value,
-    })
+    const { name, value } = e.target
+    setPreferencesData(prev => ({
+      ...prev,
+      [name]: value,
+    }))
   }
 
   return (
@@ -278,7 +328,7 @@ export default function OnboardingPage() {
               <p style={{ marginBottom: 'var(--spacing-lg)', color: 'rgba(255, 255, 255, 0.9)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                 This information helps us recommend safe exercises for you.
               </p>
-              <MedicalHistoryForm onSubmit={handleMedicalSubmit} />
+              <MedicalHistoryForm onSubmit={handleMedicalSubmit} initialData={medicalData} />
             </div>
           )}
 
@@ -306,7 +356,7 @@ export default function OnboardingPage() {
                 'Inner Peace'
               ]}
               value={preferencesData.goals}
-              onChange={(value) => setPreferencesData({ ...preferencesData, goals: value })}
+              onChange={(value) => setPreferencesData(prev => ({ ...prev, goals: value }))}
               placeholder="Type other goals (comma-separated)..."
             />
             
@@ -330,7 +380,7 @@ export default function OnboardingPage() {
                 'Stretching'
               ]}
               value={preferencesData.exercise_types}
-              onChange={(value) => setPreferencesData({ ...preferencesData, exercise_types: value })}
+              onChange={(value) => setPreferencesData(prev => ({ ...prev, exercise_types: value }))}
               placeholder="Type other exercise types (comma-separated)..."
             />
             <div>
@@ -389,7 +439,7 @@ export default function OnboardingPage() {
                 'Sugar-Free'
               ]}
               value={preferencesData.dietary_restrictions}
-              onChange={(value) => setPreferencesData({ ...preferencesData, dietary_restrictions: value })}
+              onChange={(value) => setPreferencesData(prev => ({ ...prev, dietary_restrictions: value }))}
               placeholder="Type other dietary restrictions (comma-separated)..."
               conflicts={{
                 'Vegan': ['Non-vegetarian', 'Pescatarian', 'Vegetarian'],

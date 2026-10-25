@@ -8,7 +8,8 @@
 # Owner sign-off 25 Oct 2026 (Plan Part E #7, #8). The crisis text is an
 # interim draft the owner may revise before launch.
 
-version: 1
+# 2: vegetarian also blocks egg; eggetarian has its own rule (DI-EGGT-01)
+version: 2
 
 exercise:
   # Knees
@@ -190,8 +191,14 @@ dietary:
     block: {diet_conflict: animal_product}
     severity: block
     reason: Contains an animal product
+  # Vegetarian excludes eggs; eggetarian is "vegetarian who eats eggs" (owner, 26 Oct 2026)
   - id: DI-VEG-01
-    when: {diet: [vegetarian, eggetarian]}
+    when: {diet: vegetarian}
+    block: {diet_conflict: [meat, fish, shellfish, gelatin, egg]}
+    severity: block
+    reason: Contains meat, fish, egg or gelatin
+  - id: DI-EGGT-01
+    when: {diet: eggetarian}
     block: {diet_conflict: [meat, fish, shellfish, gelatin]}
     severity: block
     reason: Contains meat, fish or gelatin

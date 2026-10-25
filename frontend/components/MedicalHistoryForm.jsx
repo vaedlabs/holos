@@ -24,7 +24,7 @@ export default function MedicalHistoryForm({ onSubmit, initialData = {} }) {
     
     // Clear error when user starts typing
     if (validationErrors[name]) {
-      setValidationErrors({ ...validationErrors, [name]: '' })
+      setValidationErrors(prev => ({ ...prev, [name]: '' }))
     }
 
     // Enforce max length
@@ -32,10 +32,10 @@ export default function MedicalHistoryForm({ onSubmit, initialData = {} }) {
       return // Don't update if exceeds max length
     }
 
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value,
-    })
+    }))
   }
 
   const validateForm = () => {
