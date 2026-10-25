@@ -1,0 +1,63 @@
+"""Every limit from Plan C.12, in one place. Change a value here only with the owner."""
+
+from datetime import timedelta
+from decimal import Decimal
+
+# Request intake
+REQUEST_BODY_BYTES = 7 * 1024 * 1024
+MESSAGE_CHARS = 2000
+IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024
+IMAGE_MAX_SIDE_PX = 1024
+GUEST_PROFILE_BYTES = 4 * 1024
+GUEST_HISTORY_TURNS = 6
+HISTORY_TURN_CHARS = 2000
+
+# Agents (reply caps per agent live with the schemas: agents.schemas.REPLY_TOKEN_CAP)
+REASONING_ALLOWANCE_LOW = 1000
+TOOL_ROUNDS = 3
+
+# Concurrency
+INFLIGHT_PER_PRINCIPAL = 1
+INFLIGHT_PER_GUEST_IP = 3
+LEASE_TTL = timedelta(seconds=60)
+LLM_SLOTS_PER_PRINCIPAL = 3
+LLM_SLOTS_GLOBAL = 8
+
+# Request and spend caps
+REQUESTS_PER_MINUTE = 6
+GUEST_SESSION_REQUESTS = 30
+GUEST_SESSION_USD = Decimal("0.05")
+ACCOUNT_DAY_REQUESTS = 30
+ACCOUNT_DAY_USD = Decimal("0.05")
+GUEST_IP_WINDOW = timedelta(minutes=240)
+GUEST_IP_REQUESTS = 60
+GUEST_IP_USD = Decimal("0.10")
+GUEST_IP_HARD_STOP_FACTOR = 3
+NEW_GUEST_SESSIONS_PER_IP_HOUR = 10
+GLOBAL_DAY_USD = Decimal("0.75")
+GLOBAL_MONTH_USD = Decimal("10")
+
+# Web search credits
+SEARCHES_PER_REQUEST = 2
+SEARCHES_PER_GUEST_SESSION = 5
+SEARCHES_PER_GUEST_IP_WINDOW = 10
+SEARCHES_PER_ACCOUNT_DAY = 10
+SEARCHES_GLOBAL_DAY = 40
+SEARCHES_GLOBAL_MONTH = 800
+
+# Lifetimes
+GUEST_SESSION_TTL = timedelta(minutes=240)
+ACCOUNT_SESSION_IDLE = timedelta(days=7)
+ACCOUNT_SESSION_MAX = timedelta(days=30)
+PENDING_WRITE_TTL = timedelta(minutes=15)
+INVITE_TTL = timedelta(days=7)
+CRISIS_FLAG_TTL = timedelta(minutes=30)
+
+# Output and import
+TRACE_TO_BROWSER_BYTES = 32 * 1024
+IMPORT_TURNS = 50
+IMPORT_LOG_ENTRIES = 500
+IMPORT_BYTES = 1024 * 1024
+
+# Middleware
+FLOOD_REQUESTS_PER_MINUTE = 100
