@@ -25,6 +25,9 @@ extend-exclude = [
     "app/agents/prompts/mental_fitness_prompt.py",
     "app/agents/prompts/nutrition_prompt.py",
     "app/agents/reasoning_patterns.py",
+    "app/agents/tools/read.py",  # moved as-is in P2.1; P2.2 rewrites
+    "app/agents/tools/web_search.py",
+    "app/agents/tools/write.py",
     "app/agents/utils/prompt_builder.py",
     "app/auth.py",
     "app/database.py",

@@ -9,7 +9,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-def test_imports():
+def check_imports():
     """Test if all imports work"""
     print("Testing imports...")
     try:
@@ -46,7 +46,7 @@ def test_imports():
         traceback.print_exc()
         return False
 
-def test_database_connection():
+def check_database_connection():
     """Test database connection"""
     print("\nTesting database connection...")
     try:
@@ -62,7 +62,7 @@ def test_database_connection():
         print("  Make sure PostgreSQL is running and DATABASE_URL is set correctly")
         return False
 
-def test_models():
+def check_models():
     """Test model creation"""
     print("\nTesting models...")
     try:
@@ -81,7 +81,7 @@ def test_models():
         print(f"✗ Model test failed: {e}")
         return False
 
-def test_auth_functions():
+def check_auth_functions():
     """Test auth utility functions"""
     print("\nTesting auth functions...")
     try:
@@ -107,21 +107,23 @@ def test_auth_functions():
         traceback.print_exc()
         return False
 
-def test_medical_service():
+def check_medical_service():
     """Test medical service functions"""
     print("\nTesting medical service...")
     try:
         from app.services.medical_service import check_exercise_conflict, get_conflicting_exercises
         
         # Test conflict detection
-        assert check_exercise_conflict("knee injury", "squats") == True
-        assert check_exercise_conflict("knee injury", "swimming") == False
-        assert check_exercise_conflict("back pain", "deadlifts") == True
+        # The service returns a dict, e.g. {"has_conflict": True, "severity": "warning", ...}
+        assert check_exercise_conflict("knee injury", "squats")["has_conflict"] is True
+        assert check_exercise_conflict("knee injury", "swimming")["has_conflict"] is False
+        assert check_exercise_conflict("back pain", "deadlifts")["has_conflict"] is True
         
-        # Test conflicting exercises list
+        # Test conflicting exercises list: {"block": [...], "warning": [...]}
         conflicts = get_conflicting_exercises("knee injury, back pain")
-        assert "squats" in conflicts
-        assert "deadlifts" in conflicts
+        flagged = conflicts["block"] + conflicts["warning"]
+        assert "squats" in flagged
+        assert "deadlifts" in flagged
         
         print("✓ Medical service conflict detection works correctly")
         return True
@@ -129,7 +131,7 @@ def test_medical_service():
         print(f"✗ Medical service test failed: {e}")
         return False
 
-def test_environment_variables():
+def check_environment_variables():
     """Test environment variables"""
     print("\nTesting environment variables...")
     from dotenv import load_dotenv
@@ -163,12 +165,12 @@ def main():
     
     results = []
     
-    results.append(("Imports", test_imports()))
-    results.append(("Environment Variables", test_environment_variables()))
-    results.append(("Models", test_models()))
-    results.append(("Auth Functions", test_auth_functions()))
-    results.append(("Medical Service", test_medical_service()))
-    results.append(("Database Connection", test_database_connection()))
+    results.append(("Imports", check_imports()))
+    results.append(("Environment Variables", check_environment_variables()))
+    results.append(("Models", check_models()))
+    results.append(("Auth Functions", check_auth_functions()))
+    results.append(("Medical Service", check_medical_service()))
+    results.append(("Database Connection", check_database_connection()))
     
     print("\n" + "=" * 50)
     print("Test Summary")
@@ -198,3 +200,29 @@ if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)
 
+
+# pytest entry points. The check_* functions return True/False for main(); a
+# returned False used to count as a pass under pytest, which hid a failing
+# medical check. These assert the result so a failure fails.
+def test_imports():
+    assert check_imports()
+
+
+def test_database_connection():
+    assert check_database_connection()
+
+
+def test_models():
+    assert check_models()
+
+
+def test_auth_functions():
+    assert check_auth_functions()
+
+
+def test_medical_service():
+    assert check_medical_service()
+
+
+def test_environment_variables():
+    assert check_environment_variables()

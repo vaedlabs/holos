@@ -360,7 +360,7 @@ async def upload_image(
             # Reject oversized payloads before decoding (base64 is 4/3 the size)
             if len(image_base64) > MAX_IMAGE_BYTES * 4 // 3 + 4:
                 raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                     detail="Image is too large (max 7 MB).",
                 )
             image_data = base64.b64decode(image_base64, validate=True)

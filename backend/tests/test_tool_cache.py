@@ -167,7 +167,7 @@ class TestToolCacheIntegration:
     
     def test_get_medical_history_tool_uses_cache(self, mock_db, mock_env_vars):
         """Test that GetMedicalHistoryTool uses cache"""
-        from app.agents.base_agent import GetMedicalHistoryTool
+        from app.agents.tools.read import GetMedicalHistoryTool
         from app.services.medical_service import get_medical_history
         from sqlalchemy.orm import Session
         
@@ -183,7 +183,7 @@ class TestToolCacheIntegration:
         
         tool = GetMedicalHistoryTool(user_id=1, db=mock_session)
         
-        with patch('app.agents.base_agent.get_medical_history', side_effect=mock_get_medical_history):
+        with patch('app.agents.tools.read.get_medical_history', side_effect=mock_get_medical_history):
             # First call - should hit database
             result1 = tool._run("")
             assert call_count[0] == 1
@@ -197,7 +197,7 @@ class TestToolCacheIntegration:
     
     def test_get_user_preferences_tool_uses_cache(self, mock_db, mock_env_vars):
         """Test that GetUserPreferencesTool uses cache"""
-        from app.agents.base_agent import GetUserPreferencesTool
+        from app.agents.tools.read import GetUserPreferencesTool
         from app.models.user_preferences import UserPreferences
         from sqlalchemy.orm import Session
         
@@ -237,7 +237,7 @@ class TestToolCacheIntegration:
     
     def test_web_search_tool_uses_cache(self, mock_db, mock_env_vars):
         """Test that WebSearchTool uses cache"""
-        from app.agents.base_agent import WebSearchTool
+        from app.agents.tools.web_search import WebSearchTool
         
         tool = WebSearchTool()
         
@@ -272,7 +272,7 @@ class TestToolCacheIntegration:
     def test_cache_invalidation_on_data_update(self, mock_db, mock_env_vars):
         """Test that cache can be invalidated when data is updated"""
         from app.services.tool_cache import tool_cache
-        from app.agents.base_agent import GetMedicalHistoryTool
+        from app.agents.tools.read import GetMedicalHistoryTool
         from sqlalchemy.orm import Session
         
         # Create a proper mock Session
@@ -299,7 +299,7 @@ class TestToolCacheIntegration:
         def mock_get_medical_history(user_id, db):
             return mock_history
         
-        with patch('app.agents.base_agent.get_medical_history', side_effect=mock_get_medical_history):
+        with patch('app.agents.tools.read.get_medical_history', side_effect=mock_get_medical_history):
             # First call - should get the mock history
             result1 = tool._run("")
             assert "Initial condition" in result1

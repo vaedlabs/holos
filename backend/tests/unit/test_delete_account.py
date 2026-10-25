@@ -1,5 +1,7 @@
 """DELETE /auth/delete-account removes the user and every row that references them."""
 
+from pathlib import Path
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -112,7 +114,7 @@ def test_every_user_foreign_key_is_cleaned_up(session_factory):
     # A table is covered if its foreign key cascades in the database (Plan C.11)
     # or delete_account deletes its rows explicitly
     insp = inspect(session_factory.kw["bind"])
-    source = open(auth.__file__).read()
+    source = Path(auth.__file__).read_text()
     model_for = {m.__tablename__: m.__name__ for m in Base.__subclasses__()}
     missing = [
         model_for[table]
