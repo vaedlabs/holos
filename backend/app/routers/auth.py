@@ -26,11 +26,14 @@ Dependencies:
 - app.auth: Password hashing and JWT token creation functions
 """
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pathlib import Path
 from app.dependencies import get_database, get_current_user
+
+logger = logging.getLogger(__name__)
 from app.auth import verify_password, get_password_hash, create_access_token
 from app.models.user import User
 from app.models.conversation_message import ConversationMessage
@@ -112,7 +115,11 @@ async def register(user_data: UserRegister, db: Session = Depends(get_database))
     # Create new user
     # Hash password using bcrypt before storage
     # Password hash is stored, never plain text password
-    hashed_password = get_password_hash(user_data.password)
+    try:
+        hashed_password = get_password_hash(user_data.password)
+    except ValueError as e:
+        # get_password_hash raises ValueError if password exceeds bcrypt's 72-byte limit
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     new_user = User(
         email=user_data.email,
         username=user_data.username,
@@ -311,8 +318,8 @@ async def delete_account(
                 if image_file.exists():
                     try:
                         image_file.unlink()  # Delete image file
-                    except:
-                        pass  # Continue even if image deletion fails (non-critical)
+                    except OSError as e:
+                        logger.warning("Failed to delete image file %s: %s", image_file, e)
         
         # Delete conversation messages from database
         db.query(ConversationMessage).filter(

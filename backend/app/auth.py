@@ -114,11 +114,11 @@ def get_password_hash(password: str) -> str:
         - Each hash includes a unique salt, so the same password produces different hashes
         - The returned hash can be stored directly in the database
     """
-    # Ensure password is not longer than 72 bytes (bcrypt limit)
-    # Bcrypt only uses the first 72 bytes of a password, so longer passwords
-    # are effectively truncated. We truncate explicitly to avoid confusion.
+    # Bcrypt silently ignores bytes beyond the 72nd, which would cause a mismatch
+    # between the password the user set and what they later type at login.
+    # Reject it explicitly so the user gets a clear error at registration time.
     if len(password.encode('utf-8')) > 72:
-        password = password[:72]
+        raise ValueError("Password is too long. Please use 72 characters or fewer.")
     
     try:
         # Primary method: use passlib's CryptContext

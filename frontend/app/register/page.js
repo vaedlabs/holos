@@ -33,6 +33,10 @@ export default function RegisterPage() {
     if (password.length < 8) {
       errors.push('Password must be at least 8 characters')
     }
+    // bcrypt only uses the first 72 bytes; the backend rejects anything longer
+    if (new TextEncoder().encode(password).length > 72) {
+      errors.push('Password is too long. Please use 72 characters or fewer.')
+    }
     if (!/[A-Z]/.test(password)) {
       errors.push('Password must contain at least one uppercase letter')
     }

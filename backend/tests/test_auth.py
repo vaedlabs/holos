@@ -45,17 +45,11 @@ class TestPasswordHashing:
         assert verify_password(password, hashed2) is True
     
     def test_password_length_limit(self):
-        """Test that passwords longer than 72 bytes are handled"""
-        # Create a password longer than 72 bytes
+        """Test that passwords longer than 72 bytes are rejected with a clear error"""
+        import pytest as _pytest
         long_password = "a" * 100
-        hashed = get_password_hash(long_password)
-        
-        # Should still hash (truncated to 72 bytes)
-        assert hashed is not None
-        assert len(hashed) > 0
-        
-        # Should verify with truncated password
-        assert verify_password(long_password[:72], hashed) is True
+        with _pytest.raises(ValueError, match="Password is too long"):
+            get_password_hash(long_password)
 
 
 class TestJWTTokens:
