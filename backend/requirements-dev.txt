@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Lint
+ruff==0.17.2
