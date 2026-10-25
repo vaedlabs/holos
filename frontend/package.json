@@ -10,15 +10,18 @@
   },
   "dependencies": {
     "@react-three/fiber": "^9.4.2",
-    "next": "^15.1.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "next": "15.5.28",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "three": "^0.181.2"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
-    "eslint-config-next": "^15.1.0"
+    "eslint-config-next": "15.5.28"
+  },
+  "overrides": {
+    "postcss": "8.5.31"
   }
 }
