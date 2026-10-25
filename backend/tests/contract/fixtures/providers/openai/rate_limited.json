@@ -1,0 +1,24 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1/responses",
+      "body": null
+    },
+    "response": {
+      "status": 429,
+      "headers": {
+        "content-type": "application/json",
+        "retry-after": "7"
+      },
+      "body": {
+        "error": {
+          "message": "Rate limit reached for gpt-6-luna",
+          "type": "requests",
+          "code": "rate_limit_exceeded"
+        }
+      }
+    },
+    "_note": "Written by hand: real failures can't be recorded on demand."
+  }
+]

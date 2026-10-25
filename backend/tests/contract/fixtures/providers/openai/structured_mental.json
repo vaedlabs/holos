@@ -1,0 +1,391 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1/responses",
+      "body": {
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "One 5-minute practice for stress before an exam."
+              }
+            ]
+          }
+        ],
+        "instructions": "You are a calm wellbeing coach. Reply in the schema.",
+        "max_output_tokens": 1200,
+        "model": "gpt-6-luna",
+        "reasoning": {
+          "effort": "none"
+        },
+        "store": false,
+        "text": {
+          "format": {
+            "type": "json_schema",
+            "name": "MentalReply",
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                  "enum": [
+                    "plan",
+                    "answer",
+                    "log_ack",
+                    "clarify"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "summary": {
+                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "title": "Summary",
+                  "type": "string"
+                },
+                "notes": {
+                  "description": "Up to 3 short tips or cautions.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 200 characters."
+                  },
+                  "maxItems": 3,
+                  "title": "Notes",
+                  "type": "array"
+                },
+                "source_ids": {
+                  "description": "Only ids of this turn's web search results; else empty.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 20 characters."
+                  },
+                  "maxItems": 5,
+                  "title": "Source Ids",
+                  "type": "array"
+                },
+                "follow_up": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "title": "Follow Up"
+                },
+                "risk_flag": {
+                  "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                  "title": "Risk Flag",
+                  "type": "boolean"
+                },
+                "items": {
+                  "description": "1 to 5 items when kind is plan; empty otherwise.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "catalogue_id": {
+                        "enum": [
+                          "box_breathing",
+                          "breathing_4_7_8",
+                          "breath_retention",
+                          "wim_hof_breathing",
+                          "kapalbhati",
+                          "bhastrika",
+                          "diaphragmatic_breathing",
+                          "coherent_breathing",
+                          "extended_exhale_breathing",
+                          "alternate_nostril_breathing",
+                          "bhramari",
+                          "mindfulness_meditation",
+                          "body_scan",
+                          "loving_kindness_meditation",
+                          "guided_imagery",
+                          "yoga_nidra",
+                          "mantra_meditation",
+                          "trataka",
+                          "walking_meditation",
+                          "progressive_muscle_relaxation",
+                          "grounding_54321",
+                          "self_compassion_break",
+                          "gratitude_journaling",
+                          "expressive_journaling",
+                          "thought_record",
+                          "scheduled_worry_time",
+                          "sleep_wind_down"
+                        ],
+                        "title": "PracticeId",
+                        "type": "string"
+                      },
+                      "duration_min": {
+                        "maximum": 60,
+                        "minimum": 1,
+                        "title": "Duration Min",
+                        "type": "integer"
+                      },
+                      "note": {
+                        "title": "Note",
+                        "type": "string",
+                        "description": "At most 120 characters."
+                      }
+                    },
+                    "required": [
+                      "catalogue_id",
+                      "duration_min",
+                      "note"
+                    ],
+                    "title": "PracticeItem",
+                    "type": "object"
+                  },
+                  "maxItems": 5,
+                  "title": "Items",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "summary",
+                "notes",
+                "source_ids",
+                "follow_up",
+                "risk_flag",
+                "items"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          }
+        }
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "id": "resp_071572101724b296016ade5afb5d8887d18e625d0d5cd07ccd",
+        "object": "response",
+        "created_at": 1792957179,
+        "status": "completed",
+        "access_programs": null,
+        "background": false,
+        "billing": {
+          "payer": "developer"
+        },
+        "completed_at": 1792957181,
+        "error": null,
+        "frequency_penalty": 0.0,
+        "incomplete_details": null,
+        "instructions": "You are a calm wellbeing coach. Reply in the schema.",
+        "max_output_tokens": 1200,
+        "max_tool_calls": null,
+        "model": "gpt-6-luna",
+        "moderation": null,
+        "output": [
+          {
+            "id": "msg_071572101724b296016ade5afc595c87d183de32a91a5f7ae5",
+            "type": "message",
+            "status": "completed",
+            "content": [
+              {
+                "type": "output_text",
+                "annotations": [],
+                "logprobs": [],
+                "text": "{\"kind\":\"plan\",\"summary\":\"Try a 5-minute grounding practice to settle exam stress and bring attention back to the present.\",\"notes\":[],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"catalogue_id\":\"grounding_54321\",\"duration_min\":5,\"note\":\"Name 5 things you see, 4 you feel, 3 you hear, 2 you smell, and 1 you taste.\"}]}"
+              }
+            ],
+            "phase": "final_answer",
+            "role": "assistant"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "presence_penalty": 0.0,
+        "previous_response_id": null,
+        "prompt_cache_key": null,
+        "prompt_cache_retention": "24h",
+        "reasoning": {
+          "context": "all_turns",
+          "effort": "none",
+          "mode": "standard",
+          "summary": null
+        },
+        "safety_identifier": null,
+        "service_tier": "default",
+        "store": false,
+        "temperature": 1.0,
+        "text": {
+          "format": {
+            "type": "json_schema",
+            "description": null,
+            "name": "MentalReply",
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                  "enum": [
+                    "plan",
+                    "answer",
+                    "log_ack",
+                    "clarify"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "summary": {
+                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "title": "Summary",
+                  "type": "string"
+                },
+                "notes": {
+                  "description": "Up to 3 short tips or cautions.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 200 characters."
+                  },
+                  "maxItems": 3,
+                  "title": "Notes",
+                  "type": "array"
+                },
+                "source_ids": {
+                  "description": "Only ids of this turn's web search results; else empty.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 20 characters."
+                  },
+                  "maxItems": 5,
+                  "title": "Source Ids",
+                  "type": "array"
+                },
+                "follow_up": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "title": "Follow Up"
+                },
+                "risk_flag": {
+                  "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                  "title": "Risk Flag",
+                  "type": "boolean"
+                },
+                "items": {
+                  "description": "1 to 5 items when kind is plan; empty otherwise.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "catalogue_id": {
+                        "enum": [
+                          "box_breathing",
+                          "breathing_4_7_8",
+                          "breath_retention",
+                          "wim_hof_breathing",
+                          "kapalbhati",
+                          "bhastrika",
+                          "diaphragmatic_breathing",
+                          "coherent_breathing",
+                          "extended_exhale_breathing",
+                          "alternate_nostril_breathing",
+                          "bhramari",
+                          "mindfulness_meditation",
+                          "body_scan",
+                          "loving_kindness_meditation",
+                          "guided_imagery",
+                          "yoga_nidra",
+                          "mantra_meditation",
+                          "trataka",
+                          "walking_meditation",
+                          "progressive_muscle_relaxation",
+                          "grounding_54321",
+                          "self_compassion_break",
+                          "gratitude_journaling",
+                          "expressive_journaling",
+                          "thought_record",
+                          "scheduled_worry_time",
+                          "sleep_wind_down"
+                        ],
+                        "title": "PracticeId",
+                        "type": "string"
+                      },
+                      "duration_min": {
+                        "maximum": 60,
+                        "minimum": 1,
+                        "title": "Duration Min",
+                        "type": "integer"
+                      },
+                      "note": {
+                        "title": "Note",
+                        "type": "string",
+                        "description": "At most 120 characters."
+                      }
+                    },
+                    "required": [
+                      "catalogue_id",
+                      "duration_min",
+                      "note"
+                    ],
+                    "title": "PracticeItem",
+                    "type": "object"
+                  },
+                  "maxItems": 5,
+                  "title": "Items",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "summary",
+                "notes",
+                "source_ids",
+                "follow_up",
+                "risk_flag",
+                "items"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          },
+          "verbosity": "medium"
+        },
+        "tool_choice": "auto",
+        "tool_usage": {
+          "image_gen": {
+            "input_tokens": 0,
+            "input_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "output_tokens": 0,
+            "output_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "total_tokens": 0
+          },
+          "web_search": {
+            "num_requests": 0
+          }
+        },
+        "tools": [],
+        "top_logprobs": 0,
+        "top_p": 0.98,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 527,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 101,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 628
+        },
+        "user": null,
+        "metadata": {}
+      }
+    }
+  }
+]

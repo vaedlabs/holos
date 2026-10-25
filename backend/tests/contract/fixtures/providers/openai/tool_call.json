@@ -1,0 +1,392 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1/responses",
+      "body": {
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "What did I eat in the last 7 days? Use the tool, then answer in one sentence."
+              }
+            ]
+          }
+        ],
+        "max_output_tokens": 1200,
+        "model": "gpt-6-luna",
+        "reasoning": {
+          "effort": "none"
+        },
+        "store": false,
+        "tools": [
+          {
+            "type": "function",
+            "name": "get_recent_logs",
+            "description": "The user's recent workout, meal or practice logs, newest first.",
+            "parameters": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "workout",
+                    "meal",
+                    "practice"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "days": {
+                  "maximum": 14,
+                  "minimum": 1,
+                  "title": "Days",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "days"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          }
+        ]
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "id": "resp_0005a4b3cce6dae5016ade5afdeb9087d18ff7355368c23864",
+        "object": "response",
+        "created_at": 1792957181,
+        "status": "completed",
+        "access_programs": null,
+        "background": false,
+        "billing": {
+          "payer": "developer"
+        },
+        "completed_at": 1792957182,
+        "error": null,
+        "frequency_penalty": 0.0,
+        "incomplete_details": null,
+        "instructions": null,
+        "max_output_tokens": 1200,
+        "max_tool_calls": null,
+        "model": "gpt-6-luna",
+        "moderation": null,
+        "output": [
+          {
+            "id": "fc_0005a4b3cce6dae5016ade5afeba2087d1bf51cf8bac99231d",
+            "type": "function_call",
+            "status": "completed",
+            "arguments": "{\"kind\":\"meal\",\"days\":7}",
+            "call_id": "call_odH5CpFVRW90iv74ZAIuYhrT",
+            "name": "get_recent_logs"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "presence_penalty": 0.0,
+        "previous_response_id": null,
+        "prompt_cache_key": null,
+        "prompt_cache_retention": "24h",
+        "reasoning": {
+          "context": "all_turns",
+          "effort": "none",
+          "mode": "standard",
+          "summary": null
+        },
+        "safety_identifier": null,
+        "service_tier": "default",
+        "store": false,
+        "temperature": 1.0,
+        "text": {
+          "format": {
+            "type": "text"
+          },
+          "verbosity": "medium"
+        },
+        "tool_choice": "auto",
+        "tool_usage": {
+          "image_gen": {
+            "input_tokens": 0,
+            "input_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "output_tokens": 0,
+            "output_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "total_tokens": 0
+          },
+          "web_search": {
+            "num_requests": 0
+          }
+        },
+        "tools": [
+          {
+            "type": "function",
+            "description": "The user's recent workout, meal or practice logs, newest first.",
+            "name": "get_recent_logs",
+            "output_schema": null,
+            "parameters": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "workout",
+                    "meal",
+                    "practice"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "days": {
+                  "maximum": 14,
+                  "minimum": 1,
+                  "title": "Days",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "days"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          }
+        ],
+        "top_logprobs": 0,
+        "top_p": 0.98,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 101,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 23,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 124
+        },
+        "user": null,
+        "metadata": {}
+      }
+    }
+  },
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1/responses",
+      "body": {
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "What did I eat in the last 7 days? Use the tool, then answer in one sentence."
+              }
+            ]
+          },
+          {
+            "arguments": "{\"kind\":\"meal\",\"days\":7}",
+            "call_id": "call_odH5CpFVRW90iv74ZAIuYhrT",
+            "name": "get_recent_logs",
+            "type": "function_call",
+            "id": "fc_0005a4b3cce6dae5016ade5afeba2087d1bf51cf8bac99231d",
+            "status": "completed"
+          },
+          {
+            "type": "function_call_output",
+            "call_id": "call_odH5CpFVRW90iv74ZAIuYhrT",
+            "output": "{\"entries\": [{\"date\": \"2026-10-24\", \"meal_type\": \"lunch\", \"foods\": \"dal, rice\", \"calories\": 520, \"notes\": null}]}"
+          }
+        ],
+        "max_output_tokens": 1200,
+        "model": "gpt-6-luna",
+        "reasoning": {
+          "effort": "none"
+        },
+        "store": false,
+        "tools": [
+          {
+            "type": "function",
+            "name": "get_recent_logs",
+            "description": "The user's recent workout, meal or practice logs, newest first.",
+            "parameters": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "workout",
+                    "meal",
+                    "practice"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "days": {
+                  "maximum": 14,
+                  "minimum": 1,
+                  "title": "Days",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "days"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          }
+        ]
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "id": "resp_0005a4b3cce6dae5016ade5aff492c87d1b88ce6344fbb1d3e",
+        "object": "response",
+        "created_at": 1792957183,
+        "status": "completed",
+        "access_programs": null,
+        "background": false,
+        "billing": {
+          "payer": "developer"
+        },
+        "completed_at": 1792957184,
+        "error": null,
+        "frequency_penalty": 0.0,
+        "incomplete_details": null,
+        "instructions": null,
+        "max_output_tokens": 1200,
+        "max_tool_calls": null,
+        "model": "gpt-6-luna",
+        "moderation": null,
+        "output": [
+          {
+            "id": "msg_0005a4b3cce6dae5016ade5afffe3487d1b5e9e39f82f42fb2",
+            "type": "message",
+            "status": "completed",
+            "content": [
+              {
+                "type": "output_text",
+                "annotations": [],
+                "logprobs": [],
+                "text": "In the last 7 days, you logged dal and rice for lunch."
+              }
+            ],
+            "phase": "final_answer",
+            "role": "assistant"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "presence_penalty": 0.0,
+        "previous_response_id": null,
+        "prompt_cache_key": null,
+        "prompt_cache_retention": "24h",
+        "reasoning": {
+          "context": "all_turns",
+          "effort": "none",
+          "mode": "standard",
+          "summary": null
+        },
+        "safety_identifier": null,
+        "service_tier": "default",
+        "store": false,
+        "temperature": 1.0,
+        "text": {
+          "format": {
+            "type": "text"
+          },
+          "verbosity": "medium"
+        },
+        "tool_choice": "auto",
+        "tool_usage": {
+          "image_gen": {
+            "input_tokens": 0,
+            "input_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "output_tokens": 0,
+            "output_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "total_tokens": 0
+          },
+          "web_search": {
+            "num_requests": 0
+          }
+        },
+        "tools": [
+          {
+            "type": "function",
+            "description": "The user's recent workout, meal or practice logs, newest first.",
+            "name": "get_recent_logs",
+            "output_schema": null,
+            "parameters": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "workout",
+                    "meal",
+                    "practice"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "days": {
+                  "maximum": 14,
+                  "minimum": 1,
+                  "title": "Days",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "days"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          }
+        ],
+        "top_logprobs": 0,
+        "top_p": 0.98,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 179,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 19,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 198
+        },
+        "user": null,
+        "metadata": {}
+      }
+    }
+  }
+]

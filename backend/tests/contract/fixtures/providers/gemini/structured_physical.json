@@ -1,0 +1,300 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1beta/interactions",
+      "body": {
+        "model": "gemini-3.5-flash-lite",
+        "generation_config": {
+          "max_output_tokens": 1400,
+          "thinking_level": "minimal"
+        },
+        "input": [
+          {
+            "content": [
+              {
+                "text": "A 2-exercise upper-body plan with no equipment, for a beginner.",
+                "type": "text"
+              }
+            ],
+            "type": "user_input"
+          }
+        ],
+        "response_format": {
+          "mime_type": "application/json",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                "enum": [
+                  "plan",
+                  "answer",
+                  "log_ack",
+                  "clarify"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "summary": {
+                "description": "Short plain-text reply to the user. At most 400 characters.",
+                "title": "Summary",
+                "type": "string"
+              },
+              "notes": {
+                "description": "Up to 3 short tips or cautions.",
+                "items": {
+                  "type": "string",
+                  "description": "At most 200 characters."
+                },
+                "maxItems": 3,
+                "title": "Notes",
+                "type": "array"
+              },
+              "source_ids": {
+                "description": "Only ids of this turn's web search results; else empty.",
+                "items": {
+                  "type": "string",
+                  "description": "At most 20 characters."
+                },
+                "maxItems": 5,
+                "title": "Source Ids",
+                "type": "array"
+              },
+              "follow_up": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                "title": "Follow Up"
+              },
+              "risk_flag": {
+                "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                "title": "Risk Flag",
+                "type": "boolean"
+              },
+              "items": {
+                "description": "1 to 8 items when kind is plan; empty otherwise.",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "catalogue_id": {
+                      "enum": [
+                        "back_squat",
+                        "front_squat",
+                        "goblet_squat",
+                        "bodyweight_squat",
+                        "sumo_squat",
+                        "split_squat",
+                        "pistol_squat",
+                        "hack_squat",
+                        "jump_squat",
+                        "cossack_squat",
+                        "wall_sit",
+                        "forward_lunge",
+                        "reverse_lunge",
+                        "walking_lunge",
+                        "lateral_lunge",
+                        "jumping_lunge",
+                        "step_up",
+                        "leg_press",
+                        "leg_extension",
+                        "leg_curl",
+                        "nordic_curl",
+                        "deadlift",
+                        "romanian_deadlift",
+                        "sumo_deadlift",
+                        "trap_bar_deadlift",
+                        "good_morning",
+                        "hip_thrust",
+                        "glute_bridge",
+                        "single_leg_glute_bridge",
+                        "calf_raise",
+                        "seated_calf_raise",
+                        "clamshell",
+                        "side_lying_leg_raise",
+                        "hip_abduction_machine",
+                        "kettlebell_swing",
+                        "box_jump",
+                        "broad_jump",
+                        "jump_rope",
+                        "jumping_jacks",
+                        "burpee",
+                        "mountain_climber",
+                        "hiit_workout",
+                        "circuit_training",
+                        "bench_press",
+                        "incline_bench_press",
+                        "dumbbell_bench_press",
+                        "push_up",
+                        "knee_push_up",
+                        "incline_push_up",
+                        "dip",
+                        "overhead_press",
+                        "dumbbell_shoulder_press",
+                        "arnold_press",
+                        "lateral_raise",
+                        "front_raise",
+                        "upright_row",
+                        "chest_fly",
+                        "pec_deck",
+                        "skull_crusher",
+                        "overhead_tricep_extension",
+                        "tricep_pushdown",
+                        "pull_up",
+                        "chin_up",
+                        "lat_pulldown",
+                        "seated_cable_row",
+                        "bent_over_row",
+                        "dumbbell_row",
+                        "face_pull",
+                        "band_pull_apart",
+                        "bicep_curl",
+                        "hammer_curl",
+                        "wrist_curl",
+                        "shrug",
+                        "farmer_carry",
+                        "plank",
+                        "high_plank",
+                        "side_plank",
+                        "crunch",
+                        "sit_up",
+                        "bicycle_crunch",
+                        "v_up",
+                        "lying_leg_raise",
+                        "hanging_leg_raise",
+                        "russian_twist",
+                        "dead_bug",
+                        "bird_dog",
+                        "ab_wheel_rollout",
+                        "back_extension",
+                        "superman_hold",
+                        "pallof_press",
+                        "walking",
+                        "brisk_walking",
+                        "hiking",
+                        "jogging",
+                        "running",
+                        "interval_running",
+                        "sprinting",
+                        "long_distance_running",
+                        "stair_climbing",
+                        "cycling",
+                        "stationary_cycling",
+                        "spin_class",
+                        "rowing_machine",
+                        "elliptical",
+                        "swimming",
+                        "aqua_aerobics",
+                        "dance_workout",
+                        "yoga_flow",
+                        "sun_salutation",
+                        "downward_dog",
+                        "childs_pose",
+                        "cat_cow",
+                        "hamstring_stretch",
+                        "quad_stretch",
+                        "hip_flexor_stretch",
+                        "chest_doorway_stretch",
+                        "neck_mobility",
+                        "foam_rolling",
+                        "tai_chi",
+                        "pilates_mat",
+                        "headstand",
+                        "shoulder_stand",
+                        "handstand",
+                        "neck_bridge"
+                      ],
+                      "title": "ExerciseId",
+                      "type": "string"
+                    },
+                    "sets": {
+                      "maximum": 10,
+                      "minimum": 1,
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "title": "Sets"
+                    },
+                    "reps": {
+                      "maximum": 100,
+                      "minimum": 1,
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "title": "Reps"
+                    },
+                    "duration_s": {
+                      "maximum": 3600,
+                      "minimum": 1,
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "title": "Duration S"
+                    },
+                    "intensity": {
+                      "enum": [
+                        "low",
+                        "moderate",
+                        "high"
+                      ],
+                      "title": "Intensity",
+                      "type": "string"
+                    },
+                    "note": {
+                      "title": "Note",
+                      "type": "string",
+                      "description": "At most 120 characters."
+                    }
+                  },
+                  "required": [
+                    "catalogue_id",
+                    "sets",
+                    "reps",
+                    "duration_s",
+                    "intensity",
+                    "note"
+                  ],
+                  "title": "ExerciseItem",
+                  "type": "object"
+                },
+                "maxItems": 8,
+                "title": "Items",
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "summary",
+              "notes",
+              "source_ids",
+              "follow_up",
+              "risk_flag",
+              "items"
+            ],
+            "type": "object"
+          },
+          "type": "text"
+        },
+        "store": false,
+        "system_instruction": "You are a careful fitness coach. Reply in the schema."
+      }
+    },
+    "response": {
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "body": {
+        "error": {
+          "message": "The specified schema produces a constraint that has too many states for serving. Typical causes of this error are schemas with lots of text (for example, very long property or enum names), schemas with long array length limits (especially when nested), or schemas using complex value matchers (for example, integers or numbers with minimum/maximum bounds or strings with complex formats like date-time)",
+          "code": "invalid_request"
+        }
+      }
+    }
+  }
+]

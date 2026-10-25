@@ -1,0 +1,201 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1beta/interactions",
+      "body": {
+        "model": "gemini-3.5-flash-lite",
+        "generation_config": {
+          "max_output_tokens": 1400,
+          "thinking_level": "minimal"
+        },
+        "input": [
+          {
+            "content": [
+              {
+                "text": "One 5-minute practice for stress before an exam.",
+                "type": "text"
+              }
+            ],
+            "type": "user_input"
+          }
+        ],
+        "response_format": {
+          "mime_type": "application/json",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                "enum": [
+                  "plan",
+                  "answer",
+                  "log_ack",
+                  "clarify"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "summary": {
+                "description": "Short plain-text reply to the user. At most 400 characters.",
+                "title": "Summary",
+                "type": "string"
+              },
+              "notes": {
+                "description": "Up to 3 short tips or cautions.",
+                "items": {
+                  "type": "string",
+                  "description": "At most 200 characters."
+                },
+                "maxItems": 3,
+                "title": "Notes",
+                "type": "array"
+              },
+              "source_ids": {
+                "description": "Only ids of this turn's web search results; else empty.",
+                "items": {
+                  "type": "string",
+                  "description": "At most 20 characters."
+                },
+                "maxItems": 5,
+                "title": "Source Ids",
+                "type": "array"
+              },
+              "follow_up": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                "title": "Follow Up"
+              },
+              "risk_flag": {
+                "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                "title": "Risk Flag",
+                "type": "boolean"
+              },
+              "items": {
+                "description": "1 to 5 items when kind is plan; empty otherwise.",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "catalogue_id": {
+                      "enum": [
+                        "box_breathing",
+                        "breathing_4_7_8",
+                        "breath_retention",
+                        "wim_hof_breathing",
+                        "kapalbhati",
+                        "bhastrika",
+                        "diaphragmatic_breathing",
+                        "coherent_breathing",
+                        "extended_exhale_breathing",
+                        "alternate_nostril_breathing",
+                        "bhramari",
+                        "mindfulness_meditation",
+                        "body_scan",
+                        "loving_kindness_meditation",
+                        "guided_imagery",
+                        "yoga_nidra",
+                        "mantra_meditation",
+                        "trataka",
+                        "walking_meditation",
+                        "progressive_muscle_relaxation",
+                        "grounding_54321",
+                        "self_compassion_break",
+                        "gratitude_journaling",
+                        "expressive_journaling",
+                        "thought_record",
+                        "scheduled_worry_time",
+                        "sleep_wind_down"
+                      ],
+                      "title": "PracticeId",
+                      "type": "string"
+                    },
+                    "duration_min": {
+                      "maximum": 60,
+                      "minimum": 1,
+                      "title": "Duration Min",
+                      "type": "integer"
+                    },
+                    "note": {
+                      "title": "Note",
+                      "type": "string",
+                      "description": "At most 120 characters."
+                    }
+                  },
+                  "required": [
+                    "catalogue_id",
+                    "duration_min",
+                    "note"
+                  ],
+                  "title": "PracticeItem",
+                  "type": "object"
+                },
+                "maxItems": 5,
+                "title": "Items",
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "summary",
+              "notes",
+              "source_ids",
+              "follow_up",
+              "risk_flag",
+              "items"
+            ],
+            "type": "object"
+          },
+          "type": "text"
+        },
+        "store": false,
+        "system_instruction": "You are a calm wellbeing coach. Reply in the schema."
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "completed",
+        "usage": {
+          "total_tokens": 202,
+          "total_input_tokens": 26,
+          "input_tokens_by_modality": [
+            {
+              "modality": "text",
+              "tokens": 26
+            }
+          ],
+          "total_cached_tokens": 0,
+          "total_output_tokens": 176,
+          "total_tool_use_tokens": 0,
+          "total_thought_tokens": 0
+        },
+        "created": "2026-10-25T19:41:35Z",
+        "updated": "2026-10-25T19:41:35Z",
+        "service_tier": "standard",
+        "steps": [
+          {
+            "signature": "EmAKXgFpFH0TtBlzcaFXP0gPIIGppV6ELicR+fgCZESNzdS0Nsc1ken5/pjDKFdl0JoooUcfoSGbVefgd5bYUp4k951BRHrI3Z5j2kJeApk85U9QjylcwhzOR9tOEKxUWtQ=",
+            "type": "thought"
+          },
+          {
+            "content": [
+              {
+                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Try this 5-minute box breathing practice to help calm your nervous system and steady your focus right before your exam.\",\n  \"notes\": [\n    \"Find a quiet spot and sit comfortably with your feet on the floor.\",\n    \"If your mind wanders, gently bring your focus back to the rhythm of your breath.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"catalogue_id\": \"box_breathing\",\n      \"duration_min\": 5,\n      \"note\": \"Inhale, hold, exhale, and hold for 4 seconds each to center yourself.\"\n    }\n  ]\n}",
+                "type": "text"
+              }
+            ],
+            "type": "model_output"
+          }
+        ],
+        "object": "interaction",
+        "model": "gemini-3.5-flash-lite"
+      }
+    }
+  }
+]

@@ -1,0 +1,471 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1/responses",
+      "body": {
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "Plan a high-protein vegetarian lunch with 2 foods."
+              }
+            ]
+          }
+        ],
+        "instructions": "You are a nutrition coach. Reply in the schema.",
+        "max_output_tokens": 1200,
+        "model": "gpt-6-luna",
+        "reasoning": {
+          "effort": "none"
+        },
+        "store": false,
+        "text": {
+          "format": {
+            "type": "json_schema",
+            "name": "NutritionReply",
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                  "enum": [
+                    "plan",
+                    "answer",
+                    "log_ack",
+                    "clarify"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "summary": {
+                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "title": "Summary",
+                  "type": "string"
+                },
+                "notes": {
+                  "description": "Up to 3 short tips or cautions.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 200 characters."
+                  },
+                  "maxItems": 3,
+                  "title": "Notes",
+                  "type": "array"
+                },
+                "source_ids": {
+                  "description": "Only ids of this turn's web search results; else empty.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 20 characters."
+                  },
+                  "maxItems": 5,
+                  "title": "Source Ids",
+                  "type": "array"
+                },
+                "follow_up": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "title": "Follow Up"
+                },
+                "risk_flag": {
+                  "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                  "title": "Risk Flag",
+                  "type": "boolean"
+                },
+                "items": {
+                  "description": "1 to 5 items when kind is plan; empty otherwise.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "title": "Name",
+                        "type": "string",
+                        "description": "At most 60 characters."
+                      },
+                      "ingredients": {
+                        "items": {
+                          "type": "string",
+                          "description": "At most 30 characters."
+                        },
+                        "maxItems": 8,
+                        "minItems": 1,
+                        "title": "Ingredients",
+                        "type": "array"
+                      },
+                      "allergen_tags": {
+                        "items": {
+                          "description": "Allergen tags (Plan C.3).",
+                          "enum": [
+                            "peanut",
+                            "tree_nut",
+                            "milk",
+                            "egg",
+                            "fish",
+                            "crustacean",
+                            "mollusc",
+                            "soy",
+                            "gluten",
+                            "sesame",
+                            "mustard",
+                            "celery",
+                            "lupin",
+                            "sulphites"
+                          ],
+                          "title": "Allergen",
+                          "type": "string"
+                        },
+                        "maxItems": 14,
+                        "title": "Allergen Tags",
+                        "type": "array"
+                      },
+                      "diet_tags": {
+                        "items": {
+                          "description": "Diet tags a profile can carry (Plan C.3).",
+                          "enum": [
+                            "vegan",
+                            "vegetarian",
+                            "eggetarian",
+                            "jain",
+                            "halal",
+                            "kosher",
+                            "pescatarian",
+                            "lactose_free"
+                          ],
+                          "title": "Diet",
+                          "type": "string"
+                        },
+                        "maxItems": 8,
+                        "title": "Diet Tags",
+                        "type": "array"
+                      },
+                      "portion": {
+                        "title": "Portion",
+                        "type": "string",
+                        "description": "At most 40 characters."
+                      },
+                      "calories": {
+                        "maximum": 5000,
+                        "minimum": 0,
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "title": "Calories"
+                      },
+                      "note": {
+                        "title": "Note",
+                        "type": "string",
+                        "description": "At most 120 characters."
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "ingredients",
+                      "allergen_tags",
+                      "diet_tags",
+                      "portion",
+                      "calories",
+                      "note"
+                    ],
+                    "title": "FoodItem",
+                    "type": "object"
+                  },
+                  "maxItems": 5,
+                  "title": "Items",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "summary",
+                "notes",
+                "source_ids",
+                "follow_up",
+                "risk_flag",
+                "items"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          }
+        }
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "id": "resp_0ff73c54fb627009016ade5af7d62c87d1b25999c796a9549d",
+        "object": "response",
+        "created_at": 1792957175,
+        "status": "completed",
+        "access_programs": null,
+        "background": false,
+        "billing": {
+          "payer": "developer"
+        },
+        "completed_at": 1792957178,
+        "error": null,
+        "frequency_penalty": 0.0,
+        "incomplete_details": null,
+        "instructions": "You are a nutrition coach. Reply in the schema.",
+        "max_output_tokens": 1200,
+        "max_tool_calls": null,
+        "model": "gpt-6-luna",
+        "moderation": null,
+        "output": [
+          {
+            "id": "msg_0ff73c54fb627009016ade5af9119487d18a200e36f07331f2",
+            "type": "message",
+            "status": "completed",
+            "content": [
+              {
+                "type": "output_text",
+                "annotations": [],
+                "logprobs": [],
+                "text": "{\"kind\":\"plan\",\"summary\":\"A balanced high-protein vegetarian lunch with two foods: lentil quinoa bowl and Greek yogurt.\",\"notes\":[\"Choose plain Greek yogurt; use a plant-based yogurt if preferred, though protein may vary.\"],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"name\":\"Lentil quinoa bowl\",\"ingredients\":[\"cooked lentils\",\"quinoa\",\"spinach\",\"tomato\"],\"allergen_tags\":[],\"diet_tags\":[\"vegetarian\",\"vegan\"],\"portion\":\"1½ cups\",\"calories\":null,\"note\":\"Lentils and quinoa provide filling plant protein.\"},{\"name\":\"Plain Greek yogurt\",\"ingredients\":[\"Greek yogurt\"],\"allergen_tags\":[\"milk\"],\"diet_tags\":[\"vegetarian\"],\"portion\":\"¾ cup\",\"calories\":null,\"note\":\"Adds a concentrated protein boost.\"}]}"
+              }
+            ],
+            "phase": "final_answer",
+            "role": "assistant"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "presence_penalty": 0.0,
+        "previous_response_id": null,
+        "prompt_cache_key": null,
+        "prompt_cache_retention": "24h",
+        "reasoning": {
+          "context": "all_turns",
+          "effort": "none",
+          "mode": "standard",
+          "summary": null
+        },
+        "safety_identifier": null,
+        "service_tier": "default",
+        "store": false,
+        "temperature": 1.0,
+        "text": {
+          "format": {
+            "type": "json_schema",
+            "description": null,
+            "name": "NutritionReply",
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                  "enum": [
+                    "plan",
+                    "answer",
+                    "log_ack",
+                    "clarify"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "summary": {
+                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "title": "Summary",
+                  "type": "string"
+                },
+                "notes": {
+                  "description": "Up to 3 short tips or cautions.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 200 characters."
+                  },
+                  "maxItems": 3,
+                  "title": "Notes",
+                  "type": "array"
+                },
+                "source_ids": {
+                  "description": "Only ids of this turn's web search results; else empty.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 20 characters."
+                  },
+                  "maxItems": 5,
+                  "title": "Source Ids",
+                  "type": "array"
+                },
+                "follow_up": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "title": "Follow Up"
+                },
+                "risk_flag": {
+                  "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                  "title": "Risk Flag",
+                  "type": "boolean"
+                },
+                "items": {
+                  "description": "1 to 5 items when kind is plan; empty otherwise.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "title": "Name",
+                        "type": "string",
+                        "description": "At most 60 characters."
+                      },
+                      "ingredients": {
+                        "items": {
+                          "type": "string",
+                          "description": "At most 30 characters."
+                        },
+                        "maxItems": 8,
+                        "minItems": 1,
+                        "title": "Ingredients",
+                        "type": "array"
+                      },
+                      "allergen_tags": {
+                        "items": {
+                          "description": "Allergen tags (Plan C.3).",
+                          "enum": [
+                            "peanut",
+                            "tree_nut",
+                            "milk",
+                            "egg",
+                            "fish",
+                            "crustacean",
+                            "mollusc",
+                            "soy",
+                            "gluten",
+                            "sesame",
+                            "mustard",
+                            "celery",
+                            "lupin",
+                            "sulphites"
+                          ],
+                          "title": "Allergen",
+                          "type": "string"
+                        },
+                        "maxItems": 14,
+                        "title": "Allergen Tags",
+                        "type": "array"
+                      },
+                      "diet_tags": {
+                        "items": {
+                          "description": "Diet tags a profile can carry (Plan C.3).",
+                          "enum": [
+                            "vegan",
+                            "vegetarian",
+                            "eggetarian",
+                            "jain",
+                            "halal",
+                            "kosher",
+                            "pescatarian",
+                            "lactose_free"
+                          ],
+                          "title": "Diet",
+                          "type": "string"
+                        },
+                        "maxItems": 8,
+                        "title": "Diet Tags",
+                        "type": "array"
+                      },
+                      "portion": {
+                        "title": "Portion",
+                        "type": "string",
+                        "description": "At most 40 characters."
+                      },
+                      "calories": {
+                        "maximum": 5000,
+                        "minimum": 0,
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "title": "Calories"
+                      },
+                      "note": {
+                        "title": "Note",
+                        "type": "string",
+                        "description": "At most 120 characters."
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "ingredients",
+                      "allergen_tags",
+                      "diet_tags",
+                      "portion",
+                      "calories",
+                      "note"
+                    ],
+                    "title": "FoodItem",
+                    "type": "object"
+                  },
+                  "maxItems": 5,
+                  "title": "Items",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "summary",
+                "notes",
+                "source_ids",
+                "follow_up",
+                "risk_flag",
+                "items"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          },
+          "verbosity": "medium"
+        },
+        "tool_choice": "auto",
+        "tool_usage": {
+          "image_gen": {
+            "input_tokens": 0,
+            "input_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "output_tokens": 0,
+            "output_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "total_tokens": 0
+          },
+          "web_search": {
+            "num_requests": 0
+          }
+        },
+        "tools": [],
+        "top_logprobs": 0,
+        "top_p": 0.98,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 576,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 182,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 758
+        },
+        "user": null,
+        "metadata": {}
+      }
+    }
+  }
+]

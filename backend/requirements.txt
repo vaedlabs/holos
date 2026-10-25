@@ -23,7 +23,7 @@ langgraph-sdk==0.2.10
 langsmith==0.4.49
 
 # OpenAI SDK (updated for langchain-openai compatibility)
-openai==2.8.1
+openai==2.54.0  # 3.x blocked by langchain-openai<3 until P4.12
 
 # Authentication
 python-jose[cryptography]==3.5.0
@@ -51,6 +51,7 @@ tavily-python==0.7.13
 
 # Google Gemini (using direct SDK, not LangChain wrapper)
 google-generativeai==0.8.5  # Direct SDK for both text and image analysis
+google-genai==2.33.0  # New Gemini provider (Interactions API); the line above goes in P4.12
 
 # Image Processing
 Pillow==12.0.0

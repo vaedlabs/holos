@@ -1,0 +1,651 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1/responses",
+      "body": {
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "A 2-exercise upper-body plan with no equipment, for a beginner."
+              }
+            ]
+          }
+        ],
+        "instructions": "You are a careful fitness coach. Reply in the schema.",
+        "max_output_tokens": 1200,
+        "model": "gpt-6-luna",
+        "reasoning": {
+          "effort": "none"
+        },
+        "store": false,
+        "text": {
+          "format": {
+            "type": "json_schema",
+            "name": "PhysicalReply",
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                  "enum": [
+                    "plan",
+                    "answer",
+                    "log_ack",
+                    "clarify"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "summary": {
+                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "title": "Summary",
+                  "type": "string"
+                },
+                "notes": {
+                  "description": "Up to 3 short tips or cautions.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 200 characters."
+                  },
+                  "maxItems": 3,
+                  "title": "Notes",
+                  "type": "array"
+                },
+                "source_ids": {
+                  "description": "Only ids of this turn's web search results; else empty.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 20 characters."
+                  },
+                  "maxItems": 5,
+                  "title": "Source Ids",
+                  "type": "array"
+                },
+                "follow_up": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "title": "Follow Up"
+                },
+                "risk_flag": {
+                  "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                  "title": "Risk Flag",
+                  "type": "boolean"
+                },
+                "items": {
+                  "description": "1 to 8 items when kind is plan; empty otherwise.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "catalogue_id": {
+                        "enum": [
+                          "back_squat",
+                          "front_squat",
+                          "goblet_squat",
+                          "bodyweight_squat",
+                          "sumo_squat",
+                          "split_squat",
+                          "pistol_squat",
+                          "hack_squat",
+                          "jump_squat",
+                          "cossack_squat",
+                          "wall_sit",
+                          "forward_lunge",
+                          "reverse_lunge",
+                          "walking_lunge",
+                          "lateral_lunge",
+                          "jumping_lunge",
+                          "step_up",
+                          "leg_press",
+                          "leg_extension",
+                          "leg_curl",
+                          "nordic_curl",
+                          "deadlift",
+                          "romanian_deadlift",
+                          "sumo_deadlift",
+                          "trap_bar_deadlift",
+                          "good_morning",
+                          "hip_thrust",
+                          "glute_bridge",
+                          "single_leg_glute_bridge",
+                          "calf_raise",
+                          "seated_calf_raise",
+                          "clamshell",
+                          "side_lying_leg_raise",
+                          "hip_abduction_machine",
+                          "kettlebell_swing",
+                          "box_jump",
+                          "broad_jump",
+                          "jump_rope",
+                          "jumping_jacks",
+                          "burpee",
+                          "mountain_climber",
+                          "hiit_workout",
+                          "circuit_training",
+                          "bench_press",
+                          "incline_bench_press",
+                          "dumbbell_bench_press",
+                          "push_up",
+                          "knee_push_up",
+                          "incline_push_up",
+                          "dip",
+                          "overhead_press",
+                          "dumbbell_shoulder_press",
+                          "arnold_press",
+                          "lateral_raise",
+                          "front_raise",
+                          "upright_row",
+                          "chest_fly",
+                          "pec_deck",
+                          "skull_crusher",
+                          "overhead_tricep_extension",
+                          "tricep_pushdown",
+                          "pull_up",
+                          "chin_up",
+                          "lat_pulldown",
+                          "seated_cable_row",
+                          "bent_over_row",
+                          "dumbbell_row",
+                          "face_pull",
+                          "band_pull_apart",
+                          "bicep_curl",
+                          "hammer_curl",
+                          "wrist_curl",
+                          "shrug",
+                          "farmer_carry",
+                          "plank",
+                          "high_plank",
+                          "side_plank",
+                          "crunch",
+                          "sit_up",
+                          "bicycle_crunch",
+                          "v_up",
+                          "lying_leg_raise",
+                          "hanging_leg_raise",
+                          "russian_twist",
+                          "dead_bug",
+                          "bird_dog",
+                          "ab_wheel_rollout",
+                          "back_extension",
+                          "superman_hold",
+                          "pallof_press",
+                          "walking",
+                          "brisk_walking",
+                          "hiking",
+                          "jogging",
+                          "running",
+                          "interval_running",
+                          "sprinting",
+                          "long_distance_running",
+                          "stair_climbing",
+                          "cycling",
+                          "stationary_cycling",
+                          "spin_class",
+                          "rowing_machine",
+                          "elliptical",
+                          "swimming",
+                          "aqua_aerobics",
+                          "dance_workout",
+                          "yoga_flow",
+                          "sun_salutation",
+                          "downward_dog",
+                          "childs_pose",
+                          "cat_cow",
+                          "hamstring_stretch",
+                          "quad_stretch",
+                          "hip_flexor_stretch",
+                          "chest_doorway_stretch",
+                          "neck_mobility",
+                          "foam_rolling",
+                          "tai_chi",
+                          "pilates_mat",
+                          "headstand",
+                          "shoulder_stand",
+                          "handstand",
+                          "neck_bridge"
+                        ],
+                        "title": "ExerciseId",
+                        "type": "string"
+                      },
+                      "sets": {
+                        "maximum": 10,
+                        "minimum": 1,
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "title": "Sets"
+                      },
+                      "reps": {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "title": "Reps"
+                      },
+                      "duration_s": {
+                        "maximum": 3600,
+                        "minimum": 1,
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "title": "Duration S"
+                      },
+                      "intensity": {
+                        "enum": [
+                          "low",
+                          "moderate",
+                          "high"
+                        ],
+                        "title": "Intensity",
+                        "type": "string"
+                      },
+                      "note": {
+                        "title": "Note",
+                        "type": "string",
+                        "description": "At most 120 characters."
+                      }
+                    },
+                    "required": [
+                      "catalogue_id",
+                      "sets",
+                      "reps",
+                      "duration_s",
+                      "intensity",
+                      "note"
+                    ],
+                    "title": "ExerciseItem",
+                    "type": "object"
+                  },
+                  "maxItems": 8,
+                  "title": "Items",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "summary",
+                "notes",
+                "source_ids",
+                "follow_up",
+                "risk_flag",
+                "items"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          }
+        }
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "id": "resp_0fec927b5795772a016ade5af4751887d1a74e7c86229ee567",
+        "object": "response",
+        "created_at": 1792957172,
+        "status": "completed",
+        "access_programs": null,
+        "background": false,
+        "billing": {
+          "payer": "developer"
+        },
+        "completed_at": 1792957174,
+        "error": null,
+        "frequency_penalty": 0.0,
+        "incomplete_details": null,
+        "instructions": "You are a careful fitness coach. Reply in the schema.",
+        "max_output_tokens": 1200,
+        "max_tool_calls": null,
+        "model": "gpt-6-luna",
+        "moderation": null,
+        "output": [
+          {
+            "id": "msg_0fec927b5795772a016ade5af53b0087d198d0004eda250f2b",
+            "type": "message",
+            "status": "completed",
+            "content": [
+              {
+                "type": "output_text",
+                "annotations": [],
+                "logprobs": [],
+                "text": "{\"kind\":\"plan\",\"summary\":\"Beginner no-equipment upper-body plan: move slowly and stop if you feel sharp pain.\",\"notes\":[\"Rest 60–90 seconds between sets.\",\"Use an incline push-up against a sturdy wall or counter if floor push-ups are too difficult.\"],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"catalogue_id\":\"incline_push_up\",\"sets\":2,\"reps\":8,\"duration_s\":null,\"intensity\":\"low\",\"note\":\"Hands on a sturdy wall or counter; keep body in a straight line.\"},{\"catalogue_id\":\"bird_dog\",\"sets\":2,\"reps\":6,\"duration_s\":null,\"intensity\":\"low\",\"note\":\"Each side; move slowly and keep hips steady.\"}]}"
+              }
+            ],
+            "phase": "final_answer",
+            "role": "assistant"
+          }
+        ],
+        "parallel_tool_calls": true,
+        "presence_penalty": 0.0,
+        "previous_response_id": null,
+        "prompt_cache_key": null,
+        "prompt_cache_retention": "24h",
+        "reasoning": {
+          "context": "all_turns",
+          "effort": "none",
+          "mode": "standard",
+          "summary": null
+        },
+        "safety_identifier": null,
+        "service_tier": "default",
+        "store": false,
+        "temperature": 1.0,
+        "text": {
+          "format": {
+            "type": "json_schema",
+            "description": null,
+            "name": "PhysicalReply",
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                  "enum": [
+                    "plan",
+                    "answer",
+                    "log_ack",
+                    "clarify"
+                  ],
+                  "title": "Kind",
+                  "type": "string"
+                },
+                "summary": {
+                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "title": "Summary",
+                  "type": "string"
+                },
+                "notes": {
+                  "description": "Up to 3 short tips or cautions.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 200 characters."
+                  },
+                  "maxItems": 3,
+                  "title": "Notes",
+                  "type": "array"
+                },
+                "source_ids": {
+                  "description": "Only ids of this turn's web search results; else empty.",
+                  "items": {
+                    "type": "string",
+                    "description": "At most 20 characters."
+                  },
+                  "maxItems": 5,
+                  "title": "Source Ids",
+                  "type": "array"
+                },
+                "follow_up": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "title": "Follow Up"
+                },
+                "risk_flag": {
+                  "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                  "title": "Risk Flag",
+                  "type": "boolean"
+                },
+                "items": {
+                  "description": "1 to 8 items when kind is plan; empty otherwise.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "catalogue_id": {
+                        "enum": [
+                          "back_squat",
+                          "front_squat",
+                          "goblet_squat",
+                          "bodyweight_squat",
+                          "sumo_squat",
+                          "split_squat",
+                          "pistol_squat",
+                          "hack_squat",
+                          "jump_squat",
+                          "cossack_squat",
+                          "wall_sit",
+                          "forward_lunge",
+                          "reverse_lunge",
+                          "walking_lunge",
+                          "lateral_lunge",
+                          "jumping_lunge",
+                          "step_up",
+                          "leg_press",
+                          "leg_extension",
+                          "leg_curl",
+                          "nordic_curl",
+                          "deadlift",
+                          "romanian_deadlift",
+                          "sumo_deadlift",
+                          "trap_bar_deadlift",
+                          "good_morning",
+                          "hip_thrust",
+                          "glute_bridge",
+                          "single_leg_glute_bridge",
+                          "calf_raise",
+                          "seated_calf_raise",
+                          "clamshell",
+                          "side_lying_leg_raise",
+                          "hip_abduction_machine",
+                          "kettlebell_swing",
+                          "box_jump",
+                          "broad_jump",
+                          "jump_rope",
+                          "jumping_jacks",
+                          "burpee",
+                          "mountain_climber",
+                          "hiit_workout",
+                          "circuit_training",
+                          "bench_press",
+                          "incline_bench_press",
+                          "dumbbell_bench_press",
+                          "push_up",
+                          "knee_push_up",
+                          "incline_push_up",
+                          "dip",
+                          "overhead_press",
+                          "dumbbell_shoulder_press",
+                          "arnold_press",
+                          "lateral_raise",
+                          "front_raise",
+                          "upright_row",
+                          "chest_fly",
+                          "pec_deck",
+                          "skull_crusher",
+                          "overhead_tricep_extension",
+                          "tricep_pushdown",
+                          "pull_up",
+                          "chin_up",
+                          "lat_pulldown",
+                          "seated_cable_row",
+                          "bent_over_row",
+                          "dumbbell_row",
+                          "face_pull",
+                          "band_pull_apart",
+                          "bicep_curl",
+                          "hammer_curl",
+                          "wrist_curl",
+                          "shrug",
+                          "farmer_carry",
+                          "plank",
+                          "high_plank",
+                          "side_plank",
+                          "crunch",
+                          "sit_up",
+                          "bicycle_crunch",
+                          "v_up",
+                          "lying_leg_raise",
+                          "hanging_leg_raise",
+                          "russian_twist",
+                          "dead_bug",
+                          "bird_dog",
+                          "ab_wheel_rollout",
+                          "back_extension",
+                          "superman_hold",
+                          "pallof_press",
+                          "walking",
+                          "brisk_walking",
+                          "hiking",
+                          "jogging",
+                          "running",
+                          "interval_running",
+                          "sprinting",
+                          "long_distance_running",
+                          "stair_climbing",
+                          "cycling",
+                          "stationary_cycling",
+                          "spin_class",
+                          "rowing_machine",
+                          "elliptical",
+                          "swimming",
+                          "aqua_aerobics",
+                          "dance_workout",
+                          "yoga_flow",
+                          "sun_salutation",
+                          "downward_dog",
+                          "childs_pose",
+                          "cat_cow",
+                          "hamstring_stretch",
+                          "quad_stretch",
+                          "hip_flexor_stretch",
+                          "chest_doorway_stretch",
+                          "neck_mobility",
+                          "foam_rolling",
+                          "tai_chi",
+                          "pilates_mat",
+                          "headstand",
+                          "shoulder_stand",
+                          "handstand",
+                          "neck_bridge"
+                        ],
+                        "title": "ExerciseId",
+                        "type": "string"
+                      },
+                      "sets": {
+                        "maximum": 10,
+                        "minimum": 1,
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "title": "Sets"
+                      },
+                      "reps": {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "title": "Reps"
+                      },
+                      "duration_s": {
+                        "maximum": 3600,
+                        "minimum": 1,
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "title": "Duration S"
+                      },
+                      "intensity": {
+                        "enum": [
+                          "low",
+                          "moderate",
+                          "high"
+                        ],
+                        "title": "Intensity",
+                        "type": "string"
+                      },
+                      "note": {
+                        "title": "Note",
+                        "type": "string",
+                        "description": "At most 120 characters."
+                      }
+                    },
+                    "required": [
+                      "catalogue_id",
+                      "sets",
+                      "reps",
+                      "duration_s",
+                      "intensity",
+                      "note"
+                    ],
+                    "title": "ExerciseItem",
+                    "type": "object"
+                  },
+                  "maxItems": 8,
+                  "title": "Items",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "summary",
+                "notes",
+                "source_ids",
+                "follow_up",
+                "risk_flag",
+                "items"
+              ],
+              "type": "object"
+            },
+            "strict": true
+          },
+          "verbosity": "medium"
+        },
+        "tool_choice": "auto",
+        "tool_usage": {
+          "image_gen": {
+            "input_tokens": 0,
+            "input_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "output_tokens": 0,
+            "output_tokens_details": {
+              "image_tokens": 0,
+              "text_tokens": 0
+            },
+            "total_tokens": 0
+          },
+          "web_search": {
+            "num_requests": 0
+          }
+        },
+        "tools": [],
+        "top_logprobs": 0,
+        "top_p": 0.98,
+        "truncation": "disabled",
+        "usage": {
+          "input_tokens": 967,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 169,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 1136
+        },
+        "user": null,
+        "metadata": {}
+      }
+    }
+  }
+]

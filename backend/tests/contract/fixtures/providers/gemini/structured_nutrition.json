@@ -1,0 +1,237 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1beta/interactions",
+      "body": {
+        "model": "gemini-3.5-flash-lite",
+        "generation_config": {
+          "max_output_tokens": 1400,
+          "thinking_level": "minimal"
+        },
+        "input": [
+          {
+            "content": [
+              {
+                "text": "Plan a high-protein vegetarian lunch with 2 foods.",
+                "type": "text"
+              }
+            ],
+            "type": "user_input"
+          }
+        ],
+        "response_format": {
+          "mime_type": "application/json",
+          "schema": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                "enum": [
+                  "plan",
+                  "answer",
+                  "log_ack",
+                  "clarify"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "summary": {
+                "description": "Short plain-text reply to the user. At most 400 characters.",
+                "title": "Summary",
+                "type": "string"
+              },
+              "notes": {
+                "description": "Up to 3 short tips or cautions.",
+                "items": {
+                  "type": "string",
+                  "description": "At most 200 characters."
+                },
+                "maxItems": 3,
+                "title": "Notes",
+                "type": "array"
+              },
+              "source_ids": {
+                "description": "Only ids of this turn's web search results; else empty.",
+                "items": {
+                  "type": "string",
+                  "description": "At most 20 characters."
+                },
+                "maxItems": 5,
+                "title": "Source Ids",
+                "type": "array"
+              },
+              "follow_up": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                "title": "Follow Up"
+              },
+              "risk_flag": {
+                "description": "True if the user may be at risk of self-harm or in a medical emergency.",
+                "title": "Risk Flag",
+                "type": "boolean"
+              },
+              "items": {
+                "description": "1 to 5 items when kind is plan; empty otherwise.",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "title": "Name",
+                      "type": "string",
+                      "description": "At most 60 characters."
+                    },
+                    "ingredients": {
+                      "items": {
+                        "type": "string",
+                        "description": "At most 30 characters."
+                      },
+                      "title": "Ingredients",
+                      "type": "array"
+                    },
+                    "allergen_tags": {
+                      "items": {
+                        "description": "Allergen tags (Plan C.3).",
+                        "enum": [
+                          "peanut",
+                          "tree_nut",
+                          "milk",
+                          "egg",
+                          "fish",
+                          "crustacean",
+                          "mollusc",
+                          "soy",
+                          "gluten",
+                          "sesame",
+                          "mustard",
+                          "celery",
+                          "lupin",
+                          "sulphites"
+                        ],
+                        "title": "Allergen",
+                        "type": "string"
+                      },
+                      "title": "Allergen Tags",
+                      "type": "array"
+                    },
+                    "diet_tags": {
+                      "items": {
+                        "description": "Diet tags a profile can carry (Plan C.3).",
+                        "enum": [
+                          "vegan",
+                          "vegetarian",
+                          "eggetarian",
+                          "jain",
+                          "halal",
+                          "kosher",
+                          "pescatarian",
+                          "lactose_free"
+                        ],
+                        "title": "Diet",
+                        "type": "string"
+                      },
+                      "title": "Diet Tags",
+                      "type": "array"
+                    },
+                    "portion": {
+                      "title": "Portion",
+                      "type": "string",
+                      "description": "At most 40 characters."
+                    },
+                    "calories": {
+                      "maximum": 5000,
+                      "minimum": 0,
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "title": "Calories"
+                    },
+                    "note": {
+                      "title": "Note",
+                      "type": "string",
+                      "description": "At most 120 characters."
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "ingredients",
+                    "allergen_tags",
+                    "diet_tags",
+                    "portion",
+                    "calories",
+                    "note"
+                  ],
+                  "title": "FoodItem",
+                  "type": "object"
+                },
+                "maxItems": 5,
+                "title": "Items",
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "summary",
+              "notes",
+              "source_ids",
+              "follow_up",
+              "risk_flag",
+              "items"
+            ],
+            "type": "object"
+          },
+          "type": "text"
+        },
+        "store": false,
+        "system_instruction": "You are a nutrition coach. Reply in the schema."
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "completed",
+        "usage": {
+          "total_tokens": 403,
+          "total_input_tokens": 25,
+          "input_tokens_by_modality": [
+            {
+              "modality": "text",
+              "tokens": 25
+            }
+          ],
+          "total_cached_tokens": 0,
+          "total_output_tokens": 378,
+          "total_tool_use_tokens": 0,
+          "total_thought_tokens": 0
+        },
+        "created": "2026-10-25T19:41:32Z",
+        "updated": "2026-10-25T19:41:32Z",
+        "service_tier": "standard",
+        "steps": [
+          {
+            "signature": "EmAKXgFpFH0TFgB3Z0u57Z5DG3jcDqxbFQXvcFZ5g3qaRFSF+e3siUDHtEqoeqL9jJpfiUzrxlkRtRQi8AkQgtLmt7ilYf7+IHPEn5FhKYcyG/de4C+48IVaVzHIsMkEBK8=",
+            "type": "thought"
+          },
+          {
+            "content": [
+              {
+                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Here is a high-protein vegetarian lunch plan featuring Greek yogurt with hemp seeds and roasted chickpeas.\",\n  \"notes\": [\n    \"Greek yogurt is an excellent source of quick, high-quality protein.\",\n    \"Roasted chickpeas add a satisfying crunch along with plant-based protein and fiber.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"name\": \"Greek Yogurt Bowl with Hemp Seeds\",\n      \"ingredients\": [\n        \"Plain Greek yogurt\",\n        \"Hemp seeds\",\n        \"Honey\"\n      ],\n      \"allergen_tags\": [\n        \"milk\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\",\n        \"eggetarian\"\n      ],\n      \"portion\": \"1.5 cups yogurt + 2 tbsp hemp seeds\",\n      \"calories\": 300,\n      \"note\": \"High in calcium and protein.\"\n    },\n    {\n      \"name\": \"Spiced Roasted Chickpeas\",\n      \"ingredients\": [\n        \"Chickpeas\",\n        \"Olive oil\",\n        \"Cumin\",\n        \"Salt\"\n      ],\n      \"allergen_tags\": [],\n      \"diet_tags\": [\n        \"vegan\",\n        \"vegetarian\",\n        \"lactose_free\",\n        \"halal\",\n        \"kosher\"\n      ],\n      \"portion\": \"1 cup\",\n      \"calories\": 270,\n      \"note\": \"Crispy, savory, and rich in plant protein.\"\n    }\n  ]\n}",
+                "type": "text"
+              }
+            ],
+            "type": "model_output"
+          }
+        ],
+        "object": "interaction",
+        "model": "gemini-3.5-flash-lite"
+      }
+    }
+  }
+]

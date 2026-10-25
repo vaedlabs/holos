@@ -1,0 +1,22 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1beta/interactions",
+      "body": null
+    },
+    "response": {
+      "status": 500,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "error": {
+          "message": "An internal error has occurred.",
+          "code": "internal"
+        }
+      }
+    },
+    "_note": "Written by hand: real failures can't be recorded on demand."
+  }
+]

@@ -95,12 +95,20 @@ SIZE_RULE_MARGIN = 100
 
 
 class _ReplyBase(_LLMModel):
-    kind: ReplyKind
-    summary: str = Field(max_length=400)
-    notes: list[Annotated[str, Field(max_length=200)]] = Field(max_length=3)
-    source_ids: list[Annotated[str, Field(max_length=20)]] = Field(max_length=5)
-    follow_up: str | None = Field(max_length=200)
-    risk_flag: bool
+    # Descriptions reach the model through the JSON Schema; they state the rules the
+    # validator below enforces, so fewer replies fail and need a retry.
+    kind: ReplyKind = Field(description=(
+        "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; "
+        "clarify: ask one question first."))
+    summary: str = Field(max_length=400, description="Short plain-text reply to the user.")
+    notes: list[Annotated[str, Field(max_length=200)]] = Field(
+        max_length=3, description="Up to 3 short tips or cautions.")
+    source_ids: list[Annotated[str, Field(max_length=20)]] = Field(
+        max_length=5, description="Only ids of this turn's web search results; else empty.")
+    follow_up: str | None = Field(
+        max_length=200, description="The question to ask. Null unless kind is clarify.")
+    risk_flag: bool = Field(
+        description="True if the user may be at risk of self-harm or in a medical emergency.")
 
     @model_validator(mode="after")
     def _items_match_kind(self):
@@ -115,15 +123,18 @@ class _ReplyBase(_LLMModel):
 
 
 class PhysicalReply(_ReplyBase):
-    items: list[ExerciseItem] = Field(max_length=8)
+    items: list[ExerciseItem] = Field(
+        max_length=8, description="1 to 8 items when kind is plan; empty otherwise.")
 
 
 class NutritionReply(_ReplyBase):
-    items: list[FoodItem] = Field(max_length=5)
+    items: list[FoodItem] = Field(
+        max_length=5, description="1 to 5 items when kind is plan; empty otherwise.")
 
 
 class MentalReply(_ReplyBase):
-    items: list[PracticeItem] = Field(max_length=5)
+    items: list[PracticeItem] = Field(
+        max_length=5, description="1 to 5 items when kind is plan; empty otherwise.")
 
 
 AgentReply = PhysicalReply | NutritionReply | MentalReply  # backend only, never sent to an LLM

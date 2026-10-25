@@ -2,7 +2,7 @@
   "additionalProperties": false,
   "properties": {
     "follow_up": {
-      "description": "At most 200 characters.",
+      "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
       "title": "Follow Up",
       "type": [
         "string",
@@ -10,6 +10,7 @@
       ]
     },
     "items": {
+      "description": "1 to 8 items when kind is plan; empty otherwise.",
       "items": {
         "additionalProperties": false,
         "properties": {
@@ -201,6 +202,7 @@
       "type": "array"
     },
     "kind": {
+      "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
       "enum": [
         "plan",
         "answer",
@@ -211,6 +213,7 @@
       "type": "string"
     },
     "notes": {
+      "description": "Up to 3 short tips or cautions.",
       "items": {
         "description": "At most 200 characters.",
         "type": "string"
@@ -220,10 +223,12 @@
       "type": "array"
     },
     "risk_flag": {
+      "description": "True if the user may be at risk of self-harm or in a medical emergency.",
       "title": "Risk Flag",
       "type": "boolean"
     },
     "source_ids": {
+      "description": "Only ids of this turn's web search results; else empty.",
       "items": {
         "description": "At most 20 characters.",
         "type": "string"
@@ -233,7 +238,7 @@
       "type": "array"
     },
     "summary": {
-      "description": "At most 400 characters.",
+      "description": "Short plain-text reply to the user. At most 400 characters.",
       "title": "Summary",
       "type": "string"
     }

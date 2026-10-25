@@ -1,0 +1,70 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1beta/interactions",
+      "body": {
+        "model": "gemini-3.5-flash-lite",
+        "generation_config": {
+          "max_output_tokens": 16,
+          "thinking_level": "minimal"
+        },
+        "input": [
+          {
+            "content": [
+              {
+                "text": "Write 300 words about sleep.",
+                "type": "text"
+              }
+            ],
+            "type": "user_input"
+          }
+        ],
+        "store": false
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "incomplete",
+        "usage": {
+          "total_tokens": 22,
+          "total_input_tokens": 10,
+          "input_tokens_by_modality": [
+            {
+              "modality": "text",
+              "tokens": 10
+            }
+          ],
+          "total_cached_tokens": 0,
+          "total_output_tokens": 12,
+          "total_tool_use_tokens": 0,
+          "total_thought_tokens": 0
+        },
+        "created": "2026-10-25T19:41:46Z",
+        "updated": "2026-10-25T19:41:46Z",
+        "service_tier": "standard",
+        "steps": [
+          {
+            "signature": "EmAKXgFpFH0TUn5HEe4gGIwtj/s3xKEt5HAlsnWGNPoHEwAFJjZwFvPAC7iHI6MRGQK7PFP6/9Q2THFZYd3/gkvHaud1qaZiBRT8RL/3zC9lWYBfSe5POAV5ZFlBUPavtlI=",
+            "type": "thought"
+          },
+          {
+            "content": [
+              {
+                "text": "Sleep is often dismissed as a period of inactivity, a daily",
+                "type": "text"
+              }
+            ],
+            "type": "model_output"
+          }
+        ],
+        "object": "interaction",
+        "model": "gemini-3.5-flash-lite"
+      }
+    }
+  }
+]

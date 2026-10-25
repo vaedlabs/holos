@@ -1,0 +1,22 @@
+[
+  {
+    "request": {
+      "method": "POST",
+      "path": "/v1/responses",
+      "body": null
+    },
+    "response": {
+      "status": 500,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "error": {
+          "message": "The server had an error while processing your request.",
+          "type": "server_error"
+        }
+      }
+    },
+    "_note": "Written by hand: real failures can't be recorded on demand."
+  }
+]
