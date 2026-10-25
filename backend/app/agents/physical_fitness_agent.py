@@ -347,29 +347,26 @@ class PhysicalFitnessAgent(BaseAgent):
             
             # Load recent conversation history for context
             # This allows agents to recall previous messages in the conversation
+            # Load recent conversation history — query all agent types so that messages
+            # saved under "coordinator" (the default UI agent) are visible here too.
             conversation_messages = []
             try:
-                # Get recent conversation history for this agent type (last 20 messages)
-                # This provides context for follow-up questions and maintains conversation flow
-                agent_type = self._get_agent_type()
                 from app.models.conversation_message import ConversationMessage
                 history_query = self.db.query(ConversationMessage).filter(
                     ConversationMessage.user_id == self.user_id,
-                    ConversationMessage.agent_type == agent_type
                 ).order_by(ConversationMessage.created_at.desc()).limit(20).all()
-                
-                # Reverse to get chronological order (oldest first)
-                history_query.reverse()
-                
-                # Convert conversation history to LangChain messages
+
+                history_query.reverse()  # chronological order
+
                 for msg in history_query:
                     if msg.role == 'user':
-                        conversation_messages.append(HumanMessage(content=msg.content))
+                        conversation_messages.append(HumanMessage(content=msg.content or ""))
                     elif msg.role == 'assistant':
-                        conversation_messages.append(AIMessage(content=msg.content))
+                        content = msg.content or ""
+                        if len(content) > 800:
+                            content = content[:800] + "…"
+                        conversation_messages.append(AIMessage(content=content))
             except Exception as e:
-                # If loading history fails, log but continue without it
-                # Don't block agent execution if history loading fails
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Failed to load conversation history: {e}")

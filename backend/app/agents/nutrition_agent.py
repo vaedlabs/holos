@@ -316,80 +316,29 @@ class NutritionAgent:
     
     def _build_enhanced_system_prompt(self) -> str:
         """
-        Build system prompt with enhanced context to reduce tool calls.
-        
-        Strategy: Include full context in system prompt upfront to reduce tool calls.
-        This offsets the cost of larger prompts by reducing tool call tokens.
-        
-        Returns:
-            Enhanced system prompt with full context included
+        Build system prompt with enhanced context.
+        Delegates to prompt_builder so all agents share a single source of truth.
         """
-        base_prompt = self.system_message
-        
-        # Use shared context if available (from ContextManager - already cached)
-        if self._shared_context:
-            context_parts = []
-            
-            # Include full medical history if available
-            medical_history = self._shared_context.get("medical_history")
-            if medical_history:
-                medical_parts = []
-                if medical_history.get("conditions"):
-                    medical_parts.append(f"Medical Conditions: {medical_history['conditions']}")
-                if medical_history.get("limitations"):
-                    medical_parts.append(f"Physical Limitations: {medical_history['limitations']}")
-                if medical_history.get("medications"):
-                    medical_parts.append(f"Medications: {medical_history['medications']}")
-                if medical_history.get("notes"):
-                    medical_parts.append(f"Medical Notes: {medical_history['notes']}")
-                
-                if medical_parts:
-                    context_parts.append("## Medical History\n" + "\n".join(medical_parts))
-            
-            # Include full user preferences if available (especially important for nutrition)
-            preferences = self._shared_context.get("preferences")
-            if preferences:
-                pref_parts = []
-                if preferences.get("goals"):
-                    pref_parts.append(f"Fitness Goals: {preferences['goals']}")
-                if preferences.get("exercise_types"):
-                    pref_parts.append(f"Preferred Exercise Types: {preferences['exercise_types']}")
-                if preferences.get("dietary_restrictions"):
-                    pref_parts.append(f"Dietary Restrictions: {preferences['dietary_restrictions']}")
-                if preferences.get("activity_level"):
-                    pref_parts.append(f"Activity Level: {preferences['activity_level']}")
-                if preferences.get("lifestyle"):
-                    pref_parts.append(f"Lifestyle: {preferences['lifestyle']}")
-                if preferences.get("age"):
-                    pref_parts.append(f"Age: {preferences['age']}")
-                if preferences.get("gender"):
-                    pref_parts.append(f"Gender: {preferences['gender']}")
-                if preferences.get("location"):
-                    pref_parts.append(f"Location: {preferences['location']}")
-                
-                if pref_parts:
-                    context_parts.append("## User Preferences\n" + "\n".join(pref_parts))
-            
-            # Add context section if we have any context
-            if context_parts:
-                context_section = "\n\n".join(context_parts)
-                base_prompt += f"\n\n## User Context (Available Information)\n{context_section}"
-                base_prompt += "\n\n**IMPORTANT**: You have full user context above. Use this information to make autonomous recommendations. Work with partial information from the conversation - if the user mentions 'post-workout', use that as intended use. Don't ask for all details upfront if you can make a reasonable recommendation based on available context. Only call tools (get_medical_history, get_user_preferences) if you need information NOT provided above or if the context seems outdated. For real-time information (web search) or actions (creating logs), use tools as needed."
-            else:
-                base_prompt += "\n\n**Note**: No user context available. Use get_medical_history and get_user_preferences tools to fetch user information when needed."
-        else:
-            # Fallback: Use brief summary if shared context not available
-            context_summary = self._get_user_context_summary()
-            if context_summary:
-                base_prompt += f"\n\nUser context (brief): {context_summary}. Use tools for details."
-            else:
-                base_prompt += "\n\nUse get_medical_history and get_user_preferences tools to fetch user information."
-        
-        # Cache the enhanced prompt before returning
+        from app.agents.utils.prompt_builder import build_enhanced_prompt
+        from app.models.conversation_message import ConversationMessage
+
+        try:
+            msg_count = self.db.query(ConversationMessage).filter(
+                ConversationMessage.user_id == self.user_id
+            ).count()
+        except Exception:
+            msg_count = 0
+
+        enhanced = build_enhanced_prompt(
+            base_prompt=self.system_message,
+            shared_context=self._shared_context,
+            conversation_message_count=msg_count,
+        )
+
         from app.services.prompt_cache import prompt_cache
-        prompt_cache.set_enhanced_prompt(self._get_agent_type(), self.user_id, base_prompt)
-        
-        return base_prompt
+        prompt_cache.set_enhanced_prompt(self._get_agent_type(), self.user_id, enhanced)
+
+        return enhanced
     
     def _process_image(self, image_base64: str) -> Image.Image:
         """
@@ -422,20 +371,22 @@ class NutritionAgent:
         """
         try:
             # Decode base64 image
-            # Converts base64 string to binary image data
             image_data = base64.b64decode(image_base64)
-            # Open image using PIL Image
-            # BytesIO creates file-like object from binary data
             image = Image.open(BytesIO(image_data))
-            
-            # Convert to RGB if necessary (Gemini supports various formats)
-            # RGB format ensures compatibility across different image types
+
+            # Convert to RGB for Gemini compatibility
             if image.mode != 'RGB':
                 image = image.convert('RGB')
-            
+
+            # Resize large images (e.g. 4K phone photos) before sending to Gemini.
+            # Gemini's vision is equally accurate at 1080p and the smaller payload
+            # reduces latency and avoids inline-image size limits (~4 MB).
+            MAX_DIMENSION = 1920
+            if max(image.width, image.height) > MAX_DIMENSION:
+                image.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.LANCZOS)
+
             return image
         except Exception as e:
-            # Raise ValueError with descriptive error message
             raise ValueError(f"Error processing image: {str(e)}")
     
     async def analyze_food_image(self, image_base64: str, user_message: str = "") -> Dict[str, Any]:
@@ -619,7 +570,11 @@ Then provide:
 1. All food items visible in the image (list them clearly)
 2. Estimated portion sizes for each item
 3. Total calories for the entire meal
-4. Macronutrients breakdown (protein, carbohydrates, fats in grams)
+4. Macronutrients — ALWAYS include all three on their own lines in exactly this format:
+   Protein: Xg
+   Carbohydrates: Xg
+   Fat: Xg
+   (Use estimated values even for simple items like tea or snacks.)
 5. Suggested meal type (breakfast/lunch/dinner/snack)
 
 {('Address the user\'s specific question: ' + user_message) if user_message and not is_simple_calorie_question else ''}
@@ -868,49 +823,55 @@ Format your response as a clear analysis that can be used to log the meal. Be sp
         dish_name = None  # Extracted dish name
         food_items = []  # List of extracted food items
         
+        # Container/unit words that should NOT be treated as the dish name
+        CONTAINERS = {'cup', 'bowl', 'bowl', 'plate', 'glass', 'portion', 'serving',
+                      'piece', 'slice', 'scoop', 'handful', 'bottle', 'can', 'jar'}
+        SKIP_WORDS = {'food', 'items', 'item', 'dish', 'meal', 'this', 'that', 'here',
+                      'breakdown', 'analysis'} | CONTAINERS
+
         # Step 1: Extract food items first (needed for dish name fallback)
-        # Check if food items already extracted in nutrition_analysis
         if nutrition_analysis.get("foods") and len(nutrition_analysis["foods"]) > 0:
             food_items = nutrition_analysis["foods"]
         else:
-            # Try to extract food items from response text using regex patterns
-            # Multiple patterns handle different response formats
+            # Include Unicode list bullets (○◦▪▸) as well as ASCII ones
             food_patterns = [
-                r'(?:^|\n)\s*(?:\d+\.|[-•])\s*\*?\*?([A-Z][^:\n*]+?)\*?\*?(?::|,|\n|$)',  # Numbered/bulleted lists
-                r'\*\*([A-Z][^:]+?)\*\*:\s*[^:\n]+',  # Bold text format
-                r'([A-Z][a-z]+(?:\s+[a-z]+)*?)(?:\s*\([^)]+\))?(?:\s*:|\s*-\s*|\s*,\s*|\n)',  # Capitalized words
+                r'(?:^|\n)\s*(?:\d+\.|[-•○◦▪▸])\s*\*?\*?([A-Z][^:\n*]+?)\*?\*?(?::|,|\n|$)',
+                r'\*\*([A-Z][^:]+?)\*\*:\s*[^:\n]+',
+                r'([A-Z][a-z]+(?:\s+[a-z]+)*?)(?:\s*\([^)]+\))?(?:\s*:|\s*-\s*|\s*,\s*|\n)',
             ]
             for pattern in food_patterns:
                 matches = re.findall(pattern, response_text, re.MULTILINE | re.IGNORECASE)
                 if matches:
-                    # Clean and filter matches
                     food_items = [m.strip() for m in matches if m.strip() and len(m.strip()) > 2]
-                    # Remove duplicates and common words
-                    # Filters out generic words that aren't actual food items
-                    food_items = list(dict.fromkeys([f for f in food_items if f.lower() not in ['food', 'items', 'item', 'dish', 'meal', 'total', 'calories', 'protein', 'carbs', 'fats']]))
+                    food_items = list(dict.fromkeys([
+                        f for f in food_items
+                        if f.lower() not in {'food', 'items', 'item', 'dish', 'meal',
+                                             'total', 'calories', 'protein', 'carbs', 'fats'}
+                    ]))
                     if food_items:
-                        break  # Found food items, exit loop
-        
-        # Step 2: Extract dish name with improved patterns
-        # Priority 1: Look for explicit dish name patterns at the start
+                        break
+
+        # Step 2: Extract dish name with improved patterns.
+        # Priority 0: "This looks like a [container] of [dish]" → skip the container
         dish_patterns = [
-            r'^(?:This is|This looks like|I can see|Here\'s|I found)\s+(?:a\s+)?([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*?)(?:\s+(?:breakfast|lunch|dinner|meal|dish|plate|with|and))?',
-            r'^(?:This is|This looks like|I can see|Here\'s|I found)\s+(?:a\s+)?([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*?)(?:\.|,|\s|$)',
-            r'([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*?)\s+(?:breakfast|lunch|dinner)',
-            r'(?:main dish|dish is|meal is)\s+([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*)',
+            # "a cup of masala chai" → "masala chai"
+            (r'(?:this is|this looks like|i can see|i found)\s+(?:a\s+)?'
+             r'(?:\w+\s+of\s+)([a-z][a-zA-Z\s]+?)(?:\.|,|$|\s+(?:with|and|in|on\b))', 1),
+            # "This looks like [dish]" without a container word
+            (r'^(?:this is|this looks like|i can see|here\'s|i found)\s+'
+             r'(?:a\s+)?([a-z][a-zA-Z\s]+?)(?:\.|,|\s+(?:with|and|in|on\b)|$)', 1),
+            (r'([a-z][a-z]+(?:\s+[a-z]+)*?)\s+(?:breakfast|lunch|dinner)', 1),
+            (r'(?:main dish|dish is|meal is)\s+([a-z][a-zA-Z\s]+)', 1),
         ]
-        
-        for pattern in dish_patterns:
+
+        for pattern, group in dish_patterns:
             match = re.search(pattern, response_text, re.IGNORECASE | re.MULTILINE)
             if match:
-                potential_name = match.group(1).strip()
-                # Clean up common prefixes/suffixes
-                potential_name = re.sub(r'^(a|an|the)\s+', '', potential_name, flags=re.IGNORECASE)
-                # Make sure it's not a common word
-                if potential_name.lower() not in ['food', 'items', 'item', 'dish', 'meal', 'this', 'that', 'here', 'breakdown', 'analysis']:
-                    if len(potential_name) > 2 and len(potential_name) < 50:
-                        dish_name = potential_name
-                        break
+                potential_name = match.group(group).strip()
+                potential_name = re.sub(r'^(a|an|the)\s+', '', potential_name, flags=re.IGNORECASE).strip()
+                if potential_name.lower() not in SKIP_WORDS and 2 < len(potential_name) < 50:
+                    dish_name = potential_name.title()
+                    break
         
         # Step 3: Fallback to first food item if no explicit dish name
         if not dish_name and food_items and len(food_items) > 0:
@@ -1023,31 +984,51 @@ Dish name:"""
             
             nutrition_data["foods"] = foods_found[:15]  # Limit to 15 items
             
-            # Try to extract calories (look for numbers followed by "cal" or "calories")
-            calorie_match = re.search(r'(\d+)\s*(?:cal|calories|kcal)', response_text, re.IGNORECASE)
+            # Match both "500 calories" and "Calories: 500" formats
+            calorie_match = re.search(
+                r'(\d+)\s*(?:cal(?:ories)?|kcal)'          # "500 calories" / "500 kcal"
+                r'|(?:cal(?:ories)?|kcal)\s*[:\-]?\s*(\d+)',  # "Calories: 500" / "Cal - 500"
+                response_text, re.IGNORECASE
+            )
             if calorie_match:
-                nutrition_data["calories"] = float(calorie_match.group(1))
+                cal_str = calorie_match.group(1) or calorie_match.group(2)
+                nutrition_data["calories"] = float(cal_str)
             
-            # Try to extract macros
-            protein_match = re.search(r'protein[:\s]+(\d+(?:\.\d+)?)\s*g', response_text, re.IGNORECASE)
-            if protein_match:
-                nutrition_data["macros"]["protein"] = float(protein_match.group(1))
+            # Try to extract macros — handle both exact values ("25g") and ranges ("1-2 grams").
+            # For ranges the midpoint is stored; the strict \s*g suffix is optional so
+            # "Protein: 1-2 grams" is matched as well as "protein: 25g".
+            def _extract_macro(label: str) -> float | None:
+                # After the label, allow any non-digit characters up to 6 chars
+                # (covers ":", " ", "**", " from milk", " (", etc.) before the number.
+                sep = r'[^0-9\n]{0,12}'
+                # Range: "Protein: 1-2g", "**Protein:** 1 – 2 grams", "protein (1-2g)"
+                rng = re.search(
+                    rf'{label}{sep}(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*g',
+                    response_text, re.IGNORECASE
+                )
+                if rng:
+                    return (float(rng.group(1)) + float(rng.group(2))) / 2
+                # Single value: "Protein: 25g", "**protein:** 25 grams", "protein (~1g)"
+                single = re.search(rf'{label}{sep}~?(\d+(?:\.\d+)?)\s*g', response_text, re.IGNORECASE)
+                if single:
+                    return float(single.group(1))
+                return None
+
+            nutrition_data["macros"]["protein"] = _extract_macro(r'protein')
+            nutrition_data["macros"]["carbs"]   = _extract_macro(r'(?:carbs?|carbohydrates?)')
+            nutrition_data["macros"]["fats"]    = _extract_macro(r'fats?')
             
-            carbs_match = re.search(r'(?:carbs|carbohydrates)[:\s]+(\d+(?:\.\d+)?)\s*g', response_text, re.IGNORECASE)
-            if carbs_match:
-                nutrition_data["macros"]["carbs"] = float(carbs_match.group(1))
-            
-            fats_match = re.search(r'fat[s]?[:\s]+(\d+(?:\.\d+)?)\s*g', response_text, re.IGNORECASE)
-            if fats_match:
-                nutrition_data["macros"]["fats"] = float(fats_match.group(1))
-            
-            # Try to identify meal type
+            # Try to identify meal type from response text
             meal_types = ["breakfast", "lunch", "dinner", "snack"]
             for meal_type in meal_types:
                 if meal_type in response_text.lower():
                     nutrition_data["meal_type"] = meal_type
                     break
-            
+            # Default to "snack" so that logs are never silently skipped just
+            # because the model didn't use one of the four meal-type words.
+            if not nutrition_data["meal_type"]:
+                nutrition_data["meal_type"] = "snack"
+
             return nutrition_data if nutrition_data["calories"] or any(nutrition_data["macros"].values()) else None
             
         except Exception as e:
@@ -1120,48 +1101,54 @@ Dish name:"""
             simple_question_keywords = ['calories', 'calorie', 'cal', 'protein', 'carbs', 'fat', 'macro', 'how many', 'what is', 'nutrition facts']
             is_simple_question = any(keyword in user_input.lower() for keyword in simple_question_keywords) and len(user_input.split()) < 15
             
-            # Load recent conversation history for context
-            # This allows agents to recall previous messages in the conversation
+            # Load recent conversation history for context — query ALL agent types so that
+            # messages saved under "coordinator" (the default UI agent) are visible here too.
             conversation_context = ""
             try:
-                # Get recent conversation history for this agent type (last 10 messages)
-                # This provides context for follow-up questions and maintains conversation flow
-                agent_type = "nutrition"
                 history_query = self.db.query(ConversationMessage).filter(
                     ConversationMessage.user_id == self.user_id,
-                    ConversationMessage.agent_type == agent_type
-                ).order_by(ConversationMessage.created_at.desc()).limit(10).all()
-                
-                # Reverse to get chronological order (oldest first)
-                history_query.reverse()
-                
-                # Format conversation history as context
+                ).order_by(ConversationMessage.created_at.desc()).limit(12).all()
+
+                history_query.reverse()  # chronological order (oldest first)
+
                 if history_query:
                     conversation_parts = []
                     for msg in history_query:
                         role_label = "User" if msg.role == 'user' else "Assistant"
-                        conversation_parts.append(f"{role_label}: {msg.content}")
+                        # Truncate very long assistant messages to keep context concise
+                        content = msg.content or ""
+                        if len(content) > 800:
+                            content = content[:800] + "…"
+                        conversation_parts.append(f"{role_label}: {content}")
                     conversation_context = "\n\nPrevious conversation:\n" + "\n".join(conversation_parts) + "\n"
             except Exception as e:
-                # If loading history fails, log but continue without it
-                # Don't block agent execution if history loading fails
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Failed to load conversation history: {e}")
             
+            # Preamble that prevents the model from hallucinating a food image
+            no_image_preamble = (
+                "\n\n[IMPORTANT: This is a TEXT-ONLY message. No image has been provided. "
+                "Base your response solely on what the user described in words. "
+                "Do NOT use visual language such as 'I can see', 'This looks like', "
+                "'The image shows', or 'Looking at the photo'.]\n"
+            )
+
             # Build enhanced prompt with full context for complex queries, minimal for simple ones
             # Context strategy: Balance token usage vs tool call reduction
             if is_simple_question:
                 # Simple questions: minimal context to keep tokens low
-                # Simple questions don't need full user context (e.g., "How many calories in an apple?")
-                # But still include conversation history for follow-up questions
-                enhanced_prompt = f"{self.system_message}{conversation_context}\n\nUser query: {user_input}"
+                enhanced_prompt = (
+                    f"{self.system_message}{no_image_preamble}"
+                    f"{conversation_context}\n\nUser query: {user_input}"
+                )
             else:
                 # Complex queries: full context in system prompt to reduce tool calls
-                # Complex queries benefit from full context (e.g., "Plan my meals for the week")
-                # Full context reduces need for tool calls (get_medical_history, get_user_preferences)
                 enhanced_system_prompt = self._build_enhanced_system_prompt()
-                enhanced_prompt = f"{enhanced_system_prompt}{conversation_context}\n\nUser query: {user_input}"
+                enhanced_prompt = (
+                    f"{enhanced_system_prompt}{no_image_preamble}"
+                    f"{conversation_context}\n\nUser query: {user_input}"
+                )
             
             # Detect if user is asking for links/products and perform web search proactively
             # Keywords that indicate need for web search: links, buy, purchase, where to find, etc.

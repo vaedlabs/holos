@@ -340,78 +340,29 @@ class MentalFitnessAgent:
     
     def _build_enhanced_system_prompt(self) -> str:
         """
-        Build system prompt with enhanced context to reduce tool calls.
-        
-        Strategy: Include full context in system prompt upfront to reduce tool calls.
-        This offsets the cost of larger prompts by reducing tool call tokens.
-        
-        Returns:
-            Enhanced system prompt with full context included
+        Build system prompt with enhanced context.
+        Delegates to prompt_builder so all agents share a single source of truth.
         """
-        base_prompt = self.system_message
-        
-        # Use shared context if available (from ContextManager - already cached)
-        if self._shared_context:
-            context_parts = []
-            
-            # Include full medical history if available (especially important for mental health)
-            medical_history = self._shared_context.get("medical_history")
-            if medical_history:
-                medical_parts = []
-                if medical_history.get("conditions"):
-                    medical_parts.append(f"Medical Conditions: {medical_history['conditions']}")
-                if medical_history.get("limitations"):
-                    medical_parts.append(f"Physical Limitations: {medical_history['limitations']}")
-                if medical_history.get("medications"):
-                    medical_parts.append(f"Medications: {medical_history['medications']}")
-                if medical_history.get("notes"):
-                    medical_parts.append(f"Medical Notes: {medical_history['notes']}")
-                
-                if medical_parts:
-                    context_parts.append("## Medical History\n" + "\n".join(medical_parts))
-            
-            # Include full user preferences if available
-            preferences = self._shared_context.get("user_preferences")
-            if preferences:
-                pref_parts = []
-                if preferences.get("goals"):
-                    pref_parts.append(f"Fitness Goals: {preferences['goals']}")
-                if preferences.get("exercise_types"):
-                    pref_parts.append(f"Preferred Exercise Types: {preferences['exercise_types']}")
-                if preferences.get("dietary_restrictions"):
-                    pref_parts.append(f"Dietary Restrictions: {preferences['dietary_restrictions']}")
-                if preferences.get("activity_level"):
-                    pref_parts.append(f"Activity Level: {preferences['activity_level']}")
-                if preferences.get("lifestyle"):
-                    pref_parts.append(f"Lifestyle: {preferences['lifestyle']}")
-                if preferences.get("age"):
-                    pref_parts.append(f"Age: {preferences['age']}")
-                if preferences.get("gender"):
-                    pref_parts.append(f"Gender: {preferences['gender']}")
-                
-                if pref_parts:
-                    context_parts.append("## User Preferences\n" + "\n".join(pref_parts))
-            
-            # Add context section if we have any context
-            if context_parts:
-                context_section = "\n\n".join(context_parts)
-                base_prompt += f"\n\n## User Context (Available Information)\n{context_section}"
-                base_prompt += "\n\n**IMPORTANT**: You have full user context above. Only call tools (get_medical_history, get_user_preferences) if you need information NOT provided above or if the context seems outdated. For real-time information (web search, conversation history) or actions (creating logs), use tools as needed."
-            else:
-                base_prompt += "\n\n**Note**: No user context available. Use get_medical_history and get_user_preferences tools to fetch user information when needed."
-        else:
-            # Fallback: Use brief summary if shared context not available
-            context_summary = self._get_user_context_summary()
-            if context_summary:
-                base_prompt += f"\n\nUser context (brief): {context_summary}. Use tools for details."
-            else:
-                base_prompt += "\n\nUse get_medical_history and get_user_preferences tools to fetch user information."
-        
-        # Cache the enhanced prompt before returning
+        from app.agents.utils.prompt_builder import build_enhanced_prompt
+        from app.models.conversation_message import ConversationMessage
+
+        try:
+            msg_count = self.db.query(ConversationMessage).filter(
+                ConversationMessage.user_id == self.user_id
+            ).count()
+        except Exception:
+            msg_count = 0
+
+        enhanced = build_enhanced_prompt(
+            base_prompt=self.system_message,
+            shared_context=self._shared_context,
+            conversation_message_count=msg_count,
+        )
+
         from app.services.prompt_cache import prompt_cache
-        prompt_cache.set_enhanced_prompt(self._get_agent_type(), self.user_id, base_prompt)
-        
-        return base_prompt
+        prompt_cache.set_enhanced_prompt(self._get_agent_type(), self.user_id, enhanced)
+
+        return enhanced
     
     def _append_web_search_links(self, response: str, web_search_urls: list) -> str:
         """
@@ -502,30 +453,25 @@ class MentalFitnessAgent:
             # Enhanced prompt includes full medical history and preferences
             enhanced_system_message = self._build_enhanced_system_prompt()
             
-            # Load recent conversation history for context
-            # This allows agents to recall previous messages in the conversation
+            # Load recent conversation history — query all agent types so that messages
+            # saved under "coordinator" (the default UI agent) are visible here too.
             conversation_messages = []
             try:
-                # Get recent conversation history for this agent type (last 20 messages)
-                # This provides context for follow-up questions and maintains conversation flow
-                agent_type = "mental-fitness"
                 history_query = self.db.query(ConversationMessage).filter(
                     ConversationMessage.user_id == self.user_id,
-                    ConversationMessage.agent_type == agent_type
                 ).order_by(ConversationMessage.created_at.desc()).limit(20).all()
-                
-                # Reverse to get chronological order (oldest first)
-                history_query.reverse()
-                
-                # Convert conversation history to LangChain messages
+
+                history_query.reverse()  # chronological order
+
                 for msg in history_query:
                     if msg.role == 'user':
-                        conversation_messages.append(HumanMessage(content=msg.content))
+                        conversation_messages.append(HumanMessage(content=msg.content or ""))
                     elif msg.role == 'assistant':
-                        conversation_messages.append(AIMessage(content=msg.content))
+                        content = msg.content or ""
+                        if len(content) > 800:
+                            content = content[:800] + "…"
+                        conversation_messages.append(AIMessage(content=content))
             except Exception as e:
-                # If loading history fails, log but continue without it
-                # Don't block agent execution if history loading fails
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Failed to load conversation history: {e}")

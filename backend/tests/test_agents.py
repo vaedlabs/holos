@@ -149,15 +149,13 @@ class TestAgentInitialization:
             # Restore original
             app.agents.base_agent.os.getenv = original_getenv
     
-    def test_nutrition_agent_missing_gemini_key(self, mock_db):
+    def test_nutrition_agent_missing_gemini_key(self, mock_db, monkeypatch):
         """Test that NutritionAgent raises error when Gemini key is missing"""
         from app.agents.nutrition_agent import NutritionAgent
-        import os
         
-        # Set OpenAI key but not Gemini key
-        os.environ["OPENAI_API_KEY"] = "test-key"
-        if "GOOGLE_GEMINI_API_KEY" in os.environ:
-            del os.environ["GOOGLE_GEMINI_API_KEY"]
+        # Set OpenAI key but not Gemini key (monkeypatch restores both afterwards)
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.delenv("GOOGLE_GEMINI_API_KEY", raising=False)
         
         with pytest.raises(ValueError, match="GOOGLE_GEMINI_API_KEY"):
             NutritionAgent(user_id=1, db=mock_db)
