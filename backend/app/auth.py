@@ -20,7 +20,7 @@ Security Considerations:
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from dotenv import load_dotenv
 import os
 
@@ -43,101 +43,52 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 # Can be overridden per-token by passing expires_delta to create_access_token
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
-# Password hashing context
-# Uses bcrypt algorithm for password hashing
-# CryptContext provides a unified interface for password hashing with fallback support
-# "deprecated="auto"" allows automatic handling of deprecated hash formats
-# This configuration helps avoid bcrypt version compatibility issues
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt only reads the first 72 bytes of a password
+BCRYPT_MAX_BYTES = 72
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Verify a plain password against a hashed password.
-    
-    This function securely compares a plain text password with a bcrypt hash.
-    Uses passlib's CryptContext for verification, with a fallback to direct
-    bcrypt if passlib fails (for compatibility with different bcrypt versions).
-    
+    Verify a plain password against a bcrypt hash.
+
+    Accepts hashes made by passlib (same $2b$ format). The password is cut to
+    72 bytes because older accounts were hashed from a cut password, and
+    bcrypt 5 raises on longer input instead of ignoring the extra bytes.
+
     Args:
         plain_password: The plain text password to verify
         hashed_password: The bcrypt hash to compare against
-        
+
     Returns:
         bool: True if the password matches the hash, False otherwise
-        
-    Raises:
-        ValueError: If password verification fails due to an unexpected error
-        
-    Note:
-        The function uses constant-time comparison internally to prevent
-        timing attacks. The fallback to direct bcrypt helps with compatibility
-        issues between different versions of the bcrypt library.
+              (including when the stored hash is malformed)
     """
+    password_bytes = plain_password.encode("utf-8")[:BCRYPT_MAX_BYTES]
     try:
-        # Primary method: use passlib's CryptContext
-        # This handles various hash formats and provides a unified interface
-        return pwd_context.verify(plain_password, hashed_password)
-    except Exception as e:
-        # Fallback: try direct bcrypt if passlib fails
-        # This handles compatibility issues with different bcrypt library versions
-        # Some environments may have bcrypt installed but passlib may have issues
-        try:
-            import bcrypt
-            # Direct bcrypt comparison - encode strings to bytes as required
-            return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-        except Exception:
-            # If both methods fail, raise an error with context
-            raise ValueError(f"Password verification failed: {e}")
+        return bcrypt.checkpw(password_bytes, hashed_password.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """
-    Hash a password using bcrypt.
-    
-    This function creates a secure bcrypt hash of a password. The hash includes
-    a randomly generated salt, making it secure against rainbow table attacks.
-    Uses passlib's CryptContext with a fallback to direct bcrypt for compatibility.
-    
+    Hash a password using bcrypt (12 rounds, random salt).
+
     Args:
         password: The plain text password to hash
-        
+
     Returns:
         str: The bcrypt hash of the password (includes salt and algorithm info)
-        
+
     Raises:
-        ValueError: If password hashing fails due to an unexpected error
-        
-    Note:
-        - Bcrypt has a 72-byte limit on password length. Longer passwords are truncated.
-        - The hash uses 12 rounds by default (good balance between security and performance)
-        - Each hash includes a unique salt, so the same password produces different hashes
-        - The returned hash can be stored directly in the database
+        ValueError: If the password is longer than 72 bytes. Bcrypt would
+            silently ignore the extra bytes, so we reject it and the user
+            gets a clear error at registration time.
     """
-    # Bcrypt silently ignores bytes beyond the 72nd, which would cause a mismatch
-    # between the password the user set and what they later type at login.
-    # Reject it explicitly so the user gets a clear error at registration time.
-    if len(password.encode('utf-8')) > 72:
+    password_bytes = password.encode("utf-8")
+    if len(password_bytes) > BCRYPT_MAX_BYTES:
         raise ValueError("Password is too long. Please use 72 characters or fewer.")
-    
-    try:
-        # Primary method: use passlib's CryptContext
-        # Automatically handles salt generation and hash formatting
-        return pwd_context.hash(password)
-    except Exception as e:
-        # Fallback: use direct bcrypt if passlib fails
-        # This handles compatibility issues with different bcrypt library versions
-        try:
-            import bcrypt
-            # Generate a salt with 12 rounds (good balance of security and performance)
-            salt = bcrypt.gensalt(rounds=12)
-            # Hash the password with the salt
-            hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-            # Decode bytes to string for storage
-            return hashed.decode('utf-8')
-        except Exception:
-            # If both methods fail, raise an error with context
-            raise ValueError(f"Password hashing failed: {e}")
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt(rounds=12)).decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

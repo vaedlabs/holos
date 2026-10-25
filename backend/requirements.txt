@@ -27,8 +27,7 @@ openai==2.8.1
 
 # Authentication
 python-jose[cryptography]==3.5.0
-bcrypt==4.0.1  # Compatible with passlib 1.7.4 (5.0.0 causes AttributeError warning)
-passlib[bcrypt]==1.7.4
+bcrypt==5.0.0
 
 # Data validation
 pydantic==2.12.5
