@@ -14,7 +14,7 @@ Key Features:
 - Notes for additional activity information
 """
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -72,6 +72,8 @@ class MentalFitnessLog(Base):
         - Used by Mental Fitness Agent to track patterns and provide recommendations
     """
     __tablename__ = "mental_fitness_logs"
+    # Composite index from migration cd5e821b7af6 (user-scoped, date-ordered queries)
+    __table_args__ = (Index("idx_mental_fitness_log_user_date", "user_id", "activity_date"),)
 
     # Primary key - auto-incrementing integer
     # Indexed for fast lookups by ID
@@ -82,7 +84,7 @@ class MentalFitnessLog(Base):
     # Required field - cannot be null
     # Indexed for fast queries filtering by user
     # Cascade delete: if user is deleted, mental fitness logs are also deleted
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     # Activity date and time - when the activity was performed
     # Timezone-aware DateTime for accurate time tracking across timezones

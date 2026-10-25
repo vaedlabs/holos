@@ -61,7 +61,7 @@ class UserPreferences(Base):
     # Unique constraint ensures one preferences record per user (one-to-one relationship)
     # Required field - cannot be null
     # Cascade delete: if user is deleted, preferences are also deleted
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     
     # Fitness goals - user's fitness objectives
     # Format: JSON string (e.g., ["weight_loss", "muscle_gain"]) or comma-separated text

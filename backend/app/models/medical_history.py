@@ -70,7 +70,7 @@ class MedicalHistory(Base):
     # Unique constraint ensures one medical history record per user (one-to-one relationship)
     # Required field - cannot be null
     # Cascade delete: if user is deleted, medical history is also deleted
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     
     # Medical conditions - user's known medical conditions
     # Format: JSON string (e.g., ["diabetes", "hypertension"]) or comma-separated text

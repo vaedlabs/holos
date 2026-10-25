@@ -13,7 +13,7 @@ Key Features:
 - Notes for additional workout information
 """
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -78,6 +78,8 @@ class WorkoutLog(Base):
         - Workout date defaults to current time but can be set to past dates
     """
     __tablename__ = "workout_logs"
+    # Composite index from migration cd5e821b7af6 (user-scoped, date-ordered queries)
+    __table_args__ = (Index("idx_workout_log_user_date", "user_id", "workout_date"),)
 
     # Primary key - auto-incrementing integer
     # Indexed for fast lookups by ID
@@ -88,7 +90,7 @@ class WorkoutLog(Base):
     # Required field - cannot be null
     # Indexed for fast queries filtering by user
     # Cascade delete: if user is deleted, workout logs are also deleted
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     # Workout date and time - when the workout was performed
     # Timezone-aware DateTime for accurate time tracking across timezones

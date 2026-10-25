@@ -30,6 +30,18 @@ from app.models.nutrition_log import NutritionLog
 from app.models.mental_fitness_log import MentalFitnessLog
 from app.models.conversation_message import ConversationMessage
 from app.models.agent_execution_log import AgentExecutionLog
+from app.models.state import (
+    DeletionQueue,
+    InflightLease,
+    Invite,
+    PendingWrite,
+    PrincipalFlag,
+    RateCounter,
+    RequestClaim,
+    Session,
+    Spend,
+)
+from app.models.trace import GateDecision, RuleHitCount, Trace
 
 # Export all models for convenient importing
 # Makes models available via: from app.models import User, WorkoutLog
@@ -41,5 +53,17 @@ __all__ = [
     "NutritionLog",  # Meal tracking
     "MentalFitnessLog",  # Wellness activity tracking
     "ConversationMessage",  # Chat history
-    "AgentExecutionLog"  # Agent execution traces
+    "AgentExecutionLog",  # Agent execution traces
+    "Session",
+    "InflightLease",
+    "PrincipalFlag",
+    "RateCounter",
+    "Spend",
+    "PendingWrite",
+    "RequestClaim",
+    "Invite",
+    "DeletionQueue",
+    "Trace",
+    "GateDecision",
+    "RuleHitCount",
 ]

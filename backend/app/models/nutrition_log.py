@@ -14,7 +14,7 @@ Key Features:
 - Notes for additional meal information
 """
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -91,6 +91,8 @@ class NutritionLog(Base):
         - Used by Nutrition Agent to track dietary patterns and provide recommendations
     """
     __tablename__ = "nutrition_logs"
+    # Composite index from migration cd5e821b7af6 (user-scoped, date-ordered queries)
+    __table_args__ = (Index("idx_nutrition_log_user_date", "user_id", "meal_date"),)
 
     # Primary key - auto-incrementing integer
     # Indexed for fast lookups by ID
@@ -101,7 +103,7 @@ class NutritionLog(Base):
     # Required field - cannot be null
     # Indexed for fast queries filtering by user
     # Cascade delete: if user is deleted, nutrition logs are also deleted
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     # Meal date and time - when the meal was consumed
     # Timezone-aware DateTime for accurate time tracking across timezones

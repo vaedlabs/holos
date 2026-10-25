@@ -4,7 +4,8 @@ uvicorn[standard]==0.38.0
 
 # Database
 sqlalchemy==2.0.44
-psycopg2-binary==2.9.9
+psycopg[binary]==3.3.6
+greenlet==3.5.6  # SQLAlchemy async engine
 alembic==1.17.2
 
 # LangChain (compatible versions - updated for compatibility)

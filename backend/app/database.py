@@ -18,6 +18,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+from app.data.engine import psycopg_url
 import os
 
 # Load environment variables from .env file
@@ -35,8 +36,10 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5
 # pool_pre_ping=True: Verifies connections are alive before using them, preventing
 #   errors from stale database connections (important for long-running applications)
 # echo=False: Set to True to log all SQL queries (useful for debugging)
+# psycopg 3 driver for Postgres URLs; other URLs (SQLite in some tests) pass through
+_engine_url = psycopg_url(DATABASE_URL) if DATABASE_URL.startswith("postgres") else DATABASE_URL
 engine = create_engine(
-    DATABASE_URL,
+    _engine_url,
     pool_pre_ping=True,  # Verify connections before using (prevents stale connection errors)
     echo=False  # Set to True for SQL query logging (useful for debugging)
 )

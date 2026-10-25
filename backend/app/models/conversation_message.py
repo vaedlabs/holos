@@ -13,7 +13,7 @@ Key Features:
 - Timestamp tracking for conversation flow
 """
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, UniqueConstraint, Uuid, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -87,7 +87,7 @@ class ConversationMessage(Base):
     # Required field - cannot be null
     # Indexed for fast queries filtering by user
     # Cascade delete: if user is deleted, conversation messages are also deleted
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     # Message role - identifies who sent the message
     # Values: "user" (user input) or "assistant" (AI agent response)
@@ -133,6 +133,13 @@ class ConversationMessage(Base):
     # Used for ordering messages in conversation flow
     # No updated_at field - messages are immutable once created
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Idempotency key from the chat request (Plan C.5): the same request can't be stored twice
+    client_request_id = Column(Uuid, nullable=True)
+    __table_args__ = (
+        UniqueConstraint("user_id", "client_request_id", name="uq_conversation_user_request"),
+        Index("idx_conversation_user_created", "user_id", "created_at"),
+    )
 
     # Relationship to User model
     # Many-to-one relationship (each user can have multiple conversation messages)

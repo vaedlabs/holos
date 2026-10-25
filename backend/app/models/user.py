@@ -98,35 +98,35 @@ class User(Base):
     # One-to-one relationship with MedicalHistory
     # Each user has at most one medical history record
     # uselist=False indicates one-to-one relationship (not one-to-many)
-    medical_history = relationship("MedicalHistory", back_populates="user", uselist=False)
+    medical_history = relationship("MedicalHistory", back_populates="user", uselist=False, passive_deletes=True)
     
     # One-to-one relationship with UserPreferences
     # Each user has at most one preferences record
     # uselist=False indicates one-to-one relationship
-    user_preferences = relationship("UserPreferences", back_populates="user", uselist=False)
+    user_preferences = relationship("UserPreferences", back_populates="user", uselist=False, passive_deletes=True)
     
     # One-to-many relationship with WorkoutLog
     # Each user can have multiple workout log entries
     # Access via: user.workout_logs (returns list of WorkoutLog objects)
-    workout_logs = relationship("WorkoutLog", back_populates="user")
+    workout_logs = relationship("WorkoutLog", back_populates="user", passive_deletes=True)
     
     # One-to-many relationship with NutritionLog
     # Each user can have multiple nutrition log entries
     # Access via: user.nutrition_logs (returns list of NutritionLog objects)
-    nutrition_logs = relationship("NutritionLog", back_populates="user")
+    nutrition_logs = relationship("NutritionLog", back_populates="user", passive_deletes=True)
     
     # One-to-many relationship with MentalFitnessLog
     # Each user can have multiple mental fitness log entries
     # Access via: user.mental_fitness_logs (returns list of MentalFitnessLog objects)
-    mental_fitness_logs = relationship("MentalFitnessLog", back_populates="user")
+    mental_fitness_logs = relationship("MentalFitnessLog", back_populates="user", passive_deletes=True)
     
     # One-to-many relationship with ConversationMessage
     # Each user can have multiple conversation messages with AI agents
     # Access via: user.conversation_messages (returns list of ConversationMessage objects)
-    conversation_messages = relationship("ConversationMessage", back_populates="user")
+    conversation_messages = relationship("ConversationMessage", back_populates="user", passive_deletes=True)
     
     # One-to-many relationship with AgentExecutionLog
     # Each user can have multiple agent execution log entries (for observability)
     # Access via: user.agent_execution_logs (returns list of AgentExecutionLog objects)
-    agent_execution_logs = relationship("AgentExecutionLog", back_populates="user")
+    agent_execution_logs = relationship("AgentExecutionLog", back_populates="user", passive_deletes=True)
 

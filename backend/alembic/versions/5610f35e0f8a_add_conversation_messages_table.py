@@ -34,7 +34,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '5610f35e0f8a'
-down_revision = None  # No previous migration (or first in chain)
+down_revision = '40fe440f5a4a'  # Base tables (added later; Plan Part E #6)
 branch_labels = None
 depends_on = None
 

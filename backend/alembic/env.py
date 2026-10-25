@@ -48,7 +48,8 @@ load_dotenv()
 # These imports ensure all models are registered with SQLAlchemy Base.metadata
 # Alembic needs this to detect schema changes via autogenerate
 from app.database import Base
-from app.models import User, MedicalHistory, UserPreferences, WorkoutLog, NutritionLog, MentalFitnessLog, ConversationMessage
+import app.models  # noqa: F401  (registers every table on Base.metadata)
+from app.data.engine import psycopg_url
 
 # Alembic Config object - provides access to alembic.ini configuration
 # Contains settings like database URL, logging config, migration paths
@@ -57,8 +58,12 @@ config = context.config
 # Override sqlalchemy.url with environment variable
 # DATABASE_URL takes precedence over alembic.ini settings
 # Fallback to default PostgreSQL URL if env var not set (dev only)
-database_url = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/holos_db")
-config.set_main_option("sqlalchemy.url", database_url)
+# A caller (the integration tests) may pass the URL in config.attributes["url"];
+# otherwise DATABASE_URL is used. Either way the psycopg 3 driver is used.
+database_url = config.attributes.get("url") or os.getenv("DATABASE_URL")
+if not database_url:
+    raise RuntimeError("DATABASE_URL is not set")
+config.set_main_option("sqlalchemy.url", psycopg_url(database_url).replace("%", "%%"))
 
 # Configure Python logging from alembic.ini
 # Sets up loggers for migration execution output

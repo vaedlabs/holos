@@ -25,8 +25,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://holos:holos@localhost:5432/holos_test
-      TEST_DATABASE_URL: postgresql://holos:holos@localhost:5432/holos_test
+      # Separate databases: integration tests refuse to run against DATABASE_URL
+      DATABASE_URL: postgresql+psycopg://holos:holos@localhost:5432/postgres
+      TEST_DATABASE_URL: postgresql+psycopg://holos:holos@localhost:5432/holos_test
       # Placeholders only: push tests make no paid calls (Plan A.1 rule 8)
       OPENAI_API_KEY: sk-ci-placeholder
       GOOGLE_GEMINI_API_KEY: ci-placeholder
@@ -44,6 +45,8 @@ jobs:
       - run: ruff check .
       - name: Contracts are up to date
         run: python -m app.contracts.generate --check
+      - name: Migrations build an empty database
+        run: alembic upgrade head
       - run: pytest -m "not paid and not load"
 
   frontend:

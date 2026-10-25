@@ -133,7 +133,7 @@ class AgentExecutionLog(Base):
     # Indexed for fast queries filtering by user
     # Required field - cannot be null
     # Cascade delete: if user is deleted, execution logs are also deleted
-    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     
     # Execution details - user's query/input
     # Format: Plain text containing the user's query

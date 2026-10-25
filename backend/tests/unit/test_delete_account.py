@@ -109,13 +109,17 @@ def test_delete_account_removes_every_uploaded_image(session_factory, tmp_path, 
 
 def test_every_user_foreign_key_is_cleaned_up(session_factory):
     # Guards against a new table referencing users.id without a delete step
-    tables = {
-        table
-        for table in inspect(session_factory.kw["bind"]).get_table_names()
-        for fk in inspect(session_factory.kw["bind"]).get_foreign_keys(table)
-        if fk["referred_table"] == "users"
-    }
+    # A table is covered if its foreign key cascades in the database (Plan C.11)
+    # or delete_account deletes its rows explicitly
+    insp = inspect(session_factory.kw["bind"])
     source = open(auth.__file__).read()
     model_for = {m.__tablename__: m.__name__ for m in Base.__subclasses__()}
-    missing = [model_for[t] for t in tables if f"db.query({model_for[t]})" not in source]
-    assert not missing, f"delete_account does not delete: {missing}"
+    missing = [
+        model_for[table]
+        for table in insp.get_table_names()
+        for fk in insp.get_foreign_keys(table)
+        if fk["referred_table"] == "users"
+        and fk["options"].get("ondelete") != "CASCADE"
+        and f"db.query({model_for[table]})" not in source
+    ]
+    assert not missing, f"user rows neither cascade nor are deleted: {missing}"
