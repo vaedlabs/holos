@@ -32,13 +32,13 @@ except Exception as e:
 # Test 2: Base Agent Tools
 print("\n[2] Testing base agent tools...")
 try:
-    from app.agents.tools.read import GetMedicalHistoryTool, GetUserPreferencesTool
-    from app.agents.tools.write import (
+    from app.agents.tools.legacy.read import GetMedicalHistoryTool, GetUserPreferencesTool
+    from app.agents.tools.legacy.write import (
         CreateWorkoutLogTool,
         CreateNutritionLogTool,
         CreateMentalFitnessLogTool,
     )
-    from app.agents.tools.web_search import WebSearchTool
+    from app.agents.tools.legacy.web_search import WebSearchTool
     print("  ✓ All tools imported")
 except Exception as e:
     print(f"  ✗ Tool import failed: {e}")

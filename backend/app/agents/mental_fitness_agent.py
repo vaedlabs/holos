@@ -44,9 +44,9 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 import os
 
-from app.agents.tools.read import GetMedicalHistoryTool, GetUserPreferencesTool
-from app.agents.tools.write import CreateMentalFitnessLogTool
-from app.agents.tools.web_search import WebSearchTool
+from app.agents.tools.legacy.read import GetMedicalHistoryTool, GetUserPreferencesTool
+from app.agents.tools.legacy.write import CreateMentalFitnessLogTool
+from app.agents.tools.legacy.web_search import WebSearchTool
 from app.services.medical_service import get_medical_history
 from app.services.llm_retry import retry_llm_call
 from app.models.user_preferences import UserPreferences

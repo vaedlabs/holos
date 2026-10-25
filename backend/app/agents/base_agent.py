@@ -72,13 +72,13 @@ import logging
 import asyncio
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from app.agents.tools.read import (
+from app.agents.tools.legacy.read import (
     GetMedicalHistoryTool,
     GetUserPreferencesTool,
     GetConversationHistoryTool,
 )
-from app.agents.tools.write import CreateWorkoutLogTool
-from app.agents.tools.web_search import WebSearchTool
+from app.agents.tools.legacy.write import CreateWorkoutLogTool
+from app.agents.tools.legacy.web_search import WebSearchTool
 
 # Logger instance for this module
 # Used for logging agent operations, tool calls, and errors

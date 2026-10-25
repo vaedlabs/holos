@@ -47,9 +47,9 @@ import base64
 from io import BytesIO
 from PIL import Image
 
-from app.agents.tools.read import GetMedicalHistoryTool, GetUserPreferencesTool
-from app.agents.tools.write import CreateNutritionLogTool
-from app.agents.tools.web_search import WebSearchTool
+from app.agents.tools.legacy.read import GetMedicalHistoryTool, GetUserPreferencesTool
+from app.agents.tools.legacy.write import CreateNutritionLogTool
+from app.agents.tools.legacy.web_search import WebSearchTool
 from app.services.medical_service import get_medical_history
 from app.services.dietary_service import check_dietary_conflicts
 from app.services.llm_retry import retry_llm_call, get_fallback_model
