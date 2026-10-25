@@ -42,6 +42,7 @@ from app.models.nutrition_log import NutritionLog
 from app.models.mental_fitness_log import MentalFitnessLog
 from app.models.medical_history import MedicalHistory
 from app.models.user_preferences import UserPreferences
+from app.models.agent_execution_log import AgentExecutionLog
 from app.schemas.user import UserRegister, UserLogin, UserResponse, Token
 
 # FastAPI router for authentication endpoints
@@ -259,8 +260,9 @@ async def delete_account(
         4. Delete mental fitness logs
         5. Delete medical history
         6. Delete user preferences
-        7. Delete user account
-        8. Commit all deletions in a single transaction
+        7. Delete agent execution logs
+        8. Delete user account
+        9. Commit all deletions in a single transaction
     
     Args:
         current_user: Authenticated user (injected dependency from get_current_user)
@@ -287,6 +289,7 @@ async def delete_account(
         - Mental fitness logs
         - Medical history
         - User preferences
+        - Agent execution logs
         - User account
         
     Note:
@@ -356,7 +359,13 @@ async def delete_account(
             UserPreferences.user_id == user_id
         ).delete()
         
-        # 7. Delete user account
+        # 7. Delete agent execution logs
+        # Traces of this user's agent runs (they reference users.id)
+        db.query(AgentExecutionLog).filter(
+            AgentExecutionLog.user_id == user_id
+        ).delete()
+        
+        # 8. Delete user account
         # Finally delete the user account itself
         db.query(User).filter(User.id == user_id).delete()
         
