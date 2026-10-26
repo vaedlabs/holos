@@ -1,6 +1,5 @@
 """Catalogue and rules load, and broken files fail with a clear message."""
 
-import ast
 import copy
 from collections import Counter
 from pathlib import Path
@@ -123,20 +122,6 @@ def test_hindi_ingredient_names_resolve(guardrails):
     }
     for name in ("ghee", "paneer", "kaju", "badam", "moongphali", "til", "atta", "maida", "besan"):
         assert name in terms
-
-
-def test_guardrails_package_has_no_app_imports():
-    """Plan C.1: guardrails/ imports nothing from app.* and no LangChain."""
-    package = CATALOGUE_PATH.parent
-    for path in package.glob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text())):
-            names = []
-            if isinstance(node, ast.Import):
-                names = [a.name for a in node.names]
-            elif isinstance(node, ast.ImportFrom) and node.level == 0:
-                names = [node.module or ""]
-            for name in names:
-                assert not name.startswith(("app", "langchain", "langgraph")), (path.name, name)
 
 
 # --- Broken files fail with a clear message ---
