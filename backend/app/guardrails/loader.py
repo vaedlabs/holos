@@ -15,7 +15,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from .normalise import normalise_text
+from .normalise import CrisisNormaliser, normalise_text
 from .types import (
     EXERCISE_TAGS,
     IMPLIES_ANIMAL_PRODUCT_ALLERGENS,
@@ -123,7 +123,13 @@ class Helpline(_Model):
 
 
 class CrisisNormalise(_Model):
-    leet: dict[str, str]
+    leet: dict[str, str]  # anywhere: "k1ll"
+    leet_inner: dict[str, str] = {}  # only between two letters: "d!e", not "die!"
+    chars: dict[str, str] = {}  # apostrophes dropped, Devanagari spellings folded
+    words: dict[str, str] = {}  # spelling variants and contractions, whole words
+
+    def normaliser(self) -> CrisisNormaliser:
+        return CrisisNormaliser(self.leet, self.leet_inner, self.chars, self.words)
 
 
 class Crisis(_Model):
@@ -338,17 +344,25 @@ def _check_crisis(crisis: Crisis, file: str) -> list[str]:
     problems = []
     if set(crisis.phrases) != CRISIS_LANGUAGES:
         problems.append(f"{where}.phrases: languages must be {sorted(CRISIS_LANGUAGES)}")
+    for section in ("leet", "leet_inner", "chars"):
+        for key in getattr(crisis.normalise, section):
+            if len(key) != 1:
+                problems.append(f"{where}.normalise.{section}: key '{key}' must be one character")
+    if problems:
+        return problems
+    # Phrases and exceptions are compared as the check sees them, after normalisation
+    normalise = crisis.normalise.normaliser()
+    for key, value in crisis.normalise.words.items():
+        if normalise(value) != value:
+            problems.append(f"{where}.normalise.words: '{key}' -> '{value}' is not normalised")
     phrases = []
     for lang, items in crisis.phrases.items():
         if not items:
             problems.append(f"{where}.phrases.{lang}: is empty")
-        phrases += [normalise_text(p) for p in items]
+        phrases += [normalise(p) for p in items]
     dupes = [p for p, n in Counter(phrases).items() if n > 1]
-    problems += [f"{where}.phrases: '{p}' is listed twice" for p in dupes]
+    problems += [f"{where}.phrases: '{p}' is listed twice (after normalisation)" for p in dupes]
     for exception in crisis.exceptions:
-        if not any(p in normalise_text(exception) for p in phrases):
+        if not any(p in normalise(exception) for p in phrases):
             problems.append(f"{where}.exceptions: '{exception}' contains no crisis phrase")
-    for key in crisis.normalise.leet:
-        if len(key) != 1:
-            problems.append(f"{where}.normalise.leet: key '{key}' must be one character")
     return problems

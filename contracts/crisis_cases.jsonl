@@ -45,3 +45,59 @@
 {"text": "क्या मैं रोज़ दौड़ सकता हूं", "expect": false, "note": "Devanagari, ordinary"}
 {"text": "I a m tired", "expect": false, "note": "single letters 'I' and 'a' are never joined"}
 {"text": "I can't go on with this diet", "expect": true, "note": "accepted false positive: a kind message costs little"}
+{"text": "k i l l m y s e l f", "expect": true, "note": "every letter split, so the words run together"}
+{"text": "w.a.n.t t.o d.i.e", "expect": true, "note": "each word split by dots"}
+{"text": "su1c1de", "expect": true, "note": "leetspeak inside one word"}
+{"text": "mera dost khudkushi ki baat kar raha hai", "expect": true, "note": "Hinglish, about someone else"}
+{"text": "wo marna chahti hai", "expect": true, "note": "Hinglish, about someone else"}
+{"text": "SUICIDE SPRINTS today", "expect": false, "note": "exception, upper case"}
+{"text": "I want to upskill myself in cooking", "expect": false, "note": "word boundary: upskill is not kill"}
+{"text": "I could kill for a samosa", "expect": false, "note": "figure of speech"}
+{"text": "dead hang for 30 seconds", "expect": false, "note": "exercise name"}
+{"text": "squat jumps till I drop", "expect": false, "note": "figure of speech"}
+{"text": "sucide is all i think about", "expect": true, "note": "misspelling"}
+{"text": "feeling suicdal again", "expect": true, "note": "misspelling of suicidal"}
+{"text": "kms", "expect": true, "note": "slang: kill myself"}
+{"text": "honestly i just want to unalive myself", "expect": true, "note": "slang: unalive"}
+{"text": "thinking about the sewer slide", "expect": true, "note": "euphemism folded to suicide"}
+{"text": "i want 2 die", "expect": true, "note": "2 for to"}
+{"text": "I wanna d13", "expect": true, "note": "chat spelling and leetspeak"}
+{"text": "w4nt t0 d!e", "expect": true, "note": "leetspeak between letters"}
+{"text": "kill my self", "expect": true, "note": "my self folded to myself"}
+{"text": "kill-myself", "expect": true, "note": "hyphen as a space"}
+{"text": "i cnt go on", "expect": true, "note": "chat spelling of can't"}
+{"text": "im going to end it tonight", "expect": true, "note": "ending it, no apostrophe"}
+{"text": "I don't want to be alive anymore", "expect": true, "note": "not wanting to be alive"}
+{"text": "theres no point in living", "expect": true, "note": "no point in living"}
+{"text": "i wish i could sleep and never wake up", "expect": true, "note": "passive wish to die"}
+{"text": "done with life tbh", "expect": true, "note": "done with life"}
+{"text": "I want to slit my wrists", "expect": true, "note": "self-harm method"}
+{"text": "planning to take all my pills tonight", "expect": true, "note": "overdose method"}
+{"text": "thinking of jumping off a bridge", "expect": true, "note": "method"}
+{"text": "my brother keeps talking about hurting himself", "expect": true, "note": "about someone else"}
+{"text": "mujhe mar jana hai", "expect": true, "note": "Hinglish"}
+{"text": "main mar jaaunga", "expect": true, "note": "Hinglish spelling variant"}
+{"text": "jeene ka mann nahi karta", "expect": true, "note": "Hinglish"}
+{"text": "khud khushi kar lungi", "expect": true, "note": "Hinglish, split spelling"}
+{"text": "atmahatya ka khayal aata hai", "expect": true, "note": "Hinglish spelling variant"}
+{"text": "apne aap ko khatam kar dunga", "expect": true, "note": "Hinglish"}
+{"text": "zindagi se tang aa gaya hoon", "expect": true, "note": "Hinglish"}
+{"text": "jeena nhi chahti", "expect": true, "note": "Hinglish chat spelling"}
+{"text": "mujhe maut chahiye", "expect": true, "note": "Hinglish"}
+{"text": "मुझे मर जाना है", "expect": true, "note": "Devanagari"}
+{"text": "मैं मर जाउँगा", "expect": true, "note": "Devanagari, chandrabindu and short u"}
+{"text": "ज़िंदगी ख़त्म कर दूँगा", "expect": true, "note": "Devanagari with nukta"}
+{"text": "मैं खुद को मार डालूंगा", "expect": true, "note": "Devanagari"}
+{"text": "जीने का मन नहीं करता", "expect": true, "note": "Devanagari"}
+{"text": "I never wake up before 9", "expect": false, "note": "waking up is ordinary"}
+{"text": "ate so much i could overdose on coffee", "expect": false, "note": "exception"}
+{"text": "killing myself at the gym every day", "expect": false, "note": "exception, gym slang"}
+{"text": "how do I tie a noose knot for camping", "expect": false, "note": "exception"}
+{"text": "u up? ur plan is great", "expect": false, "note": "chat spellings alone"}
+{"text": "I want 2 eggs and 2 sets of 10 squats", "expect": false, "note": "2 for to stays harmless"}
+{"text": "die!", "expect": false, "note": "! at the end of a word is not a letter"}
+{"text": "nai zindagi shuru karni hai", "expect": false, "note": "Hinglish: a new life"}
+{"text": "marne wala workout tha", "expect": false, "note": "Hinglish figure of speech"}
+{"text": "kya jau ki roti healthy hai", "expect": false, "note": "jau (barley) is folded but matches nothing"}
+{"text": "मुझे दौड़ना पसंद है", "expect": false, "note": "Devanagari, ordinary"}
+{"text": "this burpee set made me want to die lol", "expect": true, "note": "accepted false positive: a kind message costs little"}

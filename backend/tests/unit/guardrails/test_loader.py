@@ -214,6 +214,27 @@ def test_crisis_exception_without_phrase(tmp_path):
     assert "crisis.exceptions: 'killer abs' contains no crisis phrase" in str(err)
 
 
+def test_crisis_phrase_that_normalises_to_another(tmp_path):
+    rules = copy.deepcopy(RULES)
+    rules["crisis"]["phrases"]["en"].append("dont want to live")  # = "don't want to live"
+    err = _load_broken(tmp_path, rules=rules)
+    assert "'do not want to live' is listed twice (after normalisation)" in str(err)
+
+
+def test_crisis_word_fold_must_be_normalised(tmp_path):
+    rules = copy.deepcopy(RULES)
+    rules["crisis"]["normalise"]["words"]["wnat"] = "wanna"  # "wanna" folds again
+    err = _load_broken(tmp_path, rules=rules)
+    assert "normalise.words: 'wnat' -> 'wanna' is not normalised" in str(err)
+
+
+def test_crisis_char_map_keys_are_single_characters(tmp_path):
+    rules = copy.deepcopy(RULES)
+    rules["crisis"]["normalise"]["leet_inner"]["ph"] = "f"
+    err = _load_broken(tmp_path, rules=rules)
+    assert "normalise.leet_inner: key 'ph' must be one character" in str(err)
+
+
 def test_crisis_missing_language(tmp_path):
     rules = copy.deepcopy(RULES)
     del rules["crisis"]["phrases"]["hi_deva"]

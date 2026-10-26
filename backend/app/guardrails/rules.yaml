@@ -9,7 +9,8 @@
 # interim draft the owner may revise before launch.
 
 # 2: vegetarian also blocks egg; eggetarian has its own rule (DI-EGGT-01)
-version: 2
+# 3: crisis phrases widened, spelling variants folded (Plan Part E #19)
+version: 3
 
 exercise:
   # Knees
@@ -287,77 +288,271 @@ crisis:
     - {name: Tele-MANAS, region: India, contact: "14416"}
     - {name: 988 Suicide & Crisis Lifeline, region: US, contact: "988"}
     - {name: Find a Helpline, region: Worldwide, contact: findahelpline.com}
+  # Phrases are written naturally: the loader and the check pass them through the
+  # same normalisation as the message (see `normalise` below), so "don't want to
+  # live", "dont want to live" and "do not want to live" are one phrase, and
+  # spelling variants ("chahata", "मर जाऊँगा") are folded in `words` and `chars`
+  # instead of listed. A phrase that normalises to another one fails the load.
   phrases:
     en:
-      - kill myself
-      - killing myself
-      - end my life
-      - ending my life
-      - end it all
-      - take my own life
-      - take my life
-      - want to die
-      - wanna die
-      - wish i was dead
-      - wish i were dead
-      - better off dead
-      - don't want to live
-      - dont want to live
-      - no reason to live
-      - not worth living
+      # Suicide
       - suicide
       - suicidal
+      - suicide note
+      # Killing or ending one's life
+      - kill myself
+      - killing myself
+      - killed myself
+      - end myself
+      - off myself
+      - end my life
+      - ending my life
+      - end my own life
+      - take my life
+      - take my own life
+      - taking my own life
+      - end it all
+      - ending it all
+      - end it tonight
+      - going to end it
+      - want to end it
+      - end everything
+      # Wanting to die or not to live
+      - want to die
+      - wanting to die
+      - want to be dead
+      - ready to die
+      - wish i was dead
+      - wish i were dead
+      - wish i could die
+      - wish i would die
+      - wish i was never born
+      - wish i had never been born
+      - better off dead
+      - better off without me
+      - don't want to live
+      - don't want to be alive
+      - don't want to exist
+      - don't want to be here anymore
+      - never want to wake up
+      - sleep and never wake up
+      - go to sleep forever
+      - disappear forever
+      - no reason to live
+      - nothing to live for
+      - not worth living
+      - no point in living
+      - no point living
+      - no point in life
+      - life is not worth it
+      - tired of living
+      - tired of being alive
+      - sick of living
+      - done with life
+      - done with living
+      - can't go on
+      # Self-harm
       - self harm
-      - self-harm
       - selfharm
+      - self harming
+      - self injury
+      - harm myself
+      - harming myself
       - hurt myself
       - hurting myself
       - cut myself
       - cutting myself
+      - cut my wrist
+      - cut my wrists
+      - slit my wrist
+      - slit my wrists
+      - slitting my wrists
+      - burn myself
+      - burning myself
+      # Methods
       - overdose
+      - overdosing
+      - take all my pills
+      - took all my pills
+      - swallow all my pills
+      - take all the pills
+      - bottle of pills
       - hang myself
-      - can't go on
-      - cant go on
-      # Curly apostrophes (phone keyboards); NFKC keeps them as they are
-      - don’t want to live
-      - can’t go on
+      - hanging myself
+      - noose
+      - jump off a bridge
+      - jump off the bridge
+      - jump off a building
+      - jump off the building
+      - jump off a roof
+      - jump off the roof
+      - jumping off a bridge
+      - jumping off a building
+      - jumping off the roof
+      - jump in front of a train
+      - jump in front of a car
+      - step in front of a train
+      - throw myself in front of
+      - drown myself
+      - shoot myself
+      - gun to my head
+      - poison myself
+      - drink poison
+      - starve myself to death
+      # Online slang
+      - unalive
+      - unalive myself
+      - unaliving
+      - unalived
+      - kms
+      - self delete
+      - self deleting
       # About someone else (Plan C.16: these match too)
       - kill himself
       - kill herself
       - kill themselves
+      - kill themself
+      - killing himself
+      - killing herself
+      - killing themselves
       - wants to die
       - end his life
       - end her life
       - end their life
+      - take his own life
+      - take her own life
+      - take their own life
+      - hurt himself
+      - hurt herself
+      - hurt themselves
+      - harm himself
+      - harm herself
+      - harm themselves
+      - hurting himself
+      - hurting herself
+      - hurting themselves
+      - harming himself
+      - harming herself
+      - harming themselves
     hi_latn:
       - khudkushi
-      - khudkhushi
       - aatmahatya
-      - atmahatya
+      # Wanting to die
       - marna chahta
       - marna chahti
+      - marna chahte
       - mar jana chahta
       - mar jana chahti
-      - mar jaana chahta
-      - mar jaana chahti
+      - mar jana chahte
+      - mar jana hai
+      - marna hai
+      - mar jaunga
+      - mar jaungi
+      - mar jaun
+      - mar jaye
+      - mar jana behtar
+      - maut chahiye
+      - maut aa jaye
+      - marne ka mann
+      - marne ka man
+      - marne ki ichha
+      - marne ke bare mein soch
+      # Not wanting to live
       - jeena nahi chahta
       - jeena nahi chahti
-      - jina nahi chahta
-      - jina nahi chahti
+      - jeena nahi chahte
+      - jeena nahi hai
+      - nahi jeena
+      - jeene ka mann nahi
+      - jeene ka man nahi
+      - jeene ki ichha nahi
+      - jeene ki wajah nahi
+      - jeene ka koi matlab nahi
+      - jeene ka matlab nahi
       - zindagi khatam
+      - zindagi se thak
+      - zindagi se tang
+      - zindagi nahi chahiye
+      # Ending one's life, self-harm, methods
       - apni jaan le
+      - apni jaan lena
+      - apni jaan de
+      - jaan de dunga
+      - jaan de dungi
       - khud ko khatam
+      - khud ko maar
+      - khud ko mar
+      - apne aap ko khatam
+      - apne aap ko maar
+      - apne aap ko mar
       - khud ko nuksan
+      - khud ko hurt
+      - khud ko chot
+      - khud ko kaat
+      - apne aap ko hurt
+      - nas kaat
+      - nas kat
+      - kalai kaat
+      - fansi laga
+      - zeher kha
+      - zeher pee
+      - saari goliyan kha
+      - sari goliyan kha
+      - train ke aage
+      - chhat se kood
+      - chhat se kud
+      - duniya chhod
+      - duniya chod
+      - sab khatam kar dunga
+      - sab khatam kar dungi
+      - sab khatam karna chahta
+      - sab khatam karna chahti
     hi_deva:
       - आत्महत्या
-      - ख़ुदकुशी
       - खुदकुशी
       - मरना चाहता
       - मरना चाहती
+      - मरना चाहते
+      - मर जाना चाहता
+      - मर जाना चाहती
+      - मर जाना है
+      - मरना है
+      - मर जाऊंगा
+      - मर जाऊंगी
+      - मर जाऊं
+      - मर जाए
+      - मौत चाहिए
+      - मरने का मन
+      - मरने की इच्छा
       - जीना नहीं चाहता
       - जीना नहीं चाहती
-      - ज़िंदगी खत्म
+      - जीना नहीं चाहते
+      - नहीं जीना
+      - जीने का मन नहीं
+      - जीने की इच्छा नहीं
+      - जीने की वजह नहीं
+      - जीने का कोई मतलब नहीं
+      - जिंदगी खत्म
+      - जिंदगी से थक
       - अपनी जान ले
+      - अपनी जान दे
+      - जान दे दूंगा
+      - जान दे दूंगी
+      - खुद को खत्म
+      - खुद को मार
+      - अपने आप को खत्म
+      - अपने आप को मार
+      - खुद को नुकसान
+      - खुद को चोट
+      - नस काट
+      - फांसी लगा
+      - जहर खा
+      - सारी गोलियां खा
+      - छत से कूद
+      - ट्रेन के आगे
+      - दुनिया छोड
+      - सब खत्म कर दूंगा
+      - सब खत्म कर दूंगी
   exceptions:
     - suicide sprint
     - suicide sprints
@@ -365,7 +560,152 @@ crisis:
     - suicide drills
     - suicide run
     - suicide runs
+    - suicide shuttle
+    - suicide shuttles
+    - suicide burpees
     - suicide squeeze
     - suicide squad
+    - killing myself at the gym
+    - killing myself in the gym
+    - killing myself laughing
+    - kill myself laughing
+    - overdose on coffee
+    - overdose on caffeine
+    - overdose on sugar
+    - overdose on chocolate
+    - overdose on carbs
+    - overdosing on coffee
+    - overdosing on sugar
+    - noose knot
+    - noose knots
   normalise:
+    # Anywhere in the message
     leet: {"0": o, "1": i, "3": e, "@": a, "$": s}
+    # Only between two letters: "d!e" and "w4nt", but "die!" stays "die!"
+    leet_inner: {"!": i, "|": i, "4": a, "5": s, "7": t}
+    # Apostrophes dropped ("don't" = "dont"), hyphens and underscores as spaces,
+    # Devanagari: chandrabindu as anusvara (हूँ = हूं), nukta dropped (ज़िंदगी = जिंदगी)
+    chars: {"'": "", "\u2019": "", "\u2018": "", "\u02BC": "", "`": "", "-": " ", "_": " ", "\u0901": "\u0902", "\u093C": ""}
+    # Whole words, after leetspeak and joined letters. Values are already normalised.
+    words:
+      # English contractions and chat spellings
+      dont: do not
+      doesnt: does not
+      didnt: did not
+      cant: can not
+      cnt: can not
+      cannot: can not
+      wont: will not
+      isnt: is not
+      im: i am
+      iam: i am
+      ive: i have
+      wanna: want to
+      wana: want to
+      wnna: want to
+      wnt: want
+      gonna: going to
+      gona: going to
+      gunna: going to
+      finna: going to
+      tryna: trying to
+      gotta: got to
+      u: you
+      ur: your
+      "2": to
+      ded: dead
+      kil: kill
+      kll: kill
+      killl: kill
+      myslf: myself
+      mysef: myself
+      myslef: myself
+      mysel: myself
+      meself: myself
+      my self: myself
+      him self: himself
+      her self: herself
+      them selves: themselves
+      # Misspellings and euphemisms of suicide
+      sucide: suicide
+      suicde: suicide
+      suiside: suicide
+      suicid: suicide
+      suside: suicide
+      sucid: suicide
+      suecide: suicide
+      suicdie: suicide
+      suicede: suicide
+      sewer slide: suicide
+      sucidal: suicidal
+      suicdal: suicidal
+      suisidal: suicidal
+      suicidel: suicidal
+      # Romanised Hindi spellings
+      chahata: chahta
+      chahtha: chahta
+      chahtaa: chahta
+      chahati: chahti
+      chahthi: chahti
+      chahate: chahte
+      chahthe: chahte
+      nahin: nahi
+      nai: nahi
+      nhi: nahi
+      nahee: nahi
+      nahii: nahi
+      jina: jeena
+      jine: jeene
+      mrna: marna
+      jaana: jana
+      jaaunga: jaunga
+      jaoonga: jaunga
+      jaaungi: jaungi
+      jaoongi: jaungi
+      jaaun: jaun
+      jaau: jaun
+      jau: jaun
+      jaaye: jaye
+      khudkhushi: khudkushi
+      khudkhusi: khudkushi
+      khudkushee: khudkushi
+      khud kushi: khudkushi
+      khud khushi: khudkushi
+      atmahatya: aatmahatya
+      aatmhatya: aatmahatya
+      atmhatya: aatmahatya
+      aatmahathya: aatmahatya
+      atmahathya: aatmahatya
+      khatm: khatam
+      khattam: khatam
+      khtm: khatam
+      khtam: khatam
+      jindagi: zindagi
+      zindgi: zindagi
+      jindgi: zindagi
+      zindagee: zindagi
+      zindegi: zindagi
+      muje: mujhe
+      mujhko: mujhe
+      mjhe: mujhe
+      zehar: zeher
+      jahar: zeher
+      jeher: zeher
+      faansi: fansi
+      phansi: fansi
+      phaansi: fansi
+      goliya: goliyan
+      goliyaan: goliyan
+      doonga: dunga
+      doongi: dungi
+      nuksaan: nuksan
+      ichchha: ichha
+      iccha: ichha
+      # Devanagari spellings (nukta and chandrabindu are folded in `chars`)
+      नही: नहीं
+      जाउंगा: जाऊंगा
+      जाउंगी: जाऊंगी
+      जिन्दगी: जिंदगी
+      दुंगा: दूंगा
+      दुंगी: दूंगी
+      चाहिये: चाहिए
