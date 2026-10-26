@@ -1,375 +1,219 @@
-"""
-Authentication routes for user registration, login, and account management.
+"""Account sessions and invites (Plan C.6, C.18).
 
-This module provides FastAPI router endpoints for authentication operations:
-- User registration: Create new user accounts with email and username validation
-- User login: Authenticate users and issue JWT access tokens
-- Account deletion: Delete user accounts and all associated data
+    POST   /auth/login {email, password}                   → cookie + {mode, csrf_token, ...}
+    POST   /auth/logout                                    → this session ends
+    POST   /auth/logout-all                                → every session of the user ends
+    POST   /invites/accept {token, email, password, consent: true}  → a new account, signed in
+    DELETE /auth/delete-account                            → the user and their data
 
-Key Features:
-- Password hashing using bcrypt (via app.auth)
-- JWT token generation for authenticated sessions
-- Email and username uniqueness validation
-- Account deletion with cascading data cleanup
-- Security considerations: Password verification, active user checks, error handling
-
-Security Considerations:
-- Passwords are hashed using bcrypt before storage
-- JWT tokens are used for authenticated sessions
-- Generic error messages prevent user enumeration attacks
-- Active user status is checked during login
-- Account deletion requires authentication
-
-Dependencies:
-- get_database: Database session dependency
-- get_current_user: Current authenticated user dependency (for delete_account)
-- app.auth: Password hashing and JWT token creation functions
+There is no registration: accounts come only from invites (`python -m app.cli
+create-invite`). The username is the email address, lowercased (Part E #23).
 """
 
+import hashlib
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from datetime import UTC, datetime
 from pathlib import Path
-from app.dependencies import get_database, get_current_user
+
+import anyio
+from fastapi import APIRouter, Depends, Request, Response, status
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import Session
+
+from app.config.settings import Settings, get_settings
+from app.data.state_store import StateStore
+from app.dependencies import (
+    get_current_user,
+    get_database,
+    get_db_sessions,
+    get_principal,
+    get_state_store,
+)
+from app.models.agent_execution_log import AgentExecutionLog
+from app.models.conversation_message import ConversationMessage
+from app.models.medical_history import MedicalHistory
+from app.models.mental_fitness_log import MentalFitnessLog
+from app.models.nutrition_log import NutritionLog
+from app.models.state import Invite
+from app.models.user import User
+from app.models.user_preferences import UserPreferences
+from app.models.workout_log import WorkoutLog
+from app.orchestration.passwords import (
+    get_password_hash,
+    password_problem,
+    verify_password,
+    verify_unknown_user,
+)
+from app.orchestration.principal import Principal, check_origin
+from app.orchestration.sessions import clear_session_cookie, set_session_cookie, start_account
+
+from .errors import ApiError
 
 logger = logging.getLogger(__name__)
-from app.auth import verify_password, get_password_hash, create_access_token
-from app.models.user import User
-from app.models.conversation_message import ConversationMessage
-from app.models.workout_log import WorkoutLog
-from app.models.nutrition_log import NutritionLog
-from app.models.mental_fitness_log import MentalFitnessLog
-from app.models.medical_history import MedicalHistory
-from app.models.user_preferences import UserPreferences
-from app.models.agent_execution_log import AgentExecutionLog
-from app.schemas.user import UserRegister, UserLogin, UserResponse, Token
 
-# FastAPI router for authentication endpoints
-# Prefix: /auth (all routes will be prefixed with /auth)
-# Tags: ["auth"] (for API documentation grouping)
 router = APIRouter(prefix="/auth", tags=["auth"])
+invites_router = APIRouter(prefix="/invites", tags=["auth"])
+
+# The privacy note the user agrees to at invite acceptance; bump when its text changes (P7.5)
+CONSENT_VERSION = "2026-10-draft"
+PASSWORD_MAX_CHARS = 200  # long enough for any passphrase; bytes are checked separately
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserRegister, db: Session = Depends(get_database)):
-    """
-    Register a new user account.
-    
-    This endpoint creates a new user account with email and username validation.
-    Passwords are hashed using bcrypt before storage. The user is created as active
-    by default and can immediately log in after registration.
-    
-    Registration Flow:
-        1. Validate email uniqueness (check if email already exists)
-        2. Validate username uniqueness (check if username already taken)
-        3. Hash password using bcrypt
-        4. Create new user record with hashed password
-        5. Commit to database and return user data
-    
-    Args:
-        user_data: UserRegister schema containing:
-            - email: str (validated email format)
-            - username: str (validated username format)
-            - password: str (will be hashed before storage)
-        db: Database session (injected dependency)
-    
-    Returns:
-        UserResponse: Created user data (without password hash)
-        
-    Raises:
-        HTTPException 400: If email or username already exists
-        HTTPException 400: If database integrity error occurs
-        
-    Security Considerations:
-        - Passwords are never stored in plain text (hashed with bcrypt)
-        - Email and username uniqueness prevents duplicate accounts
-        - Generic error messages prevent user enumeration attacks
-        - Database integrity errors are caught and handled gracefully
-        
-    Example:
-        POST /auth/register
-        {
-            "email": "user@example.com",
-            "username": "username",
-            "password": "secure_password123"
-        }
-    """
-    # Check if user with email already exists
-    # Prevents duplicate email addresses in the system
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Check if username already exists
-    # Prevents duplicate usernames in the system
-    existing_username = db.query(User).filter(User.username == user_data.username).first()
-    if existing_username:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken"
-        )
-    
-    # Create new user
-    # Hash password using bcrypt before storage
-    # Password hash is stored, never plain text password
-    try:
-        hashed_password = get_password_hash(user_data.password)
-    except ValueError as e:
-        # get_password_hash raises ValueError if password exceeds bcrypt's 72-byte limit
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    new_user = User(
-        email=user_data.email,
-        username=user_data.username,
-        password_hash=hashed_password,  # Store hashed password, not plain text
-        is_active=True  # User is active by default (can log in immediately)
-    )
-    
-    try:
-        # Add user to database session
-        db.add(new_user)
-        # Commit transaction to database
-        db.commit()
-        # Refresh user object to get database-generated fields (e.g., id, created_at)
-        db.refresh(new_user)
-        return new_user  # Return user data (password hash excluded by UserResponse schema)
-    except IntegrityError:
-        # Handle database integrity errors (e.g., unique constraint violations)
-        db.rollback()  # Rollback transaction on error
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User registration failed"
-        )
+def _normalise_email(email: str) -> str:
+    return email.strip().lower()
 
 
-@router.post("/login", response_model=Token)
-async def login(credentials: UserLogin, db: Session = Depends(get_database)):
-    """
-    Authenticate user and return JWT access token.
-    
-    This endpoint authenticates a user by verifying their email and password,
-    then issues a JWT access token for authenticated session management.
-    
-    Login Flow:
-        1. Find user by email address
-        2. Verify password using bcrypt comparison
-        3. Check if user account is active
-        4. Generate JWT access token with user ID
-        5. Return token for use in Authorization header
-    
-    Args:
-        credentials: UserLogin schema containing:
-            - email: str (user's email address)
-            - password: str (user's plain text password)
-        db: Database session (injected dependency)
-    
-    Returns:
-        Token: Dictionary containing:
-            - access_token: str (JWT token for authenticated requests)
-            - token_type: str ("bearer" for Bearer token authentication)
-            
-    Raises:
-        HTTPException 401: If email or password is incorrect
-        HTTPException 403: If user account is inactive
-        
-    Security Considerations:
-        - Generic error message ("Incorrect email or password") prevents user enumeration
-        - Password verification uses bcrypt constant-time comparison
-        - JWT token contains user ID in 'sub' claim (subject)
-        - Token type is "bearer" for Bearer token authentication
-        - Active user check prevents login for deactivated accounts
-        
-    JWT Token Details:
-        - Token contains user ID in 'sub' claim (must be string for python-jose)
-        - Token expiration is configured in app.auth.create_access_token()
-        - Token is used in Authorization header: "Bearer <access_token>"
-        
-    Example:
-        POST /auth/login
-        {
-            "email": "user@example.com",
-            "password": "secure_password123"
-        }
-        
-        Response:
-        {
-            "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            "token_type": "bearer"
-        }
-    """
-    # Find user by email
-    # Email is used as the unique identifier for login
-    user = db.query(User).filter(User.email == credentials.email).first()
-    
-    # Check if user exists
-    # Generic error message prevents user enumeration attacks
-    # Same message for both email and password errors
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",  # Generic message for security
-            headers={"WWW-Authenticate": "Bearer"},  # Required for 401 responses
-        )
-    
-    # Verify password
-    # Uses bcrypt to compare plain text password with stored hash
-    # Constant-time comparison prevents timing attacks
-    if not verify_password(credentials.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",  # Generic message for security
-            headers={"WWW-Authenticate": "Bearer"},  # Required for 401 responses
-        )
-    
-    # Check if user is active
-    # Prevents login for deactivated accounts
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=PASSWORD_MAX_CHARS)
+
+
+class AcceptInviteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=16, max_length=128)
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=PASSWORD_MAX_CHARS)
+    consent: bool
+
+
+def invite_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _signed_in(response: Response, started, user: User, settings: Settings) -> dict:
+    set_session_cookie(response, started, settings)
+    return {**started.body(settings), "user": {"id": user.id, "email": user.email}}
+
+
+@router.post("/login")
+async def login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    store: StateStore = Depends(get_state_store),
+    settings: Settings = Depends(get_settings),
+    sessions: async_sessionmaker[AsyncSession] = Depends(get_db_sessions),
+) -> dict:
+    check_origin(request, settings)
+    email = _normalise_email(body.email)
+    async with sessions() as db:
+        # Older accounts may differ only by case; the oldest one wins
+        user = (await db.execute(
+            select(User).where(func.lower(User.email) == email).order_by(User.id).limit(1)
+        )).scalar_one_or_none()
+    # bcrypt takes ~0.25 s of CPU: off the event loop, or every request would wait
+    ok = await anyio.to_thread.run_sync(
+        (lambda: verify_password(body.password, user.password_hash)) if user
+        else (lambda: verify_unknown_user(body.password)))
+    if not ok:
+        raise ApiError(401, "bad_credentials", "Incorrect email or password.")
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
-        )
-    
-    # Create access token
-    # JWT token contains user ID in 'sub' claim (subject)
-    # Note: 'sub' must be a string for python-jose library
-    access_token = create_access_token(data={"sub": str(user.id)})
-    
-    # Return token for use in Authorization header
-    # Token type is "bearer" for Bearer token authentication
-    return {"access_token": access_token, "token_type": "bearer"}
+        raise ApiError(403, "inactive", "This account is not active.")
+    started = await start_account(request, user.id, store, settings)
+    return _signed_in(response, started, user, settings)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    response: Response,
+    principal: Principal = Depends(get_principal),
+    store: StateStore = Depends(get_state_store),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    """Ends this session, guest or account ("Clear my data" ends a guest session)."""
+    await store.end_session(principal.raw_session_id)
+    clear_session_cookie(response, settings)
+
+
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+async def logout_all(
+    response: Response,
+    principal: Principal = Depends(get_principal),
+    store: StateStore = Depends(get_state_store),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    if principal.user_id is None:
+        raise ApiError(401, "account_required", "Please sign in to your account.")
+    await store.end_user_sessions(principal.user_id)
+    clear_session_cookie(response, settings)
+
+
+@invites_router.post("/accept")
+async def accept_invite(
+    body: AcceptInviteRequest,
+    request: Request,
+    response: Response,
+    store: StateStore = Depends(get_state_store),
+    settings: Settings = Depends(get_settings),
+    sessions: async_sessionmaker[AsyncSession] = Depends(get_db_sessions),
+) -> dict:
+    check_origin(request, settings)
+    if body.consent is not True:
+        raise ApiError(400, "consent_required", "Please agree to the privacy note to continue.")
+    if problem := password_problem(body.password):
+        raise ApiError(400, "weak_password", problem)
+    email = _normalise_email(body.email)
+    password_hash = await anyio.to_thread.run_sync(get_password_hash, body.password)
+    async with sessions() as db:
+        async with db.begin():
+            invite = (await db.execute(
+                select(Invite).where(Invite.token_hash == invite_token_hash(body.token))
+                .with_for_update()
+            )).scalar_one_or_none()
+            if invite is None:
+                raise ApiError(404, "invite_not_found", "This invite link isn't valid.")
+            if invite.used_at is not None:
+                raise ApiError(410, "invite_used", "This invite has already been used.")
+            if invite.expires_at <= datetime.now(UTC):
+                raise ApiError(410, "invite_expired", "This invite has expired.")
+            taken = (await db.execute(
+                select(User.id).where(func.lower(User.email) == email)
+            )).first()
+            if taken:
+                raise ApiError(409, "email_taken", "An account with this email already "
+                               "exists. Please sign in instead.")
+            now = datetime.now(UTC)
+            user = User(email=email, username=email, password_hash=password_hash,
+                        is_active=True, consent_at=now, consent_version=CONSENT_VERSION)
+            db.add(user)
+            try:
+                await db.flush()
+            except IntegrityError:  # the same email accepted at the same moment
+                raise ApiError(409, "email_taken", "An account with this email already "
+                               "exists. Please sign in instead.") from None
+            invite.used_at, invite.used_by = now, user.id
+    started = await start_account(request, user.id, store, settings)
+    return _signed_in(response, started, user, settings)
 
 
 @router.delete("/delete-account", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(
+    response: Response,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_database)
+    db: Session = Depends(get_database),
+    settings: Settings = Depends(get_settings),
 ):
-    """
-    Delete the current user's account and all associated data.
-    
-    This endpoint permanently deletes the authenticated user's account and all
-    associated data. This action is irreversible and should be used with caution.
-    
-    Deletion Flow:
-        1. Delete conversation messages and associated image files
-        2. Delete workout logs
-        3. Delete nutrition logs
-        4. Delete mental fitness logs
-        5. Delete medical history
-        6. Delete user preferences
-        7. Delete agent execution logs
-        8. Delete user account
-        9. Commit all deletions in a single transaction
-    
-    Args:
-        current_user: Authenticated user (injected dependency from get_current_user)
-                     Ensures only authenticated users can delete their own account
-        db: Database session (injected dependency)
-    
-    Returns:
-        None: 204 No Content response on successful deletion
-        
-    Raises:
-        HTTPException 500: If deletion fails (transaction rolled back)
-        
-    Security Considerations:
-        - Requires authentication (get_current_user dependency)
-        - Users can only delete their own account (current_user.id)
-        - All associated data is deleted to prevent orphaned records
-        - Image files are deleted from filesystem
-        - Transaction ensures atomicity (all or nothing)
-        
-    Data Deleted:
-        - Conversation messages (with image file cleanup)
-        - Workout logs
-        - Nutrition logs
-        - Mental fitness logs
-        - Medical history
-        - User preferences
-        - Agent execution logs
-        - User account
-        
-    Note:
-        - This action is irreversible
-        - Image file deletion failures are ignored (continues deletion)
-        - All deletions are performed in a single transaction
-        - Database rollback on any error ensures data consistency
-        
-    Example:
-        DELETE /auth/delete-account
-        Headers: Authorization: Bearer <access_token>
-    """
+    """Deletes the user and every row that references them; sessions cascade.
+    P4.9 replaces this with C.18's version (deletion queue, object storage)."""
     try:
-        user_id = current_user.id  # Get user ID from authenticated user
-        
-        # 1. Delete every image the user uploaded
-        # Uploads are named "{user_id}_{hex}.jpg", so this also catches images
-        # that were uploaded but never attached to a message
-        UPLOADS_DIR = Path("uploads/images")
-        for image_file in UPLOADS_DIR.glob(f"{user_id}_*.jpg"):
+        user_id = current_user.id
+        for image_file in Path("uploads/images").glob(f"{user_id}_*.jpg"):
             try:
                 image_file.unlink()
             except OSError as e:
                 logger.warning("Failed to delete image file %s: %s", image_file, e)
-
-        # Delete conversation messages from database
-        db.query(ConversationMessage).filter(
-            ConversationMessage.user_id == user_id
-        ).delete()
-        
-        # 2. Delete workout logs
-        # All workout log entries for this user
-        db.query(WorkoutLog).filter(
-            WorkoutLog.user_id == user_id
-        ).delete()
-        
-        # 3. Delete nutrition logs
-        # All nutrition log entries for this user
-        db.query(NutritionLog).filter(
-            NutritionLog.user_id == user_id
-        ).delete()
-        
-        # 4. Delete mental fitness logs
-        # All mental fitness log entries for this user
-        db.query(MentalFitnessLog).filter(
-            MentalFitnessLog.user_id == user_id
-        ).delete()
-        
-        # 5. Delete medical history
-        # User's medical history record
-        db.query(MedicalHistory).filter(
-            MedicalHistory.user_id == user_id
-        ).delete()
-        
-        # 6. Delete user preferences
-        # User's preferences record
-        db.query(UserPreferences).filter(
-            UserPreferences.user_id == user_id
-        ).delete()
-        
-        # 7. Delete agent execution logs
-        # Traces of this user's agent runs (they reference users.id)
-        db.query(AgentExecutionLog).filter(
-            AgentExecutionLog.user_id == user_id
-        ).delete()
-        
-        # 8. Delete user account
-        # Finally delete the user account itself
+        for model in (ConversationMessage, WorkoutLog, NutritionLog, MentalFitnessLog,
+                      MedicalHistory, UserPreferences, AgentExecutionLog):
+            db.query(model).filter(model.user_id == user_id).delete()
         db.query(User).filter(User.id == user_id).delete()
-        
-        # Commit all deletions in a single transaction
-        # Ensures atomicity: all deletions succeed or all are rolled back
         db.commit()
-        return None  # 204 No Content response
-    except Exception as e:
-        # Rollback transaction on any error
-        # Ensures data consistency if deletion fails
+    except Exception:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting account: {str(e)}"
-        )
-
+        logger.exception("account deletion failed")
+        raise ApiError(500, "delete_failed", "We couldn't delete your account. "
+                       "Please try again.") from None
+    clear_session_cookie(response, settings)

@@ -26,7 +26,6 @@ langsmith==0.4.49
 openai==2.54.0  # 3.x blocked by langchain-openai<3 until P4.12
 
 # Authentication
-python-jose[cryptography]==3.5.0
 bcrypt==5.0.0
 
 # Data validation

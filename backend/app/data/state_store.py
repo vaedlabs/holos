@@ -283,6 +283,19 @@ class StateStore:
             )).one()
         return RateResult(count <= limit, count, max(int(retry_after), 1))
 
+    async def peek_rate(self, key: str, window: timedelta) -> int:
+        """The count in the current fixed window, without counting a request."""
+        seconds = int(window.total_seconds())
+        async with self._engine.connect() as conn:
+            count = (await conn.execute(
+                text(
+                    "SELECT count FROM rate_counters WHERE key = :key AND window_start = "
+                    "to_timestamp(floor(extract(epoch FROM now()) / :s) * :s)"
+                ),
+                {"key": key, "s": seconds},
+            )).scalar_one_or_none()
+        return count or 0
+
     async def purge_rate_counters(self, older_than: timedelta) -> int:
         async with self._engine.begin() as conn:
             result = await conn.execute(

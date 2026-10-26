@@ -25,6 +25,8 @@ The application uses a modular architecture with separate routers for:
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.config.settings import get_settings
+from app.routers.errors import ApiError, api_error_handler
 from dotenv import load_dotenv
 import os
 from pathlib import Path
@@ -68,7 +70,7 @@ async def validate_environment():
     
     Validated Variables:
     Required (application fails to start if missing):
-    - JWT_SECRET_KEY: Must be at least 32 characters for security
+    - SESSION_SECRET, IP_SALT_SECRET, origins, Turnstile keys: checked by get_settings()
     - DATABASE_URL: PostgreSQL connection string
     - OPENAI_API_KEY: Required for Physical Fitness, Mental Fitness, and Coordinator agents
     - GOOGLE_GEMINI_API_KEY: Required for Nutrition Agent (image analysis and meal planning)
@@ -90,11 +92,6 @@ async def validate_environment():
     # Each entry specifies if the variable is required, minimum length (if applicable),
     # and a human-readable description for error messages
     required_vars = {
-        "JWT_SECRET_KEY": {
-            "required": True,
-            "min_length": 32,  # Minimum length for cryptographic security
-            "description": "JWT secret key for token signing (must be at least 32 characters)"
-        },
         "DATABASE_URL": {
             "required": True,
             "description": "PostgreSQL database connection string"
@@ -134,7 +131,7 @@ async def validate_environment():
                 missing_vars.append(f"{var_name} ({config['description']})")
         else:
             # Variable exists, check if it meets validation criteria
-            # Validate minimum length if specified (e.g., JWT_SECRET_KEY must be >= 32 chars)
+            # Validate minimum length if specified (if a rule sets one)
             if "min_length" in config and len(value) < config["min_length"]:
                 invalid_vars.append(
                     f"{var_name}: must be at least {config['min_length']} characters long "
@@ -165,6 +162,7 @@ async def validate_environment():
         raise ValueError(error_msg)
     
     # All validations passed
+    get_settings()  # sessions, origins, Turnstile (Plan C.6); raises if any is missing
     logger.info("Environment validation passed - all required variables are set and valid")
     
     # Log status of optional variables for visibility
@@ -181,32 +179,20 @@ async def validate_environment():
 # Must be registered before other middleware to catch all errors
 from app.middleware.error_handler import register_error_handlers
 register_error_handlers(app)
+app.add_exception_handler(ApiError, api_error_handler)
 
 # Configure CORS (Cross-Origin Resource Sharing)
 # CORS allows the frontend (running on a different origin) to make requests to this API
 # Load allowed origins from environment variable (comma-separated list)
 # Default to localhost ports 3000 and 3001 for local development
-cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001")
-# Parse comma-separated string into list, stripping whitespace and filtering empty strings
-allowed_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+allowed_origins = [get_settings().app_origin]
 
-# Middleware registration order: Starlette runs middleware in reverse registration order
-# (last registered = outermost). Rate limiting is outermost so it can short-circuit
-# expensive requests early. CORS is inner so it handles preflight responses.
-# The RateLimitMiddleware bypasses OPTIONS requests and manually injects CORS headers
-# into any 429 responses it generates, so the browser always gets valid CORS headers.
-#
-# Execution order:
-#   Request:  RateLimitMiddleware → CORSMiddleware → route handler
-#   Response: route handler → CORSMiddleware → RateLimitMiddleware
-
-# 1. Register CORS first (runs second / inside rate limiting)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-CSRF-Token", "X-Contract-Version"],
 )
 
 # 2. Register rate limiting last (runs first / outermost)
@@ -250,13 +236,15 @@ async def health():
 
 # Include routers
 # Import all router modules - each router handles a specific domain of endpoints
-from app.routers import auth, medical, agents, preferences, conversation, logs, cache
+from app.routers import auth, medical, agents, preferences, conversation, logs, cache, session
 
 # Register routers with the FastAPI application
 # Order matters: more specific routes should be registered before more general ones
 # However, FastAPI handles route matching intelligently, so this order is primarily
 # for clarity and potential future route conflicts
 app.include_router(auth.router)          # Authentication endpoints (/auth/*)
+app.include_router(auth.invites_router)  # Invite acceptance (/invites/*)
+app.include_router(session.router)       # Guest sessions and CSRF (/session/*)
 app.include_router(medical.router)       # Medical history endpoints (/medical/*)
 app.include_router(agents.router)        # AI agent endpoints (/agents/*)
 app.include_router(preferences.router)    # User preferences endpoints (/preferences/*)

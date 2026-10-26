@@ -1,76 +1,10 @@
-"""
-User schemas for request/response validation.
-
-This module defines Pydantic schemas for user-related API endpoints. These schemas
-provide request/response validation, serialization, and documentation for the
-authentication and user management endpoints.
-
-Key Features:
-- User registration schema (email, username, password)
-- User login schema (email, password)
-- User response schema (excludes sensitive data like password_hash)
-- Token response schema (JWT access token)
-
-Security Considerations:
-- Password fields are never included in response schemas
-- EmailStr validation ensures proper email format
-- Token schema includes token type for proper authentication header format
+"""The user as the API returns it (no password hash). Login and invite requests are
+defined next to their routes in app/routers/auth.py (Plan C.6, C.18).
 """
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
-
-
-class UserRegister(BaseModel):
-    """
-    User registration schema for creating new user accounts.
-    
-    This schema validates the input data when a new user registers. All fields
-    are required and validated before user creation.
-    
-    Attributes:
-        email: User's email address (validated as proper email format)
-        username: User's chosen username (must be unique)
-        password: User's password (will be hashed before storage)
-        
-    Validation:
-        - Email must be valid email format (EmailStr validation)
-        - Username must be non-empty string
-        - Password must be non-empty string
-        
-    Note:
-        - Password is never stored in plain text - it's hashed using bcrypt
-        - Email and username uniqueness is enforced at the database level
-        - Password should meet security requirements (length, complexity) in frontend
-    """
-    email: EmailStr
-    username: str
-    password: str
-
-
-class UserLogin(BaseModel):
-    """
-    User login schema for authenticating existing users.
-    
-    This schema validates the input data when a user attempts to log in.
-    Both fields are required for authentication.
-    
-    Attributes:
-        email: User's email address (used to identify the user)
-        password: User's password (verified against stored hash)
-        
-    Validation:
-        - Email must be valid email format (EmailStr validation)
-        - Password must be non-empty string
-        
-    Note:
-        - Email is used to look up the user account
-        - Password is verified against the stored bcrypt hash
-        - On successful authentication, a JWT token is returned
-    """
-    email: EmailStr
-    password: str
 
 
 class UserResponse(BaseModel):
@@ -110,28 +44,3 @@ class UserResponse(BaseModel):
         # Enable creating schema instance from SQLAlchemy model attributes
         # This allows: UserResponse.from_orm(user_model_instance)
         from_attributes = True
-
-
-class Token(BaseModel):
-    """
-    Token response schema for JWT authentication.
-    
-    This schema defines the response format when a user successfully authenticates.
-    It includes the JWT access token and token type for proper authentication.
-    
-    Attributes:
-        access_token: JWT access token string (used in Authorization header)
-        token_type: Token type, defaults to "bearer" (OAuth 2.0 standard)
-        
-    Usage:
-        The access_token should be included in subsequent API requests as:
-        Authorization: Bearer <access_token>
-        
-    Note:
-        - Token type is always "bearer" for JWT tokens
-        - Access token expires after configured time (default: 30 minutes)
-        - Token is signed with JWT_SECRET_KEY to prevent tampering
-    """
-    access_token: str
-    token_type: str = "bearer"  # OAuth 2.0 standard token type
-

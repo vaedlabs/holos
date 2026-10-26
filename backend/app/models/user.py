@@ -92,6 +92,10 @@ class User(Base):
     # Only updates on actual changes (onupdate=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Set when an invite is accepted (Plan C.18, Part E #23); null for older accounts
+    consent_at = Column(DateTime(timezone=True), nullable=True)
+    consent_version = Column(String(32), nullable=True)
+
     # Relationships to other models
     # These provide convenient access to related data through SQLAlchemy ORM
     

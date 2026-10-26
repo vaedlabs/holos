@@ -32,7 +32,14 @@ jobs:
       OPENAI_API_KEY: sk-ci-placeholder
       GOOGLE_GEMINI_API_KEY: ci-placeholder
       TAVILY_API_KEY: ci-placeholder
-      JWT_SECRET_KEY: ci-placeholder-secret-key-at-least-32-chars
+      # Sessions (Plan C.6): CI-only values; Turnstile uses Cloudflare's public test key
+      SESSION_SECRET: ci-session-secret-placeholder-at-least-32-bytes
+      IP_SALT_SECRET: ci-ip-salt-secret-placeholder-at-least-32-bytes
+      APP_ORIGIN: http://localhost:3000
+      API_ORIGIN: http://localhost:8000
+      TRUSTED_PROXY: none
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+      TURNSTILE_INTERACTIVE_SECRET_KEY: 1x0000000000000000000000000000000AA
       ENVIRONMENT: test
     steps:
       - uses: actions/checkout@v5

@@ -22,7 +22,7 @@ def check_imports():
         from app.models import User, MedicalHistory, UserPreferences, WorkoutLog, NutritionLog, MentalFitnessLog
         print("✓ Models import successfully")
         
-        from app.auth import verify_password, get_password_hash, create_access_token
+        from app.orchestration.passwords import verify_password, get_password_hash
         print("✓ Auth utilities import successfully")
         
         from app.services.medical_service import get_medical_history, check_exercise_conflict
@@ -85,7 +85,7 @@ def check_auth_functions():
     """Test auth utility functions"""
     print("\nTesting auth functions...")
     try:
-        from app.auth import get_password_hash, verify_password
+        from app.orchestration.passwords import get_password_hash, verify_password
         
         # Test password hashing (use short password to avoid bcrypt 72-byte limit)
         password = "test123"
@@ -141,7 +141,7 @@ def check_environment_variables():
     
     required_vars = {
         "DATABASE_URL": os.getenv("DATABASE_URL"),
-        "JWT_SECRET_KEY": os.getenv("JWT_SECRET_KEY"),
+        "SESSION_SECRET": os.getenv("SESSION_SECRET"),
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
     }
     
