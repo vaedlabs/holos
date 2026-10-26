@@ -130,6 +130,12 @@ def test_breath_holding_with_asthma():
     (HALAL, food("Pork chop", ["pork"]), "block", {"DI-HALAL-01", "DI-HALAL-02"}),
     (HALAL, food("Chicken tikka", ["chicken", "curd"]), "warn", {"DI-HALAL-02"}),
     (HALAL, food("Chicken sausage", ["chicken sausage"]), "warn", {"DI-HALAL-02"}),
+    # Spices (catalogue version 2): compounded hing has wheat; blends fail closed
+    (Profile(allergen_tags=("gluten",)), food("Dal tadka", ["dal", "hing"]), "block",
+     {"DI-ALG-01"}),
+    (Profile(allergen_tags=("mustard",)), food("Veg curry", ["peas", "curry powder"]), "block",
+     {"DI-ALG-01"}),
+    (NUTS, food("Kesar kheer", ["rice", "milk", "saffron", "elaichi"]), "allow", set()),
 ])
 def test_food_items(profile, item, action, rules):
     result = gate("nutrition", meal(item), profile)

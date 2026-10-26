@@ -11,7 +11,8 @@
 # Lactose: only dairy with meaningful lactose carries it. Ghee, butter and
 # hard cheese don't, because most lactose-intolerant people eat them.
 
-version: 1
+# 2: hing contains gluten; common spices, blends and basics added
+version: 2
 
 exercises:
   # --- Squats and lunges (every variant carries knee_load: high) ---
@@ -897,5 +898,45 @@ ingredients:
   - {name: coriander, aliases: [dhania, cilantro], allergens: [], diet_conflicts: []}
   - {name: chilli, aliases: [green chilli, red chilli, mirch, chili], allergens: [], diet_conflicts: []}
   - {name: garam masala, aliases: [], allergens: [], diet_conflicts: []}
-  - {name: asafoetida, aliases: [hing], allergens: [], diet_conflicts: []}
+  # Most hing sold in India is compounded with wheat flour (owner, 26 Oct 2026)
+  - {name: asafoetida, aliases: [hing], allergens: [gluten], diet_conflicts: []}
+
+  # --- Whole spices, powders and flavourings ---
+  - {name: cardamom, aliases: [elaichi, ilaichi, green cardamom, black cardamom], allergens: [], diet_conflicts: []}
+  - {name: saffron, aliases: [kesar, zafran], allergens: [], diet_conflicts: []}
+  - {name: cinnamon, aliases: [dalchini], allergens: [], diet_conflicts: []}
+  - {name: cloves, aliases: [clove, laung], allergens: [], diet_conflicts: []}
+  - {name: black pepper, aliases: [kali mirch, pepper, peppercorns], allergens: [], diet_conflicts: []}
+  - {name: nutmeg, aliases: [jaiphal], allergens: [], diet_conflicts: []}
+  - {name: mace, aliases: [javitri], allergens: [], diet_conflicts: []}
+  - {name: fennel seeds, aliases: [saunf, fennel], allergens: [], diet_conflicts: []}
+  - {name: ajwain, aliases: [carom seeds, carom], allergens: [], diet_conflicts: []}
+  - {name: fenugreek seeds, aliases: [methi seeds, methi dana], allergens: [], diet_conflicts: []}
+  - {name: kasuri methi, aliases: [dried fenugreek leaves], allergens: [], diet_conflicts: []}
+  - {name: bay leaf, aliases: [bay leaves, tej patta], allergens: [], diet_conflicts: []}
+  - {name: curry leaves, aliases: [kadi patta, kari patta, curry patta], allergens: [], diet_conflicts: []}
+  - {name: star anise, aliases: [chakri phool], allergens: [], diet_conflicts: []}
+  - {name: poppy seeds, aliases: [khus khus, khuskhus], allergens: [], diet_conflicts: []}
+  - {name: nigella seeds, aliases: [kalonji], allergens: [], diet_conflicts: []}
+  - {name: tamarind, aliases: [imli], allergens: [], diet_conflicts: []}
+  - {name: dry mango powder, aliases: [amchur, amchoor], allergens: [], diet_conflicts: []}
+  # Dried ginger is still a root: fails closed for Jain diets, like fresh ginger
+  - {name: dry ginger, aliases: [saunth, sonth, ginger powder], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: black salt, aliases: [kala namak], allergens: [], diet_conflicts: []}
+  - {name: rose water, aliases: [gulab jal], allergens: [], diet_conflicts: []}
+  - {name: kewra water, aliases: [kewra], allergens: [], diet_conflicts: []}
+  - {name: vanilla, aliases: [vanilla essence], allergens: [], diet_conflicts: []}
+  # Blends: tagged with what common brands contain, so an allergy fails closed
+  - {name: curry powder, aliases: [], allergens: [mustard, celery], diet_conflicts: []}
+  - {name: chaat masala, aliases: [], allergens: [gluten], diet_conflicts: []}
+  - {name: sambar powder, aliases: [sambar masala], allergens: [gluten], diet_conflicts: []}
+  # Kitchen basics
+  - {name: baking soda, aliases: [meetha soda, bicarbonate of soda], allergens: [], diet_conflicts: []}
+  - {name: baking powder, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: yeast, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: cornflour, aliases: [cornstarch, corn starch], allergens: [], diet_conflicts: []}
+  - {name: vinegar, aliases: [white vinegar, apple cider vinegar], allergens: [], diet_conflicts: []}
+  - {name: malt vinegar, aliases: [], allergens: [gluten], diet_conflicts: []}
+  - {name: tea, aliases: [chai, chai patti, green tea, black tea], allergens: [], diet_conflicts: []}
+  - {name: coffee, aliases: [instant coffee, black coffee], allergens: [], diet_conflicts: []}
   - {name: water, aliases: [], allergens: [], diet_conflicts: []}
