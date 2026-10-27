@@ -29,6 +29,7 @@ class Settings:
     turnstile_secret: str
     turnstile_interactive_secret: str
     environment: str
+    tavily_billing_day: int = 1  # day of the month Tavily's credits reset (C.12 month)
 
     @property
     def secure_cookies(self) -> bool:
@@ -69,6 +70,9 @@ def load_settings() -> Settings:
     if proxy == "host":
         # The host's own client-IP header is decided with the host (Plan P7.1)
         raise SettingsError("TRUSTED_PROXY=host isn't supported until the host is chosen (P7.1)")
+    billing_day = os.getenv("TAVILY_BILLING_DAY", "1").strip()
+    if not billing_day.isascii() or not billing_day.isdigit() or not 1 <= int(billing_day) <= 28:
+        raise SettingsError("TAVILY_BILLING_DAY must be a day of the month from 1 to 28")
     session_secret, ip_salt = _secret("SESSION_SECRET"), _secret("IP_SALT_SECRET")
     if session_secret == ip_salt:
         raise SettingsError("SESSION_SECRET and IP_SALT_SECRET must be different")
@@ -81,6 +85,7 @@ def load_settings() -> Settings:
         turnstile_secret=_required("TURNSTILE_SECRET_KEY"),
         turnstile_interactive_secret=_required("TURNSTILE_INTERACTIVE_SECRET_KEY"),
         environment=os.getenv("ENVIRONMENT", "development"),
+        tavily_billing_day=int(billing_day),
     )
 
 

@@ -11,6 +11,7 @@ conditional updates) or by row locks (`SELECT ... FOR UPDATE`), never by Python 
 
 import hashlib
 import json
+import random
 import secrets
 import uuid
 from collections.abc import Awaitable, Callable
@@ -54,6 +55,25 @@ class RateResult:
 
 
 @dataclass(frozen=True)
+class Counter:
+    """One request counted at admission. Without `window_start`, windows are fixed and
+    aligned to the Unix epoch, so day windows start at 00:00 UTC."""
+
+    key: str
+    window: timedelta
+    limit: int
+    name: str  # which limit refused, for the caller's message
+    window_start: datetime | None = None
+
+
+@dataclass(frozen=True)
+class AdmitResult:
+    admitted: bool
+    refused_by: str | None = None  # duplicate, lease, ip_slot, global_slot or a Counter name
+    retry_after: int = 0
+
+
+@dataclass(frozen=True)
 class SpendKey:
     """One spend row to reserve against. The caller picks the period bucket (P4.3)."""
 
@@ -62,6 +82,7 @@ class SpendKey:
     period_start: datetime
     cap_usd: Decimal | None = None
     cap_credits: int | None = None
+    name: str = ""  # which cap, for the caller's message
 
 
 @dataclass(frozen=True)
@@ -84,6 +105,15 @@ CommitWrite = Callable[[AsyncSession, dict[str, Any]], Awaitable[dict[str, Any]]
 
 _SESSION_COLUMNS = "id_hash, mode, user_id, ip_key, created_at, expires_at"
 
+_HIT = text(
+    "INSERT INTO rate_counters (key, window_start, count) VALUES (:key, "
+    "COALESCE(CAST(:start AS timestamptz), "
+    "to_timestamp(floor(extract(epoch FROM now()) / :s) * :s)), 1) "
+    "ON CONFLICT (key, window_start) DO UPDATE SET count = rate_counters.count + 1 "
+    "RETURNING count, "
+    "ceil(extract(epoch FROM window_start + make_interval(secs => :s) - now()))"
+)
+
 _LEASE_UPSERT = text(
     "INSERT INTO inflight_leases (principal_key, trace_id, expires_at) "
     "VALUES (:key, :trace, now() + :ttl) "
@@ -91,6 +121,15 @@ _LEASE_UPSERT = text(
     "SET trace_id = excluded.trace_id, expires_at = excluded.expires_at "
     "WHERE inflight_leases.expires_at < now() "
     "RETURNING trace_id"
+)
+
+_SLOT_INSERT = text(
+    "INSERT INTO inflight_leases (principal_key, trace_id, expires_at) "
+    "VALUES (:key, :trace, now() + :ttl) ON CONFLICT DO NOTHING RETURNING trace_id"
+)
+_SLOT_TAKE_OVER = text(
+    "UPDATE inflight_leases SET trace_id = :trace, expires_at = now() + :ttl "
+    "WHERE principal_key = :key AND expires_at < now() RETURNING trace_id"
 )
 
 
@@ -104,8 +143,16 @@ def _not_negative(**amounts) -> None:
 class _Refused(Exception):
     """Rolls back a transaction that couldn't take everything it needed."""
 
-    def __init__(self, retry_after: int = 0):
+    def __init__(self, retry_after: int = 0, by: str = ""):
         self.retry_after = retry_after
+        self.by = by
+
+
+def _window_seconds(window: timedelta) -> int:
+    seconds = int(window.total_seconds())
+    if seconds < 1:
+        raise ValueError("window must be at least 1 second")
+    return seconds
 
 
 class StateStore:
@@ -192,17 +239,33 @@ class StateStore:
             _LEASE_UPSERT, {"key": key, "trace": trace_id, "ttl": limits.LEASE_TTL}
         )
         if taken.one_or_none() is None:
-            raise _Refused(await self._seconds_left(conn, [key]))
+            raise _Refused(await self._seconds_left(conn, [key]), "lease")
 
     async def _take_ip_slot(self, conn: AsyncConnection, ip_key: str, trace_id: str) -> None:
         slots = [f"ip:{ip_key}:{n}" for n in range(limits.INFLIGHT_PER_GUEST_IP)]
+        await self._take_slot(conn, slots, trace_id, "ip_slot")
+
+    async def _take_global_slot(self, conn: AsyncConnection, count: int, trace_id: str) -> None:
+        # Start at a random slot, so requests at the same moment rarely wait on one row
+        first = random.randrange(count)
+        slots = [f"global:{(first + n) % count}" for n in range(count)]
+        await self._take_slot(conn, slots, trace_id, "global_slot")
+
+    async def _take_slot(
+        self, conn: AsyncConnection, slots: list[str], trace_id: str, name: str
+    ) -> None:
+        """Take the first free slot. Not the lease upsert: ON CONFLICT DO UPDATE locks
+        the row even when its WHERE fails, so each taken slot passed over would stay
+        locked to the end of the transaction, and two requests scanning in different
+        orders deadlock. INSERT ... DO NOTHING and a conditional UPDATE keep no lock on
+        a row they don't take, so a transaction never waits while holding a slot."""
+        params = {"trace": trace_id, "ttl": limits.LEASE_TTL}
         for slot in slots:
-            taken = await conn.execute(
-                _LEASE_UPSERT, {"key": slot, "trace": trace_id, "ttl": limits.LEASE_TTL}
-            )
-            if taken.one_or_none() is not None:
-                return
-        raise _Refused(await self._seconds_left(conn, slots, soonest=True))
+            for statement in (_SLOT_INSERT, _SLOT_TAKE_OVER):
+                taken = await conn.execute(statement, {**params, "key": slot})
+                if taken.one_or_none() is not None:
+                    return
+        raise _Refused(await self._seconds_left(conn, slots, soonest=True), name)
 
     @staticmethod
     async def _seconds_left(conn: AsyncConnection, keys: list[str], soonest: bool = False) -> int:
@@ -219,16 +282,52 @@ class StateStore:
     async def release_lease(
         self, principal_key: str, trace_id: str, ip_key: str | None = None
     ) -> None:
-        """Delete only the leases this request holds (same trace_id)."""
+        """Delete only the leases this request holds (same trace_id): the principal's,
+        its IP slot and its global slot."""
         async with self._engine.begin() as conn:
             await conn.execute(
                 text(
                     "DELETE FROM inflight_leases WHERE trace_id = :trace "
-                    "AND (principal_key = :key OR principal_key LIKE :slots)"
+                    "AND (principal_key = :key OR principal_key LIKE :slots "
+                    "OR principal_key LIKE 'global:%')"
                 ),
                 {"trace": trace_id, "key": principal_key,
                  "slots": f"ip:{ip_key}:%" if ip_key else ""},
             )
+
+    # --- Admission (C.2 stage 6, C.13) ---
+
+    async def admit(
+        self,
+        principal_key: str,
+        trace_id: str,
+        *,
+        ip_key: str | None = None,
+        global_slots: int = 0,
+        counters: tuple[Counter, ...] = (),
+        claim: tuple[int, uuid.UUID] | None = None,
+    ) -> AdmitResult:
+        """Everything a chat request takes, in one transaction: the request claim
+        (accounts), the principal's lease, an IP slot (guests), a global slot, and one
+        count on every counter. All or nothing: a refused request holds no lease and
+        counts nowhere, and a refused claim can be sent again."""
+        try:
+            async with self._engine.begin() as conn:
+                if claim is not None and not await self._claim(conn, *claim, trace_id):
+                    raise _Refused(by="duplicate")
+                await self._take_lease(conn, principal_key, trace_id)
+                if ip_key is not None:
+                    await self._take_ip_slot(conn, ip_key, trace_id)
+                if global_slots:
+                    await self._take_global_slot(conn, global_slots, trace_id)
+                for counter in counters:
+                    count, retry_after = await self._hit(conn, counter.key, counter.window,
+                                                         counter.window_start)
+                    if count > counter.limit:
+                        raise _Refused(retry_after, counter.name)
+        except _Refused as refused:
+            return AdmitResult(False, refused.by, refused.retry_after)
+        return AdmitResult(True)
 
     # --- Principal flags (C.16) ---
 
@@ -264,28 +363,42 @@ class StateStore:
 
     # --- Rate counters ---
 
-    async def hit_rate(self, key: str, window: timedelta, limit: int) -> RateResult:
-        """Count one request in the current fixed window; allowed while count <= limit."""
-        seconds = int(window.total_seconds())
-        if seconds < 1 or limit < 0:
-            raise ValueError("window must be at least 1 second and limit at least 0")
+    async def hit_rate(
+        self, key: str, window: timedelta, limit: int, window_start: datetime | None = None
+    ) -> RateResult:
+        """Count one request in the current fixed window; allowed while count <= limit.
+        `window_start` pins the window (a guest session's lifetime starts at creation)."""
+        if limit < 0:
+            raise ValueError("limit must be at least 0")
         async with self._engine.begin() as conn:
-            count, retry_after = (await conn.execute(
+            count, retry_after = await self._hit(conn, key, window, window_start)
+        return RateResult(count <= limit, count, retry_after)
+
+    @staticmethod
+    async def _hit(
+        conn: AsyncConnection, key: str, window: timedelta, window_start: datetime | None
+    ) -> tuple[int, int]:
+        count, retry_after = (await conn.execute(
+            _HIT, {"key": key, "s": _window_seconds(window), "start": window_start}
+        )).one()
+        return count, max(int(retry_after), 1)
+
+    async def unhit(self, key: str, window: timedelta) -> None:
+        """Take back one count from the current window (a login that succeeded)."""
+        seconds = _window_seconds(window)
+        async with self._engine.begin() as conn:
+            await conn.execute(
                 text(
-                    "INSERT INTO rate_counters (key, window_start, count) VALUES (:key, "
-                    "to_timestamp(floor(extract(epoch FROM now()) / :s) * :s), 1) "
-                    "ON CONFLICT (key, window_start) DO UPDATE "
-                    "SET count = rate_counters.count + 1 "
-                    "RETURNING count, "
-                    "ceil(extract(epoch FROM window_start + make_interval(secs => :s) - now()))"
+                    "UPDATE rate_counters SET count = GREATEST(count - 1, 0) "
+                    "WHERE key = :key AND window_start = "
+                    "to_timestamp(floor(extract(epoch FROM now()) / :s) * :s)"
                 ),
                 {"key": key, "s": seconds},
-            )).one()
-        return RateResult(count <= limit, count, max(int(retry_after), 1))
+            )
 
     async def peek_rate(self, key: str, window: timedelta) -> int:
         """The count in the current fixed window, without counting a request."""
-        seconds = int(window.total_seconds())
+        seconds = _window_seconds(window)
         async with self._engine.connect() as conn:
             count = (await conn.execute(
                 text(
@@ -382,6 +495,25 @@ class StateStore:
         """Give a reservation back when the call never ran."""
         await self.settle(reservation, Decimal("0"))
 
+    async def first_over_cap(self, keys: list[SpendKey]) -> SpendKey | None:
+        """The first key whose spend plus open reservations has reached its USD cap.
+        A read, not a reservation: admission refuses a request that has nothing left,
+        and the reservation before each call (reserve) is what holds the cap."""
+        async with self._engine.connect() as conn:
+            for k in keys:
+                if k.cap_usd is None:
+                    continue
+                used = await conn.scalar(
+                    text(
+                        "SELECT cost_usd + reserved_usd FROM spend "
+                        "WHERE key = :key AND period = :period AND period_start = :start"
+                    ),
+                    {"key": k.key, "period": k.period, "start": k.period_start},
+                )
+                if used is not None and used >= k.cap_usd:
+                    return k
+        return None
+
     async def spend(self, key: str, period: str, period_start: datetime) -> dict[str, Any] | None:
         async with self._engine.connect() as conn:
             row = (await conn.execute(
@@ -467,14 +599,20 @@ class StateStore:
     ) -> bool:
         """True for the first claim of (user_id, client_request_id); False for a duplicate."""
         async with self._engine.begin() as conn:
-            claimed = await conn.execute(
-                text(
-                    "INSERT INTO request_claims (user_id, client_request_id, trace_id) "
-                    "VALUES (:uid, :rid, :trace) ON CONFLICT DO NOTHING RETURNING trace_id"
-                ),
-                {"uid": user_id, "rid": client_request_id, "trace": trace_id},
-            )
-            return claimed.one_or_none() is not None
+            return await self._claim(conn, user_id, client_request_id, trace_id)
+
+    @staticmethod
+    async def _claim(
+        conn: AsyncConnection, user_id: int, client_request_id: uuid.UUID, trace_id: str
+    ) -> bool:
+        claimed = await conn.execute(
+            text(
+                "INSERT INTO request_claims (user_id, client_request_id, trace_id) "
+                "VALUES (:uid, :rid, :trace) ON CONFLICT DO NOTHING RETURNING trace_id"
+            ),
+            {"uid": user_id, "rid": client_request_id, "trace": trace_id},
+        )
+        return claimed.one_or_none() is not None
 
 
 def _json(value: Any) -> str:

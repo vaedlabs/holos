@@ -181,25 +181,21 @@ from app.middleware.error_handler import register_error_handlers
 register_error_handlers(app)
 app.add_exception_handler(ApiError, api_error_handler)
 
-# Configure CORS (Cross-Origin Resource Sharing)
-# CORS allows the frontend (running on a different origin) to make requests to this API
-# Load allowed origins from environment variable (comma-separated list)
-# Default to localhost ports 3000 and 3001 for local development
-allowed_origins = [get_settings().app_origin]
+# Middleware: the last one added runs first. Security headers wrap everything; CORS
+# wraps the flood limit, so preflights never count and a 429 carries CORS headers.
+from app.dependencies import get_state_store
+from app.middleware.flood import FloodLimit
+from app.middleware.headers import SecurityHeaders
 
+app.add_middleware(FloodLimit, store=get_state_store, settings=get_settings)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=[get_settings().app_origin],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-CSRF-Token", "X-Contract-Version"],
 )
-
-# 2. Register rate limiting last (runs first / outermost)
-# Rate limits: /agents/* = 20 req/min, /auth/* = 10 req/min, general = 60 req/min
-# 429 responses include CORS headers (injected by RateLimitMiddleware itself)
-from app.middleware.rate_limit import RateLimitMiddleware, get_rate_limit_config
-app.add_middleware(RateLimitMiddleware, **get_rate_limit_config(allowed_origins=allowed_origins))
+app.add_middleware(SecurityHeaders)
 
 @app.get("/")
 async def root():

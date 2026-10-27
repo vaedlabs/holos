@@ -45,3 +45,29 @@ def test_custom_validator_error_is_a_readable_422_with_cors(client):
 
 def test_valid_gender_still_works(client):
     assert client.post("/prefs", json={"gender": "XX"}).json() == {"gender": "XX"}
+
+
+def test_an_unhandled_error_is_a_500_with_nosniff_and_cors_for_the_app(monkeypatch):
+    """Starlette runs the 500 handler outside every middleware, CORS included."""
+    from types import SimpleNamespace
+
+    from app.config import settings as settings_module
+
+    monkeypatch.setattr(settings_module, "get_settings",
+                        lambda: SimpleNamespace(app_origin=ORIGIN))
+    app = FastAPI()
+    register_error_handlers(app)
+    app.add_middleware(CORSMiddleware, allow_origins=[ORIGIN], allow_credentials=True)
+
+    @app.get("/boom")
+    async def boom():
+        raise RuntimeError("boom")
+
+    client = TestClient(app, raise_server_exceptions=False)
+    resp = client.get("/boom", headers={"Origin": ORIGIN})
+    assert resp.status_code == 500
+    assert resp.headers["x-content-type-options"] == "nosniff"
+    assert resp.headers["access-control-allow-origin"] == ORIGIN
+    other = client.get("/boom", headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in other.headers
+    assert other.headers["x-content-type-options"] == "nosniff"

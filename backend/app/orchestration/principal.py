@@ -78,6 +78,17 @@ def ip_new_sessions_key(key: str) -> str:
     return f"ip:{key}:new_sessions"
 
 
+# Login limits (C.12, Part E #25): attempts per IP key, failures per account
+def login_ip_key(key: str) -> str:
+    return f"login:ip:{key}"
+
+
+def login_account_key(email: str, settings: Settings) -> str:
+    """Keyed by the email typed, known account or not, and never stored in clear."""
+    digest = hmac.new(settings.ip_salt_secret, b"login:" + email.encode(), hashlib.sha256)
+    return f"login:account:{digest.hexdigest()}"
+
+
 # --- Principal ---
 
 

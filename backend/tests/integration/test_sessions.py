@@ -8,6 +8,7 @@ import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -22,6 +23,7 @@ from app.config import limits
 from app.config.settings import Settings, get_settings
 from app.data.state_store import StateStore, hash_session_id
 from app.dependencies import get_database, get_db_sessions, get_state_store, get_turnstile
+from app.orchestration.budget import ip_spend_key
 from app.orchestration.passwords import get_password_hash
 from app.orchestration.principal import csrf_token, ip_key, ip_new_sessions_key, ip_requests_key
 from app.orchestration.sessions import SITEVERIFY_URL, Turnstile
@@ -300,6 +302,33 @@ async def test_an_escalated_ip_key_needs_the_interactive_check_to_pass(world):
 async def test_an_ip_key_at_3x_is_refused_without_a_turnstile_call(world):
     await set_ip_requests(world, "203.0.113.7",
                           limits.GUEST_IP_REQUESTS * limits.GUEST_IP_HARD_STOP_FACTOR)
+    async with world.client() as client:
+        response = await start(client)
+    assert response.status_code == 429
+    assert response.json()["code"] == "ip_limit"
+    assert world.cloudflare.calls == []
+
+
+async def set_ip_spend(world, ip: str, usd: str, reserved: str = "0") -> None:
+    key = ip_spend_key(ip_key(ip, world.cfg["settings"]))
+    await sql(world, "INSERT INTO spend (key, period, period_start, cost_usd, reserved_usd) "
+              "VALUES (:k, :p, :s, :c, :r)", k=key.key, p=key.period, s=key.period_start,
+              c=Decimal(usd), r=Decimal(reserved))
+
+
+@pytest.mark.parametrize("usd, reserved, secret", [
+    ("0.099999", "0", PASS), ("0.10", "0", INTERACTIVE), ("0.06", "0.04", INTERACTIVE)])
+async def test_an_ip_key_that_spent_its_allowance_needs_the_interactive_check(
+    world, usd, reserved, secret
+):
+    await set_ip_spend(world, "203.0.113.7", usd, reserved)
+    async with world.client() as client:
+        assert (await start(client)).status_code == 200
+    assert world.cloudflare.calls[-1]["secret"] == secret
+
+
+async def test_an_ip_key_at_3x_its_spend_is_refused_without_a_turnstile_call(world):
+    await set_ip_spend(world, "203.0.113.7", "0.30")
     async with world.client() as client:
         response = await start(client)
     assert response.status_code == 429

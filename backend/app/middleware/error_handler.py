@@ -256,8 +256,19 @@ def register_error_handlers(app):
         if is_development:
             response_content["error_type"] = error_type
         
+        # Starlette runs this handler outside every add_middleware layer, so the
+        # security headers and CORS (for the app's origin) are added here
+        from app.config.settings import get_settings
+        from app.middleware.headers import HEADERS
+
+        headers = dict(HEADERS)
+        origin = request.headers.get("origin")
+        if origin and origin == get_settings().app_origin:
+            headers.update({"Access-Control-Allow-Origin": origin,
+                            "Access-Control-Allow-Credentials": "true", "Vary": "Origin"})
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,  # 500 Internal Server Error
-            content=response_content
+            content=response_content,
+            headers=headers,
         )
 

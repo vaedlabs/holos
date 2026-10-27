@@ -58,3 +58,16 @@ def test_no_route_takes_a_bearer_token():
     bearer = [r.path for r in app.routes if isinstance(r, APIRoute)
               and any(isinstance(c, HTTPBearer) for c in _calls(r.dependant, set()))]
     assert bearer == []
+
+
+def test_middleware_order_headers_then_cors_then_the_flood_limit():
+    """Outermost first: every response gets the headers, and CORS wraps the flood limit
+    so preflights never count and a flood 429 is readable by the app (C.2 stage 1)."""
+    from fastapi.middleware.cors import CORSMiddleware
+
+    from app.middleware.flood import FloodLimit
+    from app.middleware.headers import SecurityHeaders
+
+    # user_middleware lists the outermost first
+    assert [m.cls for m in app.user_middleware] == [SecurityHeaders, CORSMiddleware,
+                                                   FloodLimit]

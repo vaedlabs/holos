@@ -90,7 +90,7 @@ def test_settings_refuse_weak_or_missing_values(monkeypatch):
     base = {"SESSION_SECRET": "s" * 40, "IP_SALT_SECRET": "i" * 40,
             "APP_ORIGIN": "http://localhost:3000", "API_ORIGIN": "http://localhost:8000",
             "TRUSTED_PROXY": "none", "TURNSTILE_SECRET_KEY": "x",
-            "TURNSTILE_INTERACTIVE_SECRET_KEY": "y"}
+            "TURNSTILE_INTERACTIVE_SECRET_KEY": "y", "TAVILY_BILLING_DAY": None}
     monkeypatch.setattr(module, "load_dotenv", lambda: None)
 
     def load(**changes):
@@ -103,10 +103,14 @@ def test_settings_refuse_weak_or_missing_values(monkeypatch):
 
     assert load().session_cookie == "holos_session"
     assert load(API_ORIGIN="https://api.x.com").session_cookie == "__Host-holos_session"
+    assert load().tavily_billing_day == 1
+    assert load(TAVILY_BILLING_DAY=" 28 ").tavily_billing_day == 28
     for bad in ({"SESSION_SECRET": "short"}, {"IP_SALT_SECRET": None},
                 {"IP_SALT_SECRET": "s" * 40},  # the same as SESSION_SECRET
                 {"APP_ORIGIN": "localhost:3000"}, {"APP_ORIGIN": "http://a.com/path"},
                 {"TRUSTED_PROXY": "nginx"}, {"TRUSTED_PROXY": "host"},
-                {"TURNSTILE_SECRET_KEY": " "}):
+                {"TURNSTILE_SECRET_KEY": " "}, {"TAVILY_BILLING_DAY": "0"},
+                {"TAVILY_BILLING_DAY": "29"}, {"TAVILY_BILLING_DAY": "x"},
+                {"TAVILY_BILLING_DAY": "\u0661"}):  # an Arabic-Indic 1: a digit, not ASCII
         with pytest.raises(module.SettingsError):
             load(**bad)

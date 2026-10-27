@@ -12,6 +12,7 @@ create-invite`). The username is the email address, lowercased (Part E #23).
 
 import hashlib
 import logging
+import math
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session
 
+from app.config import limits
 from app.config.settings import Settings, get_settings
 from app.data.state_store import StateStore
 from app.dependencies import (
@@ -47,7 +49,14 @@ from app.orchestration.passwords import (
     verify_password,
     verify_unknown_user,
 )
-from app.orchestration.principal import Principal, check_origin
+from app.orchestration.principal import (
+    Principal,
+    check_origin,
+    client_ip,
+    ip_key,
+    login_account_key,
+    login_ip_key,
+)
 from app.orchestration.sessions import clear_session_cookie, set_session_cookie, start_account
 
 from .errors import ApiError
@@ -89,6 +98,13 @@ def _signed_in(response: Response, started, user: User, settings: Settings) -> d
     return {**started.body(settings), "user": {"id": user.id, "email": user.email}}
 
 
+def _too_many_logins(retry_after: int) -> ApiError:
+    minutes = math.ceil(retry_after / 60)
+    when = "in a minute" if minutes <= 1 else f"in {minutes} minutes"
+    return ApiError(429, "too_many_logins", "Too many sign-in attempts. "
+                    f"Please try again {when}.", retry_after=retry_after)
+
+
 @router.post("/login")
 async def login(
     body: LoginRequest,
@@ -99,7 +115,19 @@ async def login(
     sessions: async_sessionmaker[AsyncSession] = Depends(get_db_sessions),
 ) -> dict:
     check_origin(request, settings)
+    # Both limits are checked before bcrypt, so a refused attempt costs no CPU (Part E #25)
+    attempt = await store.hit_rate(login_ip_key(ip_key(client_ip(request, settings), settings)),
+                                   limits.LOGIN_WINDOW, limits.LOGIN_ATTEMPTS_PER_IP)
+    if not attempt.allowed:
+        raise _too_many_logins(attempt.retry_after)
     email = _normalise_email(body.email)
+    # Counted as a failure now and given back if the password is right, so attempts
+    # at the same moment can't all slip under the limit
+    account_key = login_account_key(email, settings)
+    failures = await store.hit_rate(account_key, limits.LOGIN_WINDOW,
+                                    limits.LOGIN_FAILURES_PER_ACCOUNT)
+    if not failures.allowed:
+        raise _too_many_logins(failures.retry_after)
     async with sessions() as db:
         # Older accounts may differ only by case; the oldest one wins
         user = (await db.execute(
@@ -111,6 +139,7 @@ async def login(
         else (lambda: verify_unknown_user(body.password)))
     if not ok:
         raise ApiError(401, "bad_credentials", "Incorrect email or password.")
+    await store.unhit(account_key, limits.LOGIN_WINDOW)
     if not user.is_active:
         raise ApiError(403, "inactive", "This account is not active.")
     started = await start_account(request, user.id, store, settings)

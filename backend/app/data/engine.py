@@ -18,6 +18,9 @@ from sqlalchemy.ext.asyncio import (
 # Pool sizes are not fixed in the plan; these suit one small server (Plan Part E #11)
 ASYNC_POOL = {"pool_size": 10, "max_overflow": 5, "pool_timeout": 5}
 SYNC_POOL = {"pool_size": 5, "max_overflow": 5, "pool_timeout": 10}
+# Without it, a connection to an unreachable database waits for the OS's TCP
+# timeout (75 s measured); a refused one fails at once either way
+CONNECT_TIMEOUT_S = 5
 
 _DRIVER_PREFIXES = ("postgresql+psycopg2://", "postgresql+psycopg://", "postgresql://", "postgres://")
 
@@ -38,11 +41,13 @@ def database_url() -> str:
 
 
 def make_async_engine(url: str) -> AsyncEngine:
-    return create_async_engine(psycopg_url(url), pool_pre_ping=True, **ASYNC_POOL)
+    return create_async_engine(psycopg_url(url), pool_pre_ping=True,
+                               connect_args={"connect_timeout": CONNECT_TIMEOUT_S}, **ASYNC_POOL)
 
 
 def make_sync_engine(url: str) -> Engine:
-    return create_engine(psycopg_url(url), pool_pre_ping=True, **SYNC_POOL)
+    return create_engine(psycopg_url(url), pool_pre_ping=True,
+                         connect_args={"connect_timeout": CONNECT_TIMEOUT_S}, **SYNC_POOL)
 
 
 @lru_cache(maxsize=1)

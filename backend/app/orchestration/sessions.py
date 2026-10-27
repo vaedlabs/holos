@@ -1,10 +1,10 @@
 """Start, rotate and end sessions; Turnstile for guests (Plan C.6, C.12).
 
 Guest sessions start only after a Cloudflare Turnstile check. Each IP key may
-start 10 per hour. An IP key that has made 60 requests in the current 240-minute
-window must pass the interactive widget instead (verified with its own secret),
-so people behind one shared mobile IP still get in while bots mostly don't; at
-3x that, the IP key is refused until the window ends.
+start 10 per hour. An IP key that has made 60 requests or spent $0.10 in the
+current 240-minute window must pass the interactive widget instead (verified with
+its own secret), so people behind one shared mobile IP still get in while bots
+mostly don't; at 3x either, the IP key is refused until the window ends.
 """
 
 import logging
@@ -19,6 +19,7 @@ from app.config.settings import Settings
 from app.data.state_store import SessionInfo, StateStore
 from app.routers.errors import ApiError
 
+from .budget import ip_window_usd
 from .principal import client_ip, csrf_token, ip_key, ip_new_sessions_key, ip_requests_key
 
 log = logging.getLogger(__name__)
@@ -118,11 +119,12 @@ async def start_guest(
     ip = client_ip(request, settings)
     key = ip_key(ip, settings)
     requests = await store.peek_rate(ip_requests_key(key), limits.GUEST_IP_WINDOW)
-    hard_stop = limits.GUEST_IP_REQUESTS * limits.GUEST_IP_HARD_STOP_FACTOR
-    if requests >= hard_stop:
+    usd = await ip_window_usd(store, key)
+    factor = limits.GUEST_IP_HARD_STOP_FACTOR
+    if requests >= limits.GUEST_IP_REQUESTS * factor or usd >= limits.GUEST_IP_USD * factor:
         raise ApiError(429, "ip_limit", "Too many requests from your network. "
                        "Please come back later.", retry_after=_window_left())
-    if requests >= limits.GUEST_IP_REQUESTS:
+    if requests >= limits.GUEST_IP_REQUESTS or usd >= limits.GUEST_IP_USD:
         # Escalated: only the interactive widget's token passes, checked with its secret
         if not await turnstile.verify(token, settings.turnstile_interactive_secret, ip):
             raise ApiError(403, "turnstile_interactive", "Please complete the check to "
