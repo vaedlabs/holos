@@ -12,7 +12,8 @@
 # hard cheese don't, because most lactose-intolerant people eat them.
 
 # 2: hing contains gluten; common spices, blends and basics added
-version: 2
+# 3: "tree nuts" as its own ingredient (tree_nut only); batata for potato
+version: 3
 
 exercises:
   # --- Squats and lunges (every variant carries knee_load: high) ---
@@ -775,6 +776,7 @@ ingredients:
   - {name: macadamia, aliases: [macadamia nuts], allergens: [tree_nut], diet_conflicts: []}
   - {name: pine nut, aliases: [pine nuts, chilgoza], allergens: [tree_nut], diet_conflicts: []}
   - {name: mixed nuts, aliases: [dry fruits, nuts, trail mix], allergens: [tree_nut, peanut], diet_conflicts: []}
+  - {name: tree nuts, aliases: [tree nut], allergens: [tree_nut], diet_conflicts: []}
   - {name: almond milk, aliases: [], allergens: [tree_nut], diet_conflicts: []}
   - {name: pesto, aliases: [], allergens: [tree_nut, milk], diet_conflicts: [animal_product]}
   - {name: marzipan, aliases: [badam paste], allergens: [tree_nut], diet_conflicts: []}
@@ -840,7 +842,7 @@ ingredients:
   # --- Root vegetables (Jain) ---
   - {name: onion, aliases: [onions, pyaz, pyaaz, kanda, spring onion], allergens: [], diet_conflicts: [root_vegetable]}
   - {name: garlic, aliases: [lehsun, lahsun, garlic paste], allergens: [], diet_conflicts: [root_vegetable]}
-  - {name: potato, aliases: [potatoes, aloo, alu], allergens: [], diet_conflicts: [root_vegetable]}
+  - {name: potato, aliases: [potatoes, aloo, alu, batata], allergens: [], diet_conflicts: [root_vegetable]}
   - {name: sweet potato, aliases: [shakarkandi], allergens: [], diet_conflicts: [root_vegetable]}
   - {name: carrot, aliases: [carrots, gajar], allergens: [], diet_conflicts: [root_vegetable]}
   - {name: beetroot, aliases: [beet, chukandar], allergens: [], diet_conflicts: [root_vegetable]}
