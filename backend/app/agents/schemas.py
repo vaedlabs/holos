@@ -64,23 +64,28 @@ class ExerciseItem(_LLMModel):
     reps: int | None = Field(ge=1, le=100)
     duration_s: int | None = Field(ge=1, le=3600)
     intensity: Intensity
-    note: str = Field(max_length=120)
+    note: str = Field(max_length=120, description="At most 120 characters.")
 
 
 class PracticeItem(_LLMModel):
     catalogue_id: PracticeId
     duration_min: int = Field(ge=1, le=60)
-    note: str = Field(max_length=120)
+    note: str = Field(max_length=120, description="At most 120 characters.")
 
 
 class FoodItem(_LLMModel):
-    name: str = Field(max_length=60)
-    ingredients: list[Annotated[str, Field(max_length=30)]] = Field(min_length=1, max_length=8)
+    name: str = Field(max_length=60, description="The dish, at most 60 characters.")
+    # Gemini doesn't enforce item counts and OpenAI doesn't enforce string lengths
+    # (Part D): the descriptions are how the model learns these limits
+    ingredients: list[Annotated[str, Field(max_length=30)]] = Field(
+        min_length=1, max_length=8,
+        description="1 to 8 main ingredients, in English, each at most 30 characters.")
     allergen_tags: list[Allergen] = Field(max_length=len(Allergen))
     diet_tags: list[Diet] = Field(max_length=len(Diet))
-    portion: str = Field(max_length=40)
+    portion: str = Field(max_length=40, description=(
+        "At most 40 characters, for example '1 bowl (250 g)'."))
     calories: float | None = Field(ge=0, le=5000)
-    note: str = Field(max_length=120)
+    note: str = Field(max_length=120, description="At most 120 characters.")
 
 
 # --- Replies (C.3) ---
@@ -100,13 +105,15 @@ class _ReplyBase(_LLMModel):
     kind: ReplyKind = Field(description=(
         "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; "
         "clarify: ask one question first."))
-    summary: str = Field(max_length=400, description="Short plain-text reply to the user.")
+    summary: str = Field(max_length=400, description=(
+        "Short plain-text reply to the user, at most 400 characters."))
     notes: list[Annotated[str, Field(max_length=200)]] = Field(
-        max_length=3, description="Up to 3 short tips or cautions.")
+        max_length=3, description="Up to 3 short tips or cautions, each at most 200 characters.")
     source_ids: list[Annotated[str, Field(max_length=20)]] = Field(
         max_length=5, description="Only ids of this turn's web search results; else empty.")
     follow_up: str | None = Field(
-        max_length=200, description="The question to ask. Null unless kind is clarify.")
+        max_length=200, description=(
+            "The question to ask, at most 200 characters. Null unless kind is clarify."))
     risk_flag: bool = Field(
         description="True if the user may be at risk of self-harm or in a medical emergency.")
 

@@ -37,12 +37,12 @@
                 "type": "string"
               },
               "summary": {
-                "description": "Short plain-text reply to the user. At most 400 characters.",
+                "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                 "title": "Summary",
                 "type": "string"
               },
               "notes": {
-                "description": "Up to 3 short tips or cautions.",
+                "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                 "items": {
                   "type": "string",
                   "description": "At most 200 characters."
@@ -66,7 +66,7 @@
                   "string",
                   "null"
                 ],
-                "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                 "title": "Follow Up"
               },
               "risk_flag": {
@@ -119,9 +119,9 @@
                       "type": "integer"
                     },
                     "note": {
+                      "description": "At most 120 characters. At most 120 characters.",
                       "title": "Note",
-                      "type": "string",
-                      "description": "At most 120 characters."
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -162,7 +162,7 @@
       "body": {
         "status": "completed",
         "usage": {
-          "total_tokens": 202,
+          "total_tokens": 196,
           "total_input_tokens": 26,
           "input_tokens_by_modality": [
             {
@@ -171,22 +171,22 @@
             }
           ],
           "total_cached_tokens": 0,
-          "total_output_tokens": 176,
+          "total_output_tokens": 170,
           "total_tool_use_tokens": 0,
           "total_thought_tokens": 0
         },
-        "created": "2026-10-25T19:41:35Z",
-        "updated": "2026-10-25T19:41:35Z",
+        "created": "2026-10-27T13:44:30Z",
+        "updated": "2026-10-27T13:44:30Z",
         "service_tier": "standard",
         "steps": [
           {
-            "signature": "EmAKXgFpFH0TtBlzcaFXP0gPIIGppV6ELicR+fgCZESNzdS0Nsc1ken5/pjDKFdl0JoooUcfoSGbVefgd5bYUp4k951BRHrI3Z5j2kJeApk85U9QjylcwhzOR9tOEKxUWtQ=",
+            "signature": "EmAKXgFpFH0THRvN1DuqJop8V3Nsu6xtJWd5gb4jNF9LC/3h2d7dA5us3HMVEMLXsIvEFFRrHOxZzUW0e1YAgc+XFgOSKPohC0UhQ/pWAacdaeENhNoBKQF1iUwk2savmow=",
             "type": "thought"
           },
           {
             "content": [
               {
-                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Try this 5-minute box breathing practice to help calm your nervous system and steady your focus right before your exam.\",\n  \"notes\": [\n    \"Find a quiet spot and sit comfortably with your feet on the floor.\",\n    \"If your mind wanders, gently bring your focus back to the rhythm of your breath.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"catalogue_id\": \"box_breathing\",\n      \"duration_min\": 5,\n      \"note\": \"Inhale, hold, exhale, and hold for 4 seconds each to center yourself.\"\n    }\n  ]\n}",
+                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Try this quick 5-minute box breathing exercise to steady your nervous system and clear your mind right before your exam.\",\n  \"notes\": [\n    \"Find a comfortable, quiet spot to sit before the exam begins.\",\n    \"Focus gently on the rhythm of your breath to release tension.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"catalogue_id\": \"box_breathing\",\n      \"duration_min\": 5,\n      \"note\": \"Inhale, hold, exhale, and hold for 4 seconds each to center yourself.\"\n    }\n  ]\n}",
                 "type": "text"
               }
             ],

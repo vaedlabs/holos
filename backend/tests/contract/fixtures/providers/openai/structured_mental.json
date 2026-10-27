@@ -41,12 +41,12 @@
                   "type": "string"
                 },
                 "summary": {
-                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                   "title": "Summary",
                   "type": "string"
                 },
                 "notes": {
-                  "description": "Up to 3 short tips or cautions.",
+                  "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                   "items": {
                     "type": "string",
                     "description": "At most 200 characters."
@@ -70,7 +70,7 @@
                     "string",
                     "null"
                   ],
-                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                   "title": "Follow Up"
                 },
                 "risk_flag": {
@@ -123,9 +123,9 @@
                         "type": "integer"
                       },
                       "note": {
+                        "description": "At most 120 characters. At most 120 characters.",
                         "title": "Note",
-                        "type": "string",
-                        "description": "At most 120 characters."
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -163,16 +163,16 @@
         "content-type": "application/json"
       },
       "body": {
-        "id": "resp_071572101724b296016ade5afb5d8887d18e625d0d5cd07ccd",
+        "id": "resp_09dbf5c5bee9cd00016ae0aaa8bd5487d18730ace159c1f085",
         "object": "response",
-        "created_at": 1792957179,
+        "created_at": 1793108648,
         "status": "completed",
         "access_programs": null,
         "background": false,
         "billing": {
           "payer": "developer"
         },
-        "completed_at": 1792957181,
+        "completed_at": 1793108650,
         "error": null,
         "frequency_penalty": 0.0,
         "incomplete_details": null,
@@ -183,7 +183,7 @@
         "moderation": null,
         "output": [
           {
-            "id": "msg_071572101724b296016ade5afc595c87d183de32a91a5f7ae5",
+            "id": "msg_09dbf5c5bee9cd00016ae0aaa98e9887d1a6953ed2d44dbed3",
             "type": "message",
             "status": "completed",
             "content": [
@@ -191,7 +191,7 @@
                 "type": "output_text",
                 "annotations": [],
                 "logprobs": [],
-                "text": "{\"kind\":\"plan\",\"summary\":\"Try a 5-minute grounding practice to settle exam stress and bring attention back to the present.\",\"notes\":[],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"catalogue_id\":\"grounding_54321\",\"duration_min\":5,\"note\":\"Name 5 things you see, 4 you feel, 3 you hear, 2 you smell, and 1 you taste.\"}]}"
+                "text": "{\"kind\":\"plan\",\"summary\":\"Try a 5-minute grounding practice to settle your attention before the exam.\",\"notes\":[],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"catalogue_id\":\"grounding_54321\",\"duration_min\":5,\"note\":\"Notice 5 things you see, 4 feel, 3 hear, 2 smell, and 1 taste. Go slowly.\"}]}"
               }
             ],
             "phase": "final_answer",
@@ -233,12 +233,12 @@
                   "type": "string"
                 },
                 "summary": {
-                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                   "title": "Summary",
                   "type": "string"
                 },
                 "notes": {
-                  "description": "Up to 3 short tips or cautions.",
+                  "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                   "items": {
                     "type": "string",
                     "description": "At most 200 characters."
@@ -262,7 +262,7 @@
                     "string",
                     "null"
                   ],
-                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                   "title": "Follow Up"
                 },
                 "risk_flag": {
@@ -315,9 +315,9 @@
                         "type": "integer"
                       },
                       "note": {
+                        "description": "At most 120 characters. At most 120 characters.",
                         "title": "Note",
-                        "type": "string",
-                        "description": "At most 120 characters."
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -372,16 +372,16 @@
         "top_p": 0.98,
         "truncation": "disabled",
         "usage": {
-          "input_tokens": 527,
+          "input_tokens": 551,
           "input_tokens_details": {
             "cache_write_tokens": 0,
             "cached_tokens": 0
           },
-          "output_tokens": 101,
+          "output_tokens": 96,
           "output_tokens_details": {
             "reasoning_tokens": 0
           },
-          "total_tokens": 628
+          "total_tokens": 647
         },
         "user": null,
         "metadata": {}

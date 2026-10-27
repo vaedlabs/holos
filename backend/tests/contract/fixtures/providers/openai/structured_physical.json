@@ -41,12 +41,12 @@
                   "type": "string"
                 },
                 "summary": {
-                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                   "title": "Summary",
                   "type": "string"
                 },
                 "notes": {
-                  "description": "Up to 3 short tips or cautions.",
+                  "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                   "items": {
                     "type": "string",
                     "description": "At most 200 characters."
@@ -70,7 +70,7 @@
                     "string",
                     "null"
                   ],
-                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                   "title": "Follow Up"
                 },
                 "risk_flag": {
@@ -250,9 +250,9 @@
                         "type": "string"
                       },
                       "note": {
+                        "description": "At most 120 characters. At most 120 characters.",
                         "title": "Note",
-                        "type": "string",
-                        "description": "At most 120 characters."
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -293,16 +293,16 @@
         "content-type": "application/json"
       },
       "body": {
-        "id": "resp_0fec927b5795772a016ade5af4751887d1a74e7c86229ee567",
+        "id": "resp_0ddbbb619e5a0c0e016ae0aaa1999087d1ba699852c03425f8",
         "object": "response",
-        "created_at": 1792957172,
+        "created_at": 1793108641,
         "status": "completed",
         "access_programs": null,
         "background": false,
         "billing": {
           "payer": "developer"
         },
-        "completed_at": 1792957174,
+        "completed_at": 1793108644,
         "error": null,
         "frequency_penalty": 0.0,
         "incomplete_details": null,
@@ -313,7 +313,7 @@
         "moderation": null,
         "output": [
           {
-            "id": "msg_0fec927b5795772a016ade5af53b0087d198d0004eda250f2b",
+            "id": "msg_0ddbbb619e5a0c0e016ae0aaa2896c87d1b3c6274a59fd7312",
             "type": "message",
             "status": "completed",
             "content": [
@@ -321,7 +321,7 @@
                 "type": "output_text",
                 "annotations": [],
                 "logprobs": [],
-                "text": "{\"kind\":\"plan\",\"summary\":\"Beginner no-equipment upper-body plan: move slowly and stop if you feel sharp pain.\",\"notes\":[\"Rest 60–90 seconds between sets.\",\"Use an incline push-up against a sturdy wall or counter if floor push-ups are too difficult.\"],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"catalogue_id\":\"incline_push_up\",\"sets\":2,\"reps\":8,\"duration_s\":null,\"intensity\":\"low\",\"note\":\"Hands on a sturdy wall or counter; keep body in a straight line.\"},{\"catalogue_id\":\"bird_dog\",\"sets\":2,\"reps\":6,\"duration_s\":null,\"intensity\":\"low\",\"note\":\"Each side; move slowly and keep hips steady.\"}]}"
+                "text": "{\"kind\":\"plan\",\"summary\":\"Beginner upper-body session using only body weight. Rest 60–90 seconds between sets; stop if you feel pain.\",\"notes\":[\"Do this 2–3 times weekly, with at least a day of rest between sessions.\",\"Use an incline push-up if standard push-ups are too difficult.\"],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"catalogue_id\":\"push_up\",\"sets\":3,\"reps\":6,\"duration_s\":null,\"intensity\":\"low\",\"note\":\"Use a comfortable range; keep your body in a straight line.\"},{\"catalogue_id\":\"pallof_press\",\"sets\":3,\"reps\":8,\"duration_s\":null,\"intensity\":\"low\",\"note\":\"Needs a resistance band; instead use bird dog for a no-equipment option.\"}]}"
               }
             ],
             "phase": "final_answer",
@@ -363,12 +363,12 @@
                   "type": "string"
                 },
                 "summary": {
-                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                   "title": "Summary",
                   "type": "string"
                 },
                 "notes": {
-                  "description": "Up to 3 short tips or cautions.",
+                  "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                   "items": {
                     "type": "string",
                     "description": "At most 200 characters."
@@ -392,7 +392,7 @@
                     "string",
                     "null"
                   ],
-                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                   "title": "Follow Up"
                 },
                 "risk_flag": {
@@ -572,9 +572,9 @@
                         "type": "string"
                       },
                       "note": {
+                        "description": "At most 120 characters. At most 120 characters.",
                         "title": "Note",
-                        "type": "string",
-                        "description": "At most 120 characters."
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -632,16 +632,16 @@
         "top_p": 0.98,
         "truncation": "disabled",
         "usage": {
-          "input_tokens": 967,
+          "input_tokens": 991,
           "input_tokens_details": {
             "cache_write_tokens": 0,
             "cached_tokens": 0
           },
-          "output_tokens": 169,
+          "output_tokens": 182,
           "output_tokens_details": {
             "reasoning_tokens": 0
           },
-          "total_tokens": 1136
+          "total_tokens": 1173
         },
         "user": null,
         "metadata": {}

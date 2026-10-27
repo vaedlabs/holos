@@ -37,12 +37,12 @@
                 "type": "string"
               },
               "summary": {
-                "description": "Short plain-text reply to the user. At most 400 characters.",
+                "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                 "title": "Summary",
                 "type": "string"
               },
               "notes": {
-                "description": "Up to 3 short tips or cautions.",
+                "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                 "items": {
                   "type": "string",
                   "description": "At most 200 characters."
@@ -66,7 +66,7 @@
                   "string",
                   "null"
                 ],
-                "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                 "title": "Follow Up"
               },
               "risk_flag": {
@@ -80,11 +80,12 @@
                   "additionalProperties": false,
                   "properties": {
                     "name": {
+                      "description": "The dish, at most 60 characters. At most 60 characters.",
                       "title": "Name",
-                      "type": "string",
-                      "description": "At most 60 characters."
+                      "type": "string"
                     },
                     "ingredients": {
+                      "description": "1 to 8 main ingredients, in English, each at most 30 characters.",
                       "items": {
                         "type": "string",
                         "description": "At most 30 characters."
@@ -137,9 +138,9 @@
                       "type": "array"
                     },
                     "portion": {
+                      "description": "At most 40 characters, for example '1 bowl (250 g)'. At most 40 characters.",
                       "title": "Portion",
-                      "type": "string",
-                      "description": "At most 40 characters."
+                      "type": "string"
                     },
                     "calories": {
                       "maximum": 5000,
@@ -151,9 +152,9 @@
                       "title": "Calories"
                     },
                     "note": {
+                      "description": "At most 120 characters. At most 120 characters.",
                       "title": "Note",
-                      "type": "string",
-                      "description": "At most 120 characters."
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -198,7 +199,7 @@
       "body": {
         "status": "completed",
         "usage": {
-          "total_tokens": 403,
+          "total_tokens": 418,
           "total_input_tokens": 25,
           "input_tokens_by_modality": [
             {
@@ -207,22 +208,22 @@
             }
           ],
           "total_cached_tokens": 0,
-          "total_output_tokens": 378,
+          "total_output_tokens": 393,
           "total_tool_use_tokens": 0,
           "total_thought_tokens": 0
         },
-        "created": "2026-10-25T19:41:32Z",
-        "updated": "2026-10-25T19:41:32Z",
+        "created": "2026-10-27T13:44:21Z",
+        "updated": "2026-10-27T13:44:21Z",
         "service_tier": "standard",
         "steps": [
           {
-            "signature": "EmAKXgFpFH0TFgB3Z0u57Z5DG3jcDqxbFQXvcFZ5g3qaRFSF+e3siUDHtEqoeqL9jJpfiUzrxlkRtRQi8AkQgtLmt7ilYf7+IHPEn5FhKYcyG/de4C+48IVaVzHIsMkEBK8=",
+            "signature": "EmAKXgFpFH0T1lG74IHAM290i1kVUwgo4HZ3HxK+eJBMJCIWVwFetKWLhFUznfdE9tsqLUPZnByUcD2ZR9/3+EbeokzfFTOiTKgwaPxRLCgyKSAN3vVlSS6p3CKRA9siufQ=",
             "type": "thought"
           },
           {
             "content": [
               {
-                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Here is a high-protein vegetarian lunch plan featuring Greek yogurt with hemp seeds and roasted chickpeas.\",\n  \"notes\": [\n    \"Greek yogurt is an excellent source of quick, high-quality protein.\",\n    \"Roasted chickpeas add a satisfying crunch along with plant-based protein and fiber.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"name\": \"Greek Yogurt Bowl with Hemp Seeds\",\n      \"ingredients\": [\n        \"Plain Greek yogurt\",\n        \"Hemp seeds\",\n        \"Honey\"\n      ],\n      \"allergen_tags\": [\n        \"milk\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\",\n        \"eggetarian\"\n      ],\n      \"portion\": \"1.5 cups yogurt + 2 tbsp hemp seeds\",\n      \"calories\": 300,\n      \"note\": \"High in calcium and protein.\"\n    },\n    {\n      \"name\": \"Spiced Roasted Chickpeas\",\n      \"ingredients\": [\n        \"Chickpeas\",\n        \"Olive oil\",\n        \"Cumin\",\n        \"Salt\"\n      ],\n      \"allergen_tags\": [],\n      \"diet_tags\": [\n        \"vegan\",\n        \"vegetarian\",\n        \"lactose_free\",\n        \"halal\",\n        \"kosher\"\n      ],\n      \"portion\": \"1 cup\",\n      \"calories\": 270,\n      \"note\": \"Crispy, savory, and rich in plant protein.\"\n    }\n  ]\n}",
+                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Here is a high-protein vegetarian lunch featuring a paneer wrap and a Greek yogurt berry bowl, designed to keep you full and energized.\",\n  \"notes\": [\n    \"Make sure to use whole wheat tortillas for extra fiber.\",\n    \"Greek yogurt is naturally high in protein and helps support muscle recovery.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"name\": \"Paneer and Veggie Wrap\",\n      \"ingredients\": [\n        \"paneer\",\n        \"whole wheat tortilla\",\n        \"bell peppers\",\n        \"spinach\",\n        \"yogurt sauce\"\n      ],\n      \"allergen_tags\": [\n        \"milk\",\n        \"gluten\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\"\n      ],\n      \"portion\": \"1 wrap (250 g)\",\n      \"calories\": 420,\n      \"note\": \"Pan-sear the paneer lightly with spices for extra flavor.\"\n    },\n    {\n      \"name\": \"Greek Yogurt Berry Bowl\",\n      \"ingredients\": [\n        \"greek yogurt\",\n        \"mixed berries\",\n        \"chia seeds\",\n        \"almonds\"\n      ],\n      \"allergen_tags\": [\n        \"milk\",\n        \"tree_nut\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\"\n      ],\n      \"portion\": \"1 bowl (200 g)\",\n      \"calories\": 250,\n      \"note\": \"Use plain low-fat Greek yogurt to keep added sugars low.\"\n    }\n  ]\n}",
                 "type": "text"
               }
             ],

@@ -571,6 +571,7 @@
           "type": "string"
         },
         "note": {
+          "description": "At most 120 characters.",
           "maxLength": 120,
           "title": "Note",
           "type": "string"
@@ -646,6 +647,7 @@
           "type": "array"
         },
         "ingredients": {
+          "description": "1 to 8 main ingredients, in English, each at most 30 characters.",
           "items": {
             "maxLength": 30,
             "type": "string"
@@ -656,16 +658,19 @@
           "type": "array"
         },
         "name": {
+          "description": "The dish, at most 60 characters.",
           "maxLength": 60,
           "title": "Name",
           "type": "string"
         },
         "note": {
+          "description": "At most 120 characters.",
           "maxLength": 120,
           "title": "Note",
           "type": "string"
         },
         "portion": {
+          "description": "At most 40 characters, for example '1 bowl (250 g)'.",
           "maxLength": 40,
           "title": "Portion",
           "type": "string"
@@ -1179,6 +1184,7 @@
           "type": "integer"
         },
         "note": {
+          "description": "At most 120 characters.",
           "maxLength": 120,
           "title": "Note",
           "type": "string"

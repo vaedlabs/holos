@@ -37,12 +37,12 @@
                 "type": "string"
               },
               "summary": {
-                "description": "Short plain-text reply to the user. At most 400 characters.",
+                "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                 "title": "Summary",
                 "type": "string"
               },
               "notes": {
-                "description": "Up to 3 short tips or cautions.",
+                "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                 "items": {
                   "type": "string",
                   "description": "At most 200 characters."
@@ -66,7 +66,7 @@
                   "string",
                   "null"
                 ],
-                "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                 "title": "Follow Up"
               },
               "risk_flag": {
@@ -246,9 +246,9 @@
                       "type": "string"
                     },
                     "note": {
+                      "description": "At most 120 characters. At most 120 characters.",
                       "title": "Note",
-                      "type": "string",
-                      "description": "At most 120 characters."
+                      "type": "string"
                     }
                   },
                   "required": [

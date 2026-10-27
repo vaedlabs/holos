@@ -2,7 +2,7 @@
   "additionalProperties": false,
   "properties": {
     "follow_up": {
-      "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+      "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
       "title": "Follow Up",
       "type": [
         "string",
@@ -163,7 +163,7 @@
             "type": "string"
           },
           "note": {
-            "description": "At most 120 characters.",
+            "description": "At most 120 characters. At most 120 characters.",
             "title": "Note",
             "type": "string"
           },
@@ -213,7 +213,7 @@
       "type": "string"
     },
     "notes": {
-      "description": "Up to 3 short tips or cautions.",
+      "description": "Up to 3 short tips or cautions, each at most 200 characters.",
       "items": {
         "description": "At most 200 characters.",
         "type": "string"
@@ -238,7 +238,7 @@
       "type": "array"
     },
     "summary": {
-      "description": "Short plain-text reply to the user. At most 400 characters.",
+      "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
       "title": "Summary",
       "type": "string"
     }

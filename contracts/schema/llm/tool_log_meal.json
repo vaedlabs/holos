@@ -61,6 +61,7 @@
             "type": "array"
           },
           "ingredients": {
+            "description": "1 to 8 main ingredients, in English, each at most 30 characters.",
             "items": {
               "description": "At most 30 characters.",
               "type": "string"
@@ -71,17 +72,17 @@
             "type": "array"
           },
           "name": {
-            "description": "At most 60 characters.",
+            "description": "The dish, at most 60 characters. At most 60 characters.",
             "title": "Name",
             "type": "string"
           },
           "note": {
-            "description": "At most 120 characters.",
+            "description": "At most 120 characters. At most 120 characters.",
             "title": "Note",
             "type": "string"
           },
           "portion": {
-            "description": "At most 40 characters.",
+            "description": "At most 40 characters, for example '1 bowl (250 g)'. At most 40 characters.",
             "title": "Portion",
             "type": "string"
           }

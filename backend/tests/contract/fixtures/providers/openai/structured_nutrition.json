@@ -41,12 +41,12 @@
                   "type": "string"
                 },
                 "summary": {
-                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                   "title": "Summary",
                   "type": "string"
                 },
                 "notes": {
-                  "description": "Up to 3 short tips or cautions.",
+                  "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                   "items": {
                     "type": "string",
                     "description": "At most 200 characters."
@@ -70,7 +70,7 @@
                     "string",
                     "null"
                   ],
-                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                   "title": "Follow Up"
                 },
                 "risk_flag": {
@@ -84,11 +84,12 @@
                     "additionalProperties": false,
                     "properties": {
                       "name": {
+                        "description": "The dish, at most 60 characters. At most 60 characters.",
                         "title": "Name",
-                        "type": "string",
-                        "description": "At most 60 characters."
+                        "type": "string"
                       },
                       "ingredients": {
+                        "description": "1 to 8 main ingredients, in English, each at most 30 characters.",
                         "items": {
                           "type": "string",
                           "description": "At most 30 characters."
@@ -145,9 +146,9 @@
                         "type": "array"
                       },
                       "portion": {
+                        "description": "At most 40 characters, for example '1 bowl (250 g)'. At most 40 characters.",
                         "title": "Portion",
-                        "type": "string",
-                        "description": "At most 40 characters."
+                        "type": "string"
                       },
                       "calories": {
                         "maximum": 5000,
@@ -159,9 +160,9 @@
                         "title": "Calories"
                       },
                       "note": {
+                        "description": "At most 120 characters. At most 120 characters.",
                         "title": "Note",
-                        "type": "string",
-                        "description": "At most 120 characters."
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -203,16 +204,16 @@
         "content-type": "application/json"
       },
       "body": {
-        "id": "resp_0ff73c54fb627009016ade5af7d62c87d1b25999c796a9549d",
+        "id": "resp_008bfbcdf871b0ed016ae0aaa5404887d18e96d8acf7be0e3f",
         "object": "response",
-        "created_at": 1792957175,
+        "created_at": 1793108645,
         "status": "completed",
         "access_programs": null,
         "background": false,
         "billing": {
           "payer": "developer"
         },
-        "completed_at": 1792957178,
+        "completed_at": 1793108648,
         "error": null,
         "frequency_penalty": 0.0,
         "incomplete_details": null,
@@ -223,7 +224,7 @@
         "moderation": null,
         "output": [
           {
-            "id": "msg_0ff73c54fb627009016ade5af9119487d18a200e36f07331f2",
+            "id": "msg_008bfbcdf871b0ed016ae0aaa62fe887d19b1ea054b8f00839",
             "type": "message",
             "status": "completed",
             "content": [
@@ -231,7 +232,7 @@
                 "type": "output_text",
                 "annotations": [],
                 "logprobs": [],
-                "text": "{\"kind\":\"plan\",\"summary\":\"A balanced high-protein vegetarian lunch with two foods: lentil quinoa bowl and Greek yogurt.\",\"notes\":[\"Choose plain Greek yogurt; use a plant-based yogurt if preferred, though protein may vary.\"],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"name\":\"Lentil quinoa bowl\",\"ingredients\":[\"cooked lentils\",\"quinoa\",\"spinach\",\"tomato\"],\"allergen_tags\":[],\"diet_tags\":[\"vegetarian\",\"vegan\"],\"portion\":\"1½ cups\",\"calories\":null,\"note\":\"Lentils and quinoa provide filling plant protein.\"},{\"name\":\"Plain Greek yogurt\",\"ingredients\":[\"Greek yogurt\"],\"allergen_tags\":[\"milk\"],\"diet_tags\":[\"vegetarian\"],\"portion\":\"¾ cup\",\"calories\":null,\"note\":\"Adds a concentrated protein boost.\"}]}"
+                "text": "{\"kind\":\"plan\",\"summary\":\"A high-protein vegetarian lunch with two filling foods.\",\"notes\":[\"Protein amounts are approximate and vary by brand and portion.\"],\"source_ids\":[],\"follow_up\":null,\"risk_flag\":false,\"items\":[{\"name\":\"Lentil quinoa bowl\",\"ingredients\":[\"cooked lentils\",\"quinoa\",\"spinach\",\"tomato\",\"lemon\"],\"allergen_tags\":[],\"diet_tags\":[\"vegan\",\"vegetarian\"],\"portion\":\"1 bowl (about 350 g)\",\"calories\":430,\"note\":\"About 23 g protein.\"},{\"name\":\"Greek yogurt with berries\",\"ingredients\":[\"Greek yogurt\",\"berries\",\"pumpkin seeds\"],\"allergen_tags\":[\"milk\"],\"diet_tags\":[\"vegetarian\"],\"portion\":\"1 bowl (about 200 g)\",\"calories\":220,\"note\":\"About 20 g protein; choose plain yogurt.\"}]}"
               }
             ],
             "phase": "final_answer",
@@ -273,12 +274,12 @@
                   "type": "string"
                 },
                 "summary": {
-                  "description": "Short plain-text reply to the user. At most 400 characters.",
+                  "description": "Short plain-text reply to the user, at most 400 characters. At most 400 characters.",
                   "title": "Summary",
                   "type": "string"
                 },
                 "notes": {
-                  "description": "Up to 3 short tips or cautions.",
+                  "description": "Up to 3 short tips or cautions, each at most 200 characters.",
                   "items": {
                     "type": "string",
                     "description": "At most 200 characters."
@@ -302,7 +303,7 @@
                     "string",
                     "null"
                   ],
-                  "description": "The question to ask. Null unless kind is clarify. At most 200 characters.",
+                  "description": "The question to ask, at most 200 characters. Null unless kind is clarify. At most 200 characters.",
                   "title": "Follow Up"
                 },
                 "risk_flag": {
@@ -316,11 +317,12 @@
                     "additionalProperties": false,
                     "properties": {
                       "name": {
+                        "description": "The dish, at most 60 characters. At most 60 characters.",
                         "title": "Name",
-                        "type": "string",
-                        "description": "At most 60 characters."
+                        "type": "string"
                       },
                       "ingredients": {
+                        "description": "1 to 8 main ingredients, in English, each at most 30 characters.",
                         "items": {
                           "type": "string",
                           "description": "At most 30 characters."
@@ -377,9 +379,9 @@
                         "type": "array"
                       },
                       "portion": {
+                        "description": "At most 40 characters, for example '1 bowl (250 g)'. At most 40 characters.",
                         "title": "Portion",
-                        "type": "string",
-                        "description": "At most 40 characters."
+                        "type": "string"
                       },
                       "calories": {
                         "maximum": 5000,
@@ -391,9 +393,9 @@
                         "title": "Calories"
                       },
                       "note": {
+                        "description": "At most 120 characters. At most 120 characters.",
                         "title": "Note",
-                        "type": "string",
-                        "description": "At most 120 characters."
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -452,16 +454,16 @@
         "top_p": 0.98,
         "truncation": "disabled",
         "usage": {
-          "input_tokens": 576,
+          "input_tokens": 644,
           "input_tokens_details": {
             "cache_write_tokens": 0,
             "cached_tokens": 0
           },
-          "output_tokens": 182,
+          "output_tokens": 188,
           "output_tokens_details": {
             "reasoning_tokens": 0
           },
-          "total_tokens": 758
+          "total_tokens": 832
         },
         "user": null,
         "metadata": {}
