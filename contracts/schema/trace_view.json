@@ -192,6 +192,20 @@
   },
   "additionalProperties": false,
   "properties": {
+    "agents": {
+      "default": [],
+      "items": {
+        "enum": [
+          "physical",
+          "nutrition",
+          "mental"
+        ],
+        "type": "string"
+      },
+      "maxItems": 3,
+      "title": "Agents",
+      "type": "array"
+    },
     "decisions": {
       "default": [],
       "items": {
@@ -210,13 +224,12 @@
       "anyOf": [
         {
           "enum": [
-            "physical",
-            "nutrition",
-            "mental",
-            "holistic",
+            "coaching",
             "greeting",
             "meta",
-            "off_topic"
+            "off_topic",
+            "unclear",
+            "other_language"
           ],
           "type": "string"
         },

@@ -111,6 +111,17 @@ CHECKED_THINGS = frozenset({
     "preparation", "statement", "statements", "product", "products",
 })
 CHECK_REACH = 6  # words from the verb to "for"
+
+# "Good morning" is also an exercise. It's the greeting at the start of a sentence
+# ("Good morning, Harbhajan!", "Good morning to you") or before "!", unless exercise
+# words follow ("Good morning with a light bar", "Good morning 3x10"). "Do 3 sets of
+# good morning." and "good mornings" stay the exercise (Part E #36).
+GREETING_TERM = "good morning"
+EXERCISE_FOLLOWERS = frozenset({
+    "exercise", "exercises", "set", "sets", "rep", "reps", "with", "using", "barbell",
+    "dumbbell", "for", "x",
+})
+_SENTENCE_START = re.compile(r"(?:^|[.!?\n]|[^\w\s,;:'\"()-])\s*$")
 # "don't check labels for peanuts" says peanuts are fine
 CHECK_NEGATORS = frozenset({"don't", "dont", "not", "no", "never", "needn't", "skip"})
 # "squats kyun nahi karte?" asks why you don't: a suggestion, not a negation
@@ -265,6 +276,19 @@ def _share_once(folded: str, found: list[tuple[int, int, bool, bool]],
             negated[k] = True
 
 
+def _is_greeting(folded: str, match: re.Match) -> bool:
+    if match.group(0) != GREETING_TERM:  # "good mornings", "barbell good morning"
+        return False
+    after = folded[match.end():]
+    if after.startswith("!"):
+        return True
+    if not _SENTENCE_START.search(folded[:match.start()]) or after.lstrip().startswith(":"):
+        return False
+    following = WORD.findall(after)
+    return not following or (following[0] not in EXERCISE_FOLLOWERS
+                             and not following[0][0].isdigit())
+
+
 class Matcher:
     def __init__(self, catalogue: Catalogue):
         self.exercises = {
@@ -314,7 +338,8 @@ class Matcher:
             found.append((match.start(), match.end(), negated, noun_after))
         negated = _share_in_lists(folded, found)
         return [Mention(m.group(1), self.terms[m.group(1)], m.start(), m.end(), n)
-                for m, n in zip(matches, negated, strict=True)]
+                for m, n in zip(matches, negated, strict=True)
+                if not _is_greeting(folded, m)]
 
     def ingredients(self, text: str) -> list[Entry]:
         """The known ingredients named in a food name or ingredient. Negation is

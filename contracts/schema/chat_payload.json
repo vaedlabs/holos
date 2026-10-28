@@ -39,6 +39,27 @@
     "HistoryTurn": {
       "additionalProperties": false,
       "properties": {
+        "agents": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "physical",
+                  "nutrition",
+                  "mental"
+                ],
+                "type": "string"
+              },
+              "maxItems": 3,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agents"
+        },
         "content": {
           "maxLength": 2000,
           "title": "Content",
@@ -51,27 +72,6 @@
           ],
           "title": "Role",
           "type": "string"
-        },
-        "route": {
-          "anyOf": [
-            {
-              "enum": [
-                "physical",
-                "nutrition",
-                "mental",
-                "holistic",
-                "greeting",
-                "meta",
-                "off_topic"
-              ],
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Route"
         },
         "ts": {
           "format": "date-time",
@@ -134,26 +134,27 @@
   },
   "additionalProperties": false,
   "properties": {
-    "agent": {
+    "agents": {
       "anyOf": [
         {
-          "enum": [
-            "physical",
-            "nutrition",
-            "mental",
-            "holistic",
-            "greeting",
-            "meta",
-            "off_topic"
-          ],
-          "type": "string"
+          "items": {
+            "enum": [
+              "physical",
+              "nutrition",
+              "mental"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "minItems": 1,
+          "type": "array"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Agent"
+      "title": "Agents"
     },
     "client_request_id": {
       "format": "uuid",

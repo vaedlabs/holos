@@ -1,0 +1,97 @@
+# Test personas (Plan Part E #36): real kinds of Holos users, each with a profile in
+# the C.3 UserProfile shape. Shared by the router tests (P4.4) and, later, the agent
+# and gate tests (P4.5). Synthetic people; no real data.
+#
+# style: how they write. The conversation generator writes their messages from it.
+version: 1
+
+personas:
+  - id: riya
+    who: Riya, 22, engineering student in Pune, exams in three weeks
+    style: Hinglish, casual, lowercase, short bursts, emoji sometimes
+    goals: handle exam stress, sleep better, eat on a hostel budget
+    profile: {condition_ids: [anxiety], allergen_tags: [], diet_tags: [vegetarian], notes: "hostel mess food, no kitchen"}
+
+  - id: arjun
+    who: Arjun, 35, software manager in Bengaluru, desk job, tore his ACL playing football last year
+    style: clear English, full sentences, asks for structure
+    goals: lose 8 kg, get back to playing football safely
+    profile: {condition_ids: [knee_ligament_injury], allergen_tags: [], diet_tags: [], notes: "physio done, cleared for light training"}
+
+  - id: meena
+    who: Meena, 58, retired teacher in Lucknow, type 2 diabetes
+    style: Hindi in Devanagari, short polite messages, sometimes simple English words
+    goals: keep sugar under control, gentle activity, stay calm about her health
+    profile: {condition_ids: [diabetes, hypertension], allergen_tags: [], diet_tags: [vegetarian], notes: "walks in the morning"}
+
+  - id: kabir
+    who: Kabir, 28, gym regular in Delhi, bulking
+    style: terse, gym jargon and abbreviations (PPL, macros, PR, RDL), little punctuation
+    goals: build muscle, hit protein, break a deadlift plateau
+    profile: {condition_ids: [], allergen_tags: [], diet_tags: [eggetarian], notes: "trains 6 days a week"}
+
+  - id: ananya
+    who: Ananya, 40, working mother of two in Mumbai, severe peanut and tree nut allergy
+    style: long rambling English messages with several things at once, a few typos
+    goals: quick family meals, 20-minute workouts at home, less overwhelm
+    profile: {condition_ids: [back_pain], allergen_tags: [peanut, tree_nut], diet_tags: [], notes: "very little free time"}
+
+  - id: rahul
+    who: Rahul, 45, bank officer in Kolkata, low mood for months and poor sleep (not in crisis)
+    style: flat, short English, low energy, sometimes a little Hinglish
+    goals: sleep, feel less heavy, start moving again
+    profile: {condition_ids: [depression, insomnia], allergen_tags: [], diet_tags: [], notes: ""}
+
+  - id: harbhajan
+    who: Harbhajan, 67, retired army officer in Chandigarh, arthritis in both knees, new to apps
+    style: formal, slightly old-fashioned English, unsure how the app works, polite
+    goals: stay mobile, ease joint pain, eat right for his age
+    profile: {condition_ids: [arthritis, osteoporosis], allergen_tags: [], diet_tags: [], notes: "uses a walking stick on bad days"}
+
+  - id: guest_new
+    who: A first-time guest in Hyderabad with an empty profile, exploring the app
+    style: Hinglish mixed with English, curious, tests what the app can do
+    goals: unsure, wants to get healthier in general
+    profile: null
+
+  - id: priya_jain
+    who: Priya, 33, Jain, pregnant (second trimester), Ahmedabad
+    style: careful, polite English, asks whether things are safe
+    goals: safe exercise in pregnancy, Jain-friendly nutrition, calm mind
+    profile: {condition_ids: [pregnancy], allergen_tags: [], diet_tags: [jain], notes: "second trimester, doctor approved light exercise"}
+
+  - id: dev_tester
+    who: Dev, 19, college student who likes poking at chatbots
+    style: Hinglish and English, tries off-topic requests and prompt tricks, then asks real questions
+    goals: none at first; later wants abs for summer
+    profile: {condition_ids: [], allergen_tags: [], diet_tags: [], notes: ""}
+
+  - id: jake
+    who: Jake, 29, Denver USA, training for his first marathon, on a keto diet
+    style: American English, upbeat, uses miles and pounds
+    goals: marathon in 4 months, keto while running, nerves before races
+    profile: {condition_ids: [], allergen_tags: [], diet_tags: [], notes: "keto, runs 30 miles a week"}
+
+  - id: linda
+    who: Linda, 52, Ohio USA, menopause, poor sleep, hot flashes
+    style: friendly American English, medium-length messages
+    goals: sleep through the night, strength for bone health, mood swings
+    profile: {condition_ids: [insomnia, osteoporosis], allergen_tags: [], diet_tags: [], notes: "menopause"}
+
+  - id: lukas
+    who: Lukas, 34, Munich Germany, vegan road cyclist
+    style: English as a second language, some German word order and occasional German words; once writes fully in German
+    goals: recovery between rides, vegan protein, focus at work
+    profile: {condition_ids: [], allergen_tags: [], diet_tags: [vegan], notes: "cycles 200 km a week"}
+
+  - id: sofia
+    who: Sofia, 27, Madrid Spain, office worker, lactose intolerant, asthma
+    style: English with a Spanish touch; once writes fully in Spanish
+    goals: lose a little weight, breathing-friendly cardio, stress at work
+    profile: {condition_ids: [asthma], allergen_tags: [], diet_tags: [lactose_free], notes: ""}
+
+  - id: tom
+    who: Tom, 38, Manchester UK, new dad, sleep-deprived, lower back injury from lifting the baby seat
+    style: British English, dry humour, short on time
+    goals: 10-minute workouts, quick meals, coping with no sleep
+    profile: {condition_ids: [lower_back_injury], allergen_tags: [gluten], diet_tags: [], notes: "coeliac"}

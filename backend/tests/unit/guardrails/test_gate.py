@@ -392,3 +392,33 @@ def test_unknown_domain_is_an_error():
 def test_retry_only_for_blocked_items_or_malformed(domain, data, profile, retry):
     result = gate(domain, data, profile)
     assert result.needs_retry is retry
+
+
+# --- "Good morning": the greeting or the exercise (Part E #36) ---
+
+BONES = Profile(condition_ids=("osteoporosis",))
+
+
+@pytest.mark.parametrize("text", [
+    "Good morning, Harbhajan! Welcome back.",
+    "Good morning!",
+    "Good morning Harbhajan, how did you sleep?",
+    "Hi Arjun, good morning! Ready for today?",
+    "Morning! Good morning to you.",
+])
+def test_good_morning_as_a_greeting_is_kept(text):
+    result = gate_text(text, BONES)
+    assert result.action == "allow" and result.content == text
+
+
+@pytest.mark.parametrize("text", [
+    "Do 3 sets of good morning.",
+    "Good mornings strengthen the hamstrings.",
+    "Good morning with a light bar, 3x10.",
+    "Good morning: 3 sets of 8.",
+    "Add a barbell good morning to leg day.",
+    "Good morning for hamstrings is great.",
+])
+def test_good_morning_as_the_exercise_is_still_blocked(text):
+    result = gate_text(text, BONES)
+    assert result.action == "block" and result.content == ""

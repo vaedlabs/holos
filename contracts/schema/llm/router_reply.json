@@ -1,0 +1,47 @@
+{
+  "additionalProperties": false,
+  "description": "The router's one call: the coaches to call, or Holos's own short reply.",
+  "properties": {
+    "agents": {
+      "description": "Every coach the request needs and only those: physical (exercise, training, movement, sport, pain during exercise), nutrition (food, meals, diet, drinks, supplements), mental (stress, mood, anxiety, sleep, motivation, focus, emotions). Empty unless kind is coaching.",
+      "items": {
+        "enum": [
+          "physical",
+          "nutrition",
+          "mental"
+        ],
+        "type": "string"
+      },
+      "maxItems": 3,
+      "title": "Agents",
+      "type": "array"
+    },
+    "kind": {
+      "description": "coaching: the user wants advice, a plan, an answer or to log something about exercise, food or mental wellbeing. greeting: a hello, thanks or goodbye. meta: a question about Holos itself. off_topic: anything outside exercise, food and mental wellbeing. unclear: you can't tell what they want. other_language: the message is not in English, Hindi or Hinglish.",
+      "enum": [
+        "coaching",
+        "greeting",
+        "meta",
+        "off_topic",
+        "unclear",
+        "other_language"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "reply": {
+      "description": "Your own short reply, at most 400 characters. Null when kind is coaching. At most 400 characters.",
+      "title": "Reply",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "kind",
+    "agents",
+    "reply"
+  ],
+  "type": "object"
+}

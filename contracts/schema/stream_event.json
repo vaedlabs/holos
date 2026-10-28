@@ -715,6 +715,27 @@
     "HistoryTurn": {
       "additionalProperties": false,
       "properties": {
+        "agents": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "physical",
+                  "nutrition",
+                  "mental"
+                ],
+                "type": "string"
+              },
+              "maxItems": 3,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agents"
+        },
         "content": {
           "maxLength": 2000,
           "title": "Content",
@@ -727,27 +748,6 @@
           ],
           "title": "Role",
           "type": "string"
-        },
-        "route": {
-          "anyOf": [
-            {
-              "enum": [
-                "physical",
-                "nutrition",
-                "mental",
-                "holistic",
-                "greeting",
-                "meta",
-                "off_topic"
-              ],
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Route"
         },
         "ts": {
           "format": "date-time",
@@ -1690,6 +1690,20 @@
     "TraceView": {
       "additionalProperties": false,
       "properties": {
+        "agents": {
+          "default": [],
+          "items": {
+            "enum": [
+              "physical",
+              "nutrition",
+              "mental"
+            ],
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Agents",
+          "type": "array"
+        },
         "decisions": {
           "default": [],
           "items": {
@@ -1708,13 +1722,12 @@
           "anyOf": [
             {
               "enum": [
-                "physical",
-                "nutrition",
-                "mental",
-                "holistic",
+                "coaching",
                 "greeting",
                 "meta",
-                "off_topic"
+                "off_topic",
+                "unclear",
+                "other_language"
               ],
               "type": "string"
             },

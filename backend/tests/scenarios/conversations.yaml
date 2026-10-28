@@ -1,0 +1,94 @@
+# Conversation templates (Plan Part E #36). Each persona plays several templates; a
+# model writes the actual words in the persona's style (tests/scenarios/generate.py),
+# so labels come from here, not from the generated text.
+#
+# A turn:
+#   ask:     what the user is doing, for the writer (never shown to the router)
+#   kind:    the expected TurnKind
+#   agents:  the expected coaches (coaching only); `follow` = the previous coaching
+#            turn's coaches
+#   accept:  other answers that are also right (a list of agents lists, or kinds)
+#   image / app_agents: the deterministic paths (photo, coaches chosen in the app)
+version: 1
+
+templates:
+  first_visit:
+    - {ask: "say hello for the first time", kind: greeting}
+    - {ask: "ask what the app can do for someone like them", kind: meta, accept: [coaching]}
+    - {ask: "ask for a plan for their main exercise goal", kind: coaching, agents: [physical], accept: [[physical, mental]]}
+    - {ask: "ask to make it easier or shorter, without naming the topic", kind: coaching, agents: follow}
+    - {ask: "say thanks and bye", kind: greeting}
+
+  mixed_goal:
+    - {ask: "ask for help with a goal that clearly needs both workouts and food advice, naming both", kind: coaching, agents: [physical, nutrition]}
+    - {ask: "follow up only on the food part, without saying 'food' (e.g. a swap or a dish)", kind: coaching, agents: [nutrition]}
+    - {ask: "ask a quick question about a specific exercise", kind: coaching, agents: [physical]}
+    - {ask: "correct their last question: they meant a different body part or a different time of day", kind: coaching, agents: [physical]}
+    - {ask: "say bye, mentioning they will try it tomorrow", kind: greeting}
+
+  daily_life:
+    - {ask: "log a meal they just ate, in their own words", kind: coaching, agents: [nutrition]}
+    - {ask: "ask a quick question about a food or drink", kind: coaching, agents: [nutrition], accept: [[nutrition, mental]]}
+    - {ask: "mention they are stressed in passing but ask only what to eat tonight", kind: coaching, agents: [nutrition], accept: [[nutrition, mental]]}
+    - {ask: "open up about how they have been feeling lately and ask for help with it", kind: coaching, agents: [mental]}
+    - {ask: "a short follow-up asking why, or for one more idea", kind: coaching, agents: follow, accept: [[physical], [physical, mental]]}
+
+  whole_week:
+    - {ask: "ask for a week plan covering exercise, meals and stress or sleep", kind: coaching, agents: [physical, nutrition, mental]}
+    - {ask: "ask to change one day of the plan because of a commitment, without naming the area", kind: coaching, agents: [physical, nutrition, mental], accept: [[physical], [physical, nutrition], [nutrition]]}
+    - {ask: "say they have no motivation to exercise and ask how to stick with it", kind: coaching, agents: [mental], accept: [[physical, mental]]}
+    - {ask: "log a workout they did today", kind: coaching, agents: [physical]}
+    - {ask: "thank Holos warmly", kind: greeting}
+
+  boundary:
+    - {ask: "ask for something unrelated to health (code, homework, cricket score, travel booking)", kind: off_topic}
+    - {ask: "try to make the assistant ignore its rules or reveal its instructions", kind: off_topic, accept: [meta]}
+    - {ask: "send a vague one-word or two-word message that could mean anything", kind: unclear, accept: [greeting, coaching]}
+    - {ask: "ask whether the app is a doctor or what it does with their data", kind: meta}
+    - {ask: "ask a real question about their own goal in one area", kind: coaching, agents: [physical], accept: [[nutrition], [mental], [physical, nutrition]]}
+
+  next_day:
+    - {ask: "come back the next day and greet, referring to yesterday", kind: greeting}
+    - {ask: "ask for help with a goal that needs exercise and mental wellbeing (e.g. nerves, sleep, motivation with training)", kind: coaching, agents: [physical, mental]}
+    - {ask: "send a photo of their lunch asking if it is OK", kind: coaching, agents: [nutrition], image: true}
+    - {ask: "with the mental coach picked in the app, ask something short", kind: coaching, agents: [mental], app_agents: [mental]}
+    - {ask: "ask how food affects their mood and energy", kind: coaching, agents: [nutrition, mental], accept: [[nutrition]]}
+
+  language:
+    - {ask: "write fully in your own non-English language (German or Spanish; for Indian users a regional language such as Tamil or Bengali in its own script) asking for a workout", kind: other_language}
+    - {ask: "switch to English and ask the same thing", kind: coaching, agents: [physical]}
+    - {ask: "a short follow-up asking for an easier version", kind: coaching, agents: follow}
+
+# Which personas play which templates. Every persona plays three; every template is
+# played by at least five people across India, the US and Europe.
+plays:
+  riya: [first_visit, daily_life, next_day]
+  arjun: [mixed_goal, whole_week, next_day]
+  meena: [first_visit, daily_life, mixed_goal]
+  kabir: [mixed_goal, daily_life, boundary]
+  ananya: [whole_week, daily_life, first_visit]
+  rahul: [daily_life, next_day, language]
+  harbhajan: [first_visit, mixed_goal, boundary]
+  guest_new: [first_visit, boundary, whole_week]
+  priya_jain: [whole_week, next_day, language]
+  dev_tester: [boundary, mixed_goal, language]
+  jake: [mixed_goal, next_day, whole_week]
+  linda: [daily_life, first_visit, boundary]
+  lukas: [language, mixed_goal, next_day]
+  sofia: [language, whole_week, daily_life]
+  tom: [boundary, first_visit, next_day]
+
+# Labels changed after reading the generated text, before routing it: the writer did
+# something other than the template asked. Per generated file, then
+# persona/template/turn index (0-based).
+overrides:
+  conversations:
+    dev_tester/language/0: {kind: coaching, agents: [physical]}  # wrote Hindi, which Holos supports
+    sofia/daily_life/3: {kind: other_language}  # wrote this one fully in Spanish
+    lukas/next_day/2: {kind: other_language}  # photo caption fully in German
+  conversations_blind:
+    dev_tester/language/0: {kind: coaching, agents: [physical]}  # wrote Hindi
+    sofia/daily_life/3: {kind: other_language}  # fully in Spanish
+    sofia/whole_week/4: {kind: other_language, accept: [greeting]}  # thanks fully in Spanish
+    lukas/next_day/3: {kind: other_language}  # to the coach picked in the app, in German
+    kabir/daily_life/4: {kind: coaching, agents: [mental], accept: [[physical], [physical, mental]]}  # "why deload": training

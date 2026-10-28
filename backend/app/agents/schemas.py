@@ -36,8 +36,10 @@ ExerciseId = StrEnum("ExerciseId", {i: i for i in _catalogue.exercise_ids})
 PracticeId = StrEnum("PracticeId", {i: i for i in _catalogue.practice_ids})
 
 ReplyKind = Literal["plan", "answer", "log_ack", "clarify"]
-Route = Literal["physical", "nutrition", "mental", "holistic", "greeting", "meta", "off_topic"]
 AgentName = Literal["physical", "nutrition", "mental"]
+# What a turn was (C.15). coaching: the coaches in `agents` answer; every other kind is
+# answered by the router's own reply, no coach (Part E #36)
+TurnKind = Literal["coaching", "greeting", "meta", "off_topic", "unclear", "other_language"]
 WriteKind = Literal["workout", "meal", "practice"]
 Intensity = Literal["low", "moderate", "high"]
 
@@ -145,6 +147,44 @@ class MentalReply(_ReplyBase):
 
 
 AgentReply = PhysicalReply | NutritionReply | MentalReply  # backend only, never sent to an LLM
+# --- Router reply (C.15) ---
+
+ROUTER_REPLY_CHARS = 400
+
+
+class RouterReply(_LLMModel):
+    """The router's one call: the coaches to call, or Holos's own short reply."""
+
+    kind: TurnKind = Field(description=(
+        "coaching: the user wants advice, a plan, an answer or to log something about "
+        "exercise, food or mental wellbeing. greeting: a hello, thanks or goodbye. meta: a "
+        "question about Holos itself. off_topic: anything outside exercise, food and mental "
+        "wellbeing. unclear: you can't tell what they want. other_language: the message is "
+        "not in English, Hindi or Hinglish."))
+    agents: list[AgentName] = Field(max_length=3, description=(
+        "Every coach the request needs and only those: physical (exercise, training, "
+        "movement, sport, pain during exercise), nutrition (food, meals, diet, drinks, "
+        "supplements), mental (stress, mood, anxiety, sleep, motivation, focus, emotions). "
+        "Empty unless kind is coaching."))
+    reply: str | None = Field(max_length=ROUTER_REPLY_CHARS, description=(
+        "Your own short reply, at most 400 characters. Null when kind is coaching."))
+
+    @model_validator(mode="after")
+    def _agents_or_reply(self):
+        # The kind decides; a stray reply or stray agents are dropped, not a failure
+        # (live: "coaching" with agents and a reply, 1 in 215)
+        _unique(self.agents)
+        if self.kind == "coaching":
+            if not self.agents:
+                raise ValueError("coaching needs agents")
+            self.reply = None
+        else:
+            if not (self.reply or "").strip():
+                raise ValueError(f"kind '{self.kind}' needs a reply")
+            self.agents = []
+        return self
+
+
 REPLY_MODELS: dict[AgentName, type[_ReplyBase]] = {
     "physical": PhysicalReply,
     "nutrition": NutritionReply,
@@ -213,23 +253,30 @@ class UserProfile(_Model):
     notes: str = Field(max_length=1000)
 
 
+def _unique(agents: list[str] | None) -> None:
+    if agents is not None and len(set(agents)) != len(agents):
+        raise ValueError("agents must not repeat")
+
+
 class HistoryTurn(_Model):
     role: Literal["user", "assistant"]
     content: str = Field(max_length=2000)
-    route: Route | None = None
+    agents: list[AgentName] | None = Field(default=None, max_length=3)  # who answered
     ts: datetime
 
     @model_validator(mode="after")
-    def _route_on_assistant_only(self):
-        if self.role == "user" and self.route is not None:
-            raise ValueError("route is only set on assistant turns")
+    def _agents_on_assistant_only(self):
+        if self.role == "user" and self.agents is not None:
+            raise ValueError("agents are only set on assistant turns")
+        _unique(self.agents)
         return self
 
 
 class ChatPayload(_Model):
     # min_length rejects a blank message before any paid call (red-team finding, Part E #9)
     message: str = Field(min_length=1, max_length=2000)
-    agent: Route | None = None
+    # Coaches chosen in the app: routing is skipped, not the crisis check
+    agents: list[AgentName] | None = Field(default=None, min_length=1, max_length=3)
     guest_profile: UserProfile | None = None
     guest_history: list[HistoryTurn] | None = Field(default=None, max_length=6)
     client_request_id: UUID
@@ -239,6 +286,7 @@ class ChatPayload(_Model):
     def _not_blank(self):
         if not self.message.strip():
             raise ValueError("message is blank")
+        _unique(self.agents)
         return self
 
 
@@ -309,7 +357,8 @@ class TraceTool(_Model):
 
 class TraceView(_Model):
     trace_id: str = Field(max_length=64)
-    route: Route | Literal["crisis"]
+    route: TurnKind | Literal["crisis"]
+    agents: list[AgentName] = Field(default=[], max_length=3)
     steps: list[TraceStep] = []
     tools: list[TraceTool] = []
     decisions: list[Decision] = []

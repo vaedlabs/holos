@@ -40,6 +40,7 @@ def build() -> dict[str, str]:
     # The exact schemas sent to the providers
     for name, model in schemas.REPLY_MODELS.items():
         files[f"schema/llm/{name}_reply.json"] = schemas.llm_json_schema(model)
+    files["schema/llm/router_reply.json"] = schemas.llm_json_schema(schemas.RouterReply)
     for name, model in schemas.TOOL_ARG_MODELS.items():
         files[f"schema/llm/tool_{name}.json"] = schemas.llm_json_schema(model)
 
