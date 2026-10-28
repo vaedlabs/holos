@@ -9,6 +9,8 @@ from .base import (
     MalformedOutput,
     Message,
     ModelTurn,
+    NoCapacity,
+    OverBudget,
     ProviderError,
     ProviderTimeout,
     ProviderUnavailable,
@@ -20,12 +22,13 @@ from .base import (
     Usage,
 )
 from .fake import FakeProvider
-from .resilient import Breakers, ResilientProvider, Route
+from .resilient import Backups, Breakers, CallPlan, Meter, ResilientProvider, Route
 from .scheduler import FairScheduler
 
 __all__ = [
-    "BadRequest", "Breakers", "FairScheduler", "FakeProvider", "GenerateOptions",
-    "ImageInput", "LLMProvider", "LLMResult", "MalformedOutput", "Message", "ModelTurn",
-    "ProviderError", "ProviderTimeout", "ProviderUnavailable", "RateLimited",
-    "ResilientProvider", "Route", "ToolCall", "ToolResult", "ToolSpec", "Turn", "Usage",
+    "Backups", "BadRequest", "Breakers", "CallPlan", "FairScheduler", "FakeProvider",
+    "GenerateOptions", "ImageInput", "LLMProvider", "LLMResult", "MalformedOutput", "Message",
+    "Meter", "ModelTurn", "NoCapacity", "OverBudget", "ProviderError", "ProviderTimeout",
+    "ProviderUnavailable", "RateLimited", "ResilientProvider", "Route", "ToolCall", "ToolResult",
+    "ToolSpec", "Turn", "Usage",
 ]

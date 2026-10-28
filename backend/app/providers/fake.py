@@ -9,8 +9,17 @@ from pydantic import BaseModel
 
 from .base import GenerateOptions, LLMResult, Message, ModelTurn, ToolSpec
 
-# A script step: a result, an exception to raise, or a function of the call
-Step = LLMResult | Exception | Callable[["FakeCall"], LLMResult]
+
+@dataclass(frozen=True)
+class Slow:
+    """A step that takes `seconds` before it happens (a slow call)."""
+
+    seconds: float
+    step: "Step"
+
+
+# A script step: a result, an exception to raise, a function of the call, or a slow step
+Step = LLMResult | Exception | Callable[["FakeCall"], LLMResult] | Slow
 
 
 @dataclass(frozen=True)
@@ -45,6 +54,9 @@ class FakeProvider:
         if not self.script:
             raise AssertionError(f"FakeProvider {self.name!r} has no scripted step left")
         step = self.script.pop(0)
+        if isinstance(step, Slow):
+            await asyncio.sleep(step.seconds)
+            step = step.step
         if isinstance(step, Exception):
             raise step
         result = step(call) if callable(step) else step

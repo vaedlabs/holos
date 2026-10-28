@@ -126,6 +126,15 @@ class BadRequest(ProviderError):
     """4xx other than 429: our request is wrong; retrying won't help."""
 
 
+class NoCapacity(ProviderError):
+    """No slot would free in time for this call (load shedding, C.9). Not retried:
+    retrying adds load. Says nothing about the provider's health."""
+
+
+class OverBudget(ProviderError):
+    """A spend cap has no room for this call's reservation (C.13). The call didn't run."""
+
+
 class MalformedOutput(ProviderError):
     """The reply doesn't parse into the schema or was cut off (C.10 step 4)."""
 

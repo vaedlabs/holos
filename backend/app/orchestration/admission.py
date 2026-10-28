@@ -6,18 +6,21 @@
     finally:
         await admitted.release()                                   # stage 15
 
-A request is refused before it takes anything if a spend cap has nothing left. Then,
+A request is refused before it takes anything if the chat provider's circuit breaker
+is open (503 until its trial call) or a spend cap has nothing left. Then,
 in one transaction: the request claim (accounts), the principal's lease, an IP slot
 (guests), a global slot, and one count on each request counter. A refused request
 holds no lease and counts nowhere. Runs before any image is decoded (stage 7).
 """
 
+import math
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from app.config import limits
 from app.data.state_store import Counter, SpendKey, StateStore
+from app.providers.resilient import CircuitBreaker
 from app.routers.errors import ApiError
 
 from .budget import day_start, month_start, search_keys, spend_keys, window_start
@@ -115,7 +118,12 @@ async def admit(
     store: StateStore,
     billing_day: int = 1,
     trace_id: str | None = None,
+    breaker: CircuitBreaker | None = None,
 ) -> Admitted:
+    # The provider is failing: refuse at once rather than start a doomed request (C.13)
+    down_for = breaker.retry_after() if breaker is not None else None
+    if down_for is not None:
+        raise _refused("global_slot", math.ceil(down_for))
     now = datetime.now(UTC)
     trace_id = trace_id or uuid.uuid4().hex
     keys = spend_keys(principal, now)

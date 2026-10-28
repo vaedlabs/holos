@@ -22,7 +22,7 @@ from decimal import ROUND_CEILING, Decimal
 
 from app.config import limits
 from app.data.state_store import Reservation, SpendKey, StateStore
-from app.providers.base import Usage
+from app.providers.base import GenerateOptions, Usage
 
 from .principal import Principal
 
@@ -183,5 +183,32 @@ class Budget:
                                  tokens_in=usage.tokens_in, tokens_out=usage.tokens_out)
 
     async def cancel(self, reservation: Reservation) -> None:
-        """The call never ran (cancelled before it started)."""
+        """The call never ran, or wasn't billed (429, 5xx, a refused request)."""
         await self._store.cancel(reservation)
+
+    async def keep(self, reservation: Reservation) -> None:
+        """Usage unknown (timed out, cancelled, unparsable): spent at the reserved maximum."""
+        await self._store.settle(reservation, reservation.usd)
+
+
+class CallMeter:
+    """One caller's LLM calls against its spend keys: the ResilientProvider's Meter.
+    Every call, backups included, reserves its maximum first (C.13)."""
+
+    def __init__(self, budget: Budget, keys: list[SpendKey], tokens_in: int):
+        self._budget = budget
+        self._keys = keys
+        self._tokens_in = tokens_in
+
+    async def reserve(self, options: GenerateOptions) -> Reservation | None:
+        return await self._budget.reserve_call(self._keys, options.model, self._tokens_in,
+                                               options.max_output_tokens)
+
+    async def settle(self, hold: Reservation, options: GenerateOptions, usage: Usage) -> None:
+        await self._budget.settle_call(hold, options.model, usage)
+
+    async def keep(self, hold: Reservation) -> None:
+        await self._budget.keep(hold)
+
+    async def release(self, hold: Reservation) -> None:
+        await self._budget.cancel(hold)

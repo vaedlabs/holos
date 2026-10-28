@@ -19,10 +19,11 @@ TOOL_ROUNDS = 3
 # Concurrency
 INFLIGHT_PER_PRINCIPAL = 1
 INFLIGHT_PER_GUEST_IP = 3
-INFLIGHT_GLOBAL = 16  # PROPOSED, awaiting the owner: C.12 gives no value (Part E #26)
+INFLIGHT_GLOBAL = 32
 LEASE_TTL = timedelta(seconds=60)
 LLM_SLOTS_PER_PRINCIPAL = 3
-LLM_SLOTS_GLOBAL = 8
+LLM_SLOTS_GLOBAL = 24
+PROVIDER_SLOTS = {"openai": 24, "gemini": 4, "tavily": 4}
 
 # Request and spend caps
 REQUESTS_PER_MINUTE = 6

@@ -27,9 +27,17 @@ from app.middleware.flood import FloodLimit, flood_key
 from app.middleware.headers import SecurityHeaders
 from app.orchestration import admission, passwords
 from app.orchestration.admission import admit
-from app.orchestration.budget import Budget, ip_spend_key, spend_keys
+from app.orchestration.budget import (
+    Budget,
+    CallMeter,
+    call_usd,
+    ip_spend_key,
+    max_call_usd,
+    spend_keys,
+)
 from app.orchestration.principal import Principal, csrf_token, ip_key, ip_requests_key
-from app.providers.base import Usage
+from app.providers.base import GenerateOptions, Usage
+from app.providers.resilient import Breakers
 from app.routers import auth
 from app.routers.errors import ApiError, api_error_handler
 from app.routers.intake import clean_image, read_chat_request
@@ -190,6 +198,29 @@ async def test_over_the_global_in_flight_cap_is_503(store, async_engine):
     assert await counts(async_engine) == {}
     await sql(async_engine, "DELETE FROM inflight_leases WHERE trace_id = 'other0'")
     held = await admit(me, uuid.uuid4(), store)
+    await held.release()
+
+
+async def test_an_open_provider_breaker_is_503_until_its_trial_call(store, async_engine):
+    clock = [0.0]
+    breaker = Breakers(lambda: clock[0])["openai"]
+    for _ in range(5):
+        breaker.record_failure()
+    me = await guest(store)
+    with pytest.raises(ApiError) as caught:
+        await admit(me, uuid.uuid4(), store, breaker=breaker)
+    error = caught.value
+    assert (error.status, error.code, error.retry_after) == (503, "server_busy", 30)
+    # Refused before anything was taken
+    assert await leases(async_engine) == set() and await counts(async_engine) == {}
+    clock[0] = 29.2
+    with pytest.raises(ApiError) as caught:
+        await admit(me, uuid.uuid4(), store, breaker=breaker)
+    assert caught.value.retry_after == 1
+    # Half-open: the request that makes the trial call is admitted
+    clock[0] = 30
+    breaker.allow()
+    held = await admit(me, uuid.uuid4(), store, breaker=breaker)
     await held.release()
 
 
@@ -367,6 +398,30 @@ async def test_a_guest_ip_key_at_3x_its_spend_is_429(store, async_engine):
     error = await refused(await guest(store), store)
     assert (error.status, error.code) == (429, "cap_reached")
     assert "network" in error.message
+
+
+async def test_call_meter_settles_keeps_or_releases_in_the_real_store(store, async_engine):
+    me = await guest(store)
+    keys = spend_keys(me)
+    meter = CallMeter(Budget(store), keys, tokens_in=2000)
+    options = GenerateOptions(model="gpt-6-luna", max_output_tokens=2200)
+    full = max_call_usd("gpt-6-luna", 2000, 2200)
+
+    async def spent() -> tuple[Decimal, Decimal]:
+        row = await sql(async_engine, "SELECT cost_usd, reserved_usd FROM spend "
+                        "WHERE key = :k", k=keys[0].key)
+        return row[0][0], row[0][1]
+
+    hold = await meter.reserve(options)
+    assert await spent() == (0, full)
+    await meter.keep(hold)  # timed out or cancelled: spent at the maximum
+    assert await spent() == (full, 0)
+    hold = await meter.reserve(options)
+    await meter.release(hold)  # a 429 or 5xx: not billed
+    assert await spent() == (full, 0)
+    hold = await meter.reserve(options)
+    await meter.settle(hold, options, Usage(tokens_in=2000, tokens_out=100))
+    assert await spent() == (full + call_usd("gpt-6-luna", Usage(2000, 100)), 0)
 
 
 async def test_the_global_daily_budget_is_429(store, async_engine):
