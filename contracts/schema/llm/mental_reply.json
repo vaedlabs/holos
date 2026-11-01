@@ -10,7 +10,7 @@
       ]
     },
     "items": {
-      "description": "1 to 5 items when kind is plan; empty otherwise.",
+      "description": "1 to 14 items when kind is plan; empty otherwise.",
       "items": {
         "additionalProperties": false,
         "properties": {
@@ -47,6 +47,14 @@
             "title": "PracticeId",
             "type": "string"
           },
+          "day": {
+            "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise. At most 16 characters.",
+            "title": "Day",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "duration_min": {
             "maximum": 60,
             "minimum": 1,
@@ -60,6 +68,7 @@
           }
         },
         "required": [
+          "day",
           "catalogue_id",
           "duration_min",
           "note"
@@ -67,7 +76,7 @@
         "title": "PracticeItem",
         "type": "object"
       },
-      "maxItems": 5,
+      "maxItems": 14,
       "title": "Items",
       "type": "array"
     },

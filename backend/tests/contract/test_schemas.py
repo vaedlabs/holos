@@ -141,24 +141,24 @@ def test_lengths_still_enforced_after_parse():
 
 def test_unknown_catalogue_id_is_malformed():
     with pytest.raises(ValidationError):
-        schemas.ExerciseItem(catalogue_id="bulgarian_death_squat", sets=3, reps=10,
+        schemas.ExerciseItem(day=None, catalogue_id="bulgarian_death_squat", sets=3, reps=10,
                              duration_s=None, intensity="high", note="")
 
 
 @pytest.mark.parametrize(
-    ("kind", "items", "follow_up", "ok"),
-    [("plan", 0, None, False), ("plan", 1, None, True), ("answer", 1, None, False),
-     ("answer", 0, None, True), ("clarify", 0, "Which knee?", True), ("answer", 0, "?", False)],
+    ("kind", "items", "follow_up", "kind_after", "follow_up_after"),
+    [("plan", 0, None, "answer", None), ("plan", 1, None, "plan", None),
+     ("answer", 1, None, "plan", None), ("answer", 0, None, "answer", None),
+     ("clarify", 0, "Which knee?", "clarify", "Which knee?"), ("answer", 0, "?", "answer", None),
+     ("clarify", 1, "?", "plan", None), ("log_ack", 0, None, "log_ack", None)],
 )
-def test_reply_kind_rules(kind, items, follow_up, ok):
-    item = {"catalogue_id": "box_breathing", "duration_min": 5, "note": ""}
-    data = dict(kind=kind, summary="s", items=[item] * items, notes=[], source_ids=[],
-                follow_up=follow_up, risk_flag=False)
-    if ok:
-        schemas.MentalReply(**data)
-    else:
-        with pytest.raises(ValidationError):
-            schemas.MentalReply(**data)
+def test_the_content_decides_the_reply_kind(kind, items, follow_up, kind_after,
+                                             follow_up_after):
+    # Repaired, not failed (live, 3 in 378 coach replies, Part D)
+    item = {"day": None, "catalogue_id": "box_breathing", "duration_min": 5, "note": ""}
+    reply = schemas.MentalReply(kind=kind, summary="s", items=[item] * items, notes=[],
+                                source_ids=[], follow_up=follow_up, risk_flag=False)
+    assert (reply.kind, reply.follow_up) == (kind_after, follow_up_after)
 
 
 # --- Size rule (C.3): largest valid reply fits the agent's cap minus the margin ---
@@ -177,13 +177,14 @@ def _text(n: int) -> str:
 def _largest(model: type[schemas._ReplyBase]) -> BaseModel:
     longest = lambda e: max(e, key=lambda m: len(m.value))  # noqa: E731
     items = {
-        "PhysicalReply": dict(catalogue_id=longest(schemas.ExerciseId), sets=10, reps=100,
-                              duration_s=3600, intensity="moderate", note=_text(120)),
-        "NutritionReply": dict(name=_text(60), ingredients=[_text(30)] * 8,
+        "PhysicalReply": dict(day=_text(16), catalogue_id=longest(schemas.ExerciseId),
+                              sets=10, reps=100, duration_s=3600, intensity="moderate",
+                              note=_text(120)),
+        "NutritionReply": dict(day=_text(16), name=_text(60), ingredients=[_text(30)] * 8,
                                allergen_tags=list(Allergen), diet_tags=list(Diet),
                                portion=_text(40), calories=4999.5, note=_text(120)),
-        "MentalReply": dict(catalogue_id=longest(schemas.PracticeId), duration_min=60,
-                            note=_text(120)),
+        "MentalReply": dict(day=_text(16), catalogue_id=longest(schemas.PracticeId),
+                            duration_min=60, note=_text(120)),
     }[model.__name__]
     return model(kind="plan", summary=_text(400), notes=[_text(200)] * 3,
                  source_ids=[_text(20)] * 5, follow_up=None, risk_flag=True,
@@ -197,6 +198,17 @@ def test_largest_reply_fits_size_rule(agent):
     tokens = len(tiktoken.get_encoding("o200k_base").encode(_largest(model).model_dump_json()))
     limit = schemas.REPLY_TOKEN_CAP[agent] - schemas.SIZE_RULE_MARGIN
     assert tokens <= limit, f"{agent}: {tokens} tokens > {limit}"
+
+
+@pytest.mark.parametrize("agent", list(schemas.REPLY_MODELS))
+def test_gemini_gets_no_item_limit_on_lists_of_items(agent):
+    # Live, 2 Nov 2026: "too many states for serving" with maxItems 21 foods or 24
+    # exercises; the description still states the limit and Pydantic enforces it
+    from app.providers.gemini import gemini_schema
+    props = gemini_schema(schemas.REPLY_MODELS[agent])["properties"]
+    assert "maxItems" not in props["items"] and "to " in props["items"]["description"]
+    assert "maxItems" not in json.dumps(props["items"]["items"])
+    assert (props["notes"]["maxItems"], props["source_ids"]["maxItems"]) == (3, 5)
 
 
 # --- Sample streams (C.4, C.5) ---

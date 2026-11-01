@@ -75,10 +75,18 @@
                 "type": "boolean"
               },
               "items": {
-                "description": "1 to 8 items when kind is plan; empty otherwise.",
+                "description": "1 to 24 items when kind is plan; empty otherwise.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
+                    "day": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise. At most 16 characters.",
+                      "title": "Day"
+                    },
                     "catalogue_id": {
                       "enum": [
                         "back_squat",
@@ -252,6 +260,7 @@
                     }
                   },
                   "required": [
+                    "day",
                     "catalogue_id",
                     "sets",
                     "reps",
@@ -262,7 +271,6 @@
                   "title": "ExerciseItem",
                   "type": "object"
                 },
-                "maxItems": 8,
                 "title": "Items",
                 "type": "array"
               }
@@ -291,7 +299,7 @@
       },
       "body": {
         "error": {
-          "message": "The specified schema produces a constraint that has too many states for serving. Typical causes of this error are schemas with lots of text (for example, very long property or enum names), schemas with long array length limits (especially when nested), or schemas using complex value matchers (for example, integers or numbers with minimum/maximum bounds or strings with complex formats like date-time)",
+          "message": "The specified schema produces a constraint that has too much branching for serving. Typical causes of this error are objects with lots of optional properties, enums with too many values, or any_of a large number of alternative types. In the case of optional properties, interspersing required properties into long runs of optional properties can alleviate the issue.",
           "code": "invalid_request"
         }
       }

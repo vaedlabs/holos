@@ -548,6 +548,19 @@
         "catalogue_id": {
           "$ref": "#/$defs/ExerciseId"
         },
+        "day": {
+          "anyOf": [
+            {
+              "maxLength": 16,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise.",
+          "title": "Day"
+        },
         "duration_s": {
           "anyOf": [
             {
@@ -604,6 +617,7 @@
         }
       },
       "required": [
+        "day",
         "catalogue_id",
         "sets",
         "reps",
@@ -637,6 +651,19 @@
             }
           ],
           "title": "Calories"
+        },
+        "day": {
+          "anyOf": [
+            {
+              "maxLength": 16,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise.",
+          "title": "Day"
         },
         "diet_tags": {
           "items": {
@@ -677,6 +704,7 @@
         }
       },
       "required": [
+        "day",
         "name",
         "ingredients",
         "allergen_tags",
@@ -1177,6 +1205,19 @@
         "catalogue_id": {
           "$ref": "#/$defs/PracticeId"
         },
+        "day": {
+          "anyOf": [
+            {
+              "maxLength": 16,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise.",
+          "title": "Day"
+        },
         "duration_min": {
           "maximum": 60,
           "minimum": 1,
@@ -1191,6 +1232,7 @@
         }
       },
       "required": [
+        "day",
         "catalogue_id",
         "duration_min",
         "note"

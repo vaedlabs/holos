@@ -5,7 +5,7 @@ import copy
 import pytest
 
 from app.agents.schemas import MentalReply, NutritionReply, PhysicalReply
-from app.guardrails.gate import MALFORMED_RULE, UNCHECKED_RULE, gate, gate_text
+from app.guardrails.gate import MALFORMED_RULE, PHOTO_CAVEAT, UNCHECKED_RULE, gate, gate_text
 from app.guardrails.loader import get_guardrails
 from app.guardrails.types import Profile
 
@@ -27,7 +27,7 @@ NONE = Profile()
 
 
 def exercise(cid: str, note: str = "") -> dict:
-    return {"catalogue_id": cid, "sets": 3, "reps": 10, "duration_s": None,
+    return {"day": None, "catalogue_id": cid, "sets": 3, "reps": 10, "duration_s": None,
             "intensity": "moderate", "note": note}
 
 
@@ -36,11 +36,11 @@ def workout(cid: str) -> dict:
 
 
 def practice(cid: str, note: str = "") -> dict:
-    return {"catalogue_id": cid, "duration_min": 5, "note": note}
+    return {"day": None, "catalogue_id": cid, "duration_min": 5, "note": note}
 
 
 def food(name: str, ingredients: list[str], allergens=(), note: str = "") -> dict:
-    return {"name": name, "ingredients": ingredients, "allergen_tags": list(allergens),
+    return {"day": None, "name": name, "ingredients": ingredients, "allergen_tags": list(allergens),
             "diet_tags": [], "portion": "1 bowl", "calories": None, "note": note}
 
 
@@ -422,3 +422,56 @@ def test_good_morning_as_a_greeting_is_kept(text):
 def test_good_morning_as_the_exercise_is_still_blocked(text):
     result = gate_text(text, BONES)
     assert result.action == "block" and result.content == ""
+
+
+# --- Meal photos (C.14 step 7, Part E #31) ---
+
+GLUTEN_MILK = Profile(allergen_tags=("gluten", "milk"))
+SANDWICH = food("Chicken sandwich", ["bread", "chicken", "cheese"], ["gluten", "milk"])
+
+
+def test_a_photo_conflict_is_a_warning_that_names_it_never_a_block():
+    result = gate("nutrition", meal(SANDWICH, kind="answer"),
+                  Profile(allergen_tags=("gluten", "milk"), diet_tags=("vegetarian",)),
+                  purpose="photo")
+    (verdict,) = result.items
+    assert verdict.action == "warn"
+    assert verdict.caveats == ("Likely contains gluten and milk, which are in your allergies",
+                               "Likely contains meat, fish, egg or gelatin")
+    assert {d.action for d in result.decisions} == {"warn"}
+    assert result.blocked_items == [] and not result.needs_retry
+
+
+def test_one_allergen_reads_in_the_singular():
+    result = gate("nutrition", meal(food("Roti", ["atta"]), kind="answer"),
+                  Profile(allergen_tags=("gluten",)), purpose="photo")
+    assert result.items[0].caveats == ("Likely contains gluten, which is in your allergies",)
+
+
+def test_the_same_food_in_a_plan_is_still_blocked():
+    result = gate("nutrition", meal(SANDWICH), GLUTEN_MILK)
+    assert result.items[0].action == "block" and result.needs_retry
+
+
+def test_the_photo_caveat_goes_to_users_with_an_allergy_or_a_diet():
+    reply_ = meal(food("Dal", ["lentils"]), kind="answer")
+    assert gate("nutrition", reply_, GLUTEN_MILK, purpose="photo").caveats == (PHOTO_CAVEAT,)
+    assert gate("nutrition", reply_, VEGAN, purpose="photo").caveats == (PHOTO_CAVEAT,)
+    assert gate("nutrition", reply_, NONE, purpose="photo").caveats == ()
+    assert gate("nutrition", reply_, GLUTEN_MILK).caveats == ()
+
+
+def test_describing_the_plate_is_kept_recommending_another_conflict_is_removed():
+    summary = ("This looks like a chicken sandwich with cheese. Next time try a peanut "
+               "butter sandwich instead. Paneer would also work.")
+    result = gate("nutrition", meal(SANDWICH, kind="answer", summary=summary),
+                  Profile(allergen_tags=("gluten", "milk", "peanut")), purpose="photo")
+    assert result.content["summary"] == "This looks like a chicken sandwich with cheese."
+    assert not result.needs_retry
+
+
+def test_photo_mode_is_only_for_nutrition_replies():
+    with pytest.raises(ValueError, match="photo mode"):
+        gate("physical", physical("glute_bridge"), NONE, purpose="photo")
+    with pytest.raises(ValueError, match="photo mode"):
+        gate("nutrition", {"meal": "lunch", "foods": [SANDWICH]}, NONE, purpose="photo")

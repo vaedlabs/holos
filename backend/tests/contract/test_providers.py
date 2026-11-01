@@ -2,6 +2,8 @@
 (Plan P2.3). No network. Re-record with `python -m tests.contract.record_providers`.
 """
 
+import json
+
 import httpx
 import pytest
 
@@ -48,7 +50,19 @@ def _replay(provider_name: str, scenario: str, check_body: bool = True):
 
 
 def _recorded_usage(provider_name: str, scenario: str) -> list[dict]:
-    return [ex["response"]["body"].get("usage") for ex in load(provider_name, scenario)]
+    return [_final(ex["response"]["body"]).get("usage") for ex in load(provider_name, scenario)]
+
+
+def _final(body):
+    """A JSON body, or a streamed (SSE) body's final response (Part E #35)."""
+    if not isinstance(body, str):
+        return body
+    for line in body.splitlines():
+        if line.startswith("data: "):
+            event = json.loads(line[len("data: "):])
+            if event.get("type") in ("response.completed", "response.incomplete"):
+                return event["response"]
+    raise AssertionError("no final event in the streamed body")
 
 
 @pytest.mark.parametrize("provider_name", PROVIDERS)
@@ -61,7 +75,7 @@ def _recorded_usage(provider_name: str, scenario: str) -> list[dict]:
 async def test_structured_parse(provider_name, run, model):
     provider, transport = _replay(provider_name, run.__name__)
     if (provider_name, run.__name__) in EXPECTED_ERRORS:
-        with pytest.raises(BadRequest, match="too many states"):
+        with pytest.raises(BadRequest, match="too many states|too much branching"):
             await run(provider, provider_name)
         return
     [result] = await run(provider, provider_name)
@@ -194,3 +208,28 @@ def test_gemini_rebuilds_an_openai_turn():
 def test_tool_results_are_json(to_wire):
     [item] = to_wire(ToolResult("c1", "get_recent_logs", {"entries": []}))
     assert '{"entries": []}' in str(item)
+
+
+async def test_openai_streams_and_reports_progress():
+    # Part E #35: every event is reported; output events carry the reply, and the first
+    # events (created, in progress) come before any output
+    provider, transport = _replay("openai", "structured_mental")
+    events: list[bool] = []
+    [result] = [await provider.generate(
+        [Turn("user", "One 5-minute practice for stress before an exam.")],
+        options=options("openai"), system="You are a calm wellbeing coach. Reply in the schema.",
+        schema=MentalReply, progress=events.append)]
+    assert transport.requests[0]["body"]["stream"] is True
+    assert isinstance(result.parsed, MentalReply)
+    assert sum(events) > 10 and events[0] is False
+    assert provider.streams is True
+
+
+async def test_gemini_does_not_stream():
+    provider, _ = _replay("gemini", "structured_mental")
+    events: list[bool] = []
+    await provider.generate(
+        [Turn("user", "One 5-minute practice for stress before an exam.")],
+        options=options("gemini"), system="You are a calm wellbeing coach. Reply in the schema.",
+        schema=MentalReply, progress=events.append)
+    assert events == [] and provider.streams is False

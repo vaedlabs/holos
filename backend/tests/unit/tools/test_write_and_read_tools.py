@@ -13,7 +13,7 @@ WRITES = {
     "log_workout": ("workout", {"catalogue_id": "push_up", "sets": 3, "reps": 10,
                                 "duration_s": None, "note": ""}, "Push-up: 3 x 10"),
     "log_meal": ("meal", {"meal": "lunch", "foods": [{
-        "name": "Dal rice", "ingredients": ["lentils", "rice"], "allergen_tags": [],
+        "day": None, "name": "Dal rice", "ingredients": ["lentils", "rice"], "allergen_tags": [],
         "diet_tags": ["vegan"], "portion": "1 plate", "calories": 520, "note": ""}]},
         "Lunch: Dal rice"),
     "log_practice": ("practice", {"catalogue_id": "box_breathing", "duration_min": 5,

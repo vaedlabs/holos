@@ -10,7 +10,7 @@
       ]
     },
     "items": {
-      "description": "1 to 8 items when kind is plan; empty otherwise.",
+      "description": "1 to 24 items when kind is plan; empty otherwise.",
       "items": {
         "additionalProperties": false,
         "properties": {
@@ -144,6 +144,14 @@
             "title": "ExerciseId",
             "type": "string"
           },
+          "day": {
+            "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise. At most 16 characters.",
+            "title": "Day",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "duration_s": {
             "maximum": 3600,
             "minimum": 1,
@@ -187,6 +195,7 @@
           }
         },
         "required": [
+          "day",
           "catalogue_id",
           "sets",
           "reps",
@@ -197,7 +206,7 @@
         "title": "ExerciseItem",
         "type": "object"
       },
-      "maxItems": 8,
+      "maxItems": 24,
       "title": "Items",
       "type": "array"
     },

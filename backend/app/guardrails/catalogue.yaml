@@ -13,7 +13,9 @@
 
 # 2: hing contains gluten; common spices, blends and basics added
 # 3: "tree nuts" as its own ingredient (tree_nut only); batata for potato
-version: 3
+# 4: spinal_flexion tag; milk alternatives, gluten-free versions, flours, and dishes
+#    whose name hides an allergen or diet conflict (owner, 29 Oct 2026)
+version: 4
 
 exercises:
   # --- Squats and lunges (every variant carries knee_load: high) ---
@@ -338,19 +340,19 @@ exercises:
   - id: crunch
     name: Crunch
     aliases: [crunches, abdominal crunch, abdominal crunches, ab crunches]
-    tags: {abdominal_strain: high, neck_load: moderate, supine: true}
+    tags: {abdominal_strain: high, spinal_flexion: high, neck_load: moderate, supine: true}
   - id: sit_up
     name: Sit-up
     aliases: [sit up, sit ups, situps]
-    tags: {abdominal_strain: high, spinal_load: moderate, neck_load: moderate, supine: true}
+    tags: {abdominal_strain: high, spinal_load: moderate, spinal_flexion: high, neck_load: moderate, supine: true}
   - id: bicycle_crunch
     name: Bicycle crunch
     aliases: [bicycle crunches, bicycle kicks]
-    tags: {abdominal_strain: high, neck_load: moderate, supine: true}
+    tags: {abdominal_strain: high, spinal_flexion: high, neck_load: moderate, supine: true}
   - id: v_up
     name: V-up
     aliases: [v ups, v sit up, jackknife sit up]
-    tags: {abdominal_strain: high, spinal_load: moderate, supine: true}
+    tags: {abdominal_strain: high, spinal_load: moderate, spinal_flexion: high, supine: true}
   - id: lying_leg_raise
     name: Lying leg raise
     aliases: [leg raise, leg raises, leg lifts]
@@ -362,7 +364,7 @@ exercises:
   - id: russian_twist
     name: Russian twist
     aliases: [russian twists, seated twist]
-    tags: {abdominal_strain: high, spinal_load: moderate}
+    tags: {abdominal_strain: high, spinal_load: moderate, spinal_flexion: high}
   - id: dead_bug
     name: Dead bug
     aliases: [dead bugs]
@@ -466,7 +468,7 @@ exercises:
   - id: sun_salutation
     name: Sun salutation
     aliases: [surya namaskar, sun salutations]
-    tags: {wrist_load: moderate, spinal_load: moderate, exertion: moderate}
+    tags: {wrist_load: moderate, spinal_load: moderate, spinal_flexion: moderate, exertion: moderate}
   - id: downward_dog
     name: Downward dog
     aliases: [downward facing dog, adho mukha svanasana]
@@ -482,7 +484,7 @@ exercises:
   - id: hamstring_stretch
     name: Hamstring stretch
     aliases: [hamstring stretches]
-    tags: {}
+    tags: {spinal_flexion: moderate}
   - id: quad_stretch
     name: Quad stretch
     aliases: [quadriceps stretch, standing quad stretch]
@@ -510,7 +512,7 @@ exercises:
   - id: pilates_mat
     name: Mat Pilates
     aliases: [pilates, pilates workout]
-    tags: {abdominal_strain: moderate, supine: true}
+    tags: {abdominal_strain: moderate, spinal_flexion: moderate, supine: true}
   - id: headstand
     name: Headstand
     aliases: [sirsasana, head stand]
@@ -518,7 +520,7 @@ exercises:
   - id: shoulder_stand
     name: Shoulder stand
     aliases: [sarvangasana, shoulderstand]
-    tags: {inversion: true, neck_load: high}
+    tags: {inversion: true, neck_load: high, spinal_flexion: high}
   - id: handstand
     name: Handstand
     aliases: [handstands, handstand hold, handstand push up]
@@ -765,6 +767,16 @@ ingredients:
   - {name: milk chocolate, aliases: [], allergens: [milk, soy], diet_conflicts: [animal_product, lactose]}
   - {name: honey, aliases: [shahad, madhu], allergens: [], diet_conflicts: [animal_product, honey]}
   - {name: gelatin, aliases: [gelatine, jelly], allergens: [], diet_conflicts: [animal_product, gelatin]}
+  - {name: lactose free milk, aliases: [], allergens: [milk], diet_conflicts: [animal_product]}
+
+  # --- Milk alternatives (almond milk is under nuts, soy milk under soy) ---
+  - {name: oat milk, aliases: [oat drink], allergens: [gluten], diet_conflicts: []}
+  - {name: cashew milk, aliases: [], allergens: [tree_nut], diet_conflicts: []}
+  - {name: rice milk, aliases: [], allergens: [], diet_conflicts: []}
+  # Which plant isn't said: the coaches are told to name it
+  - {name: plant milk, aliases: [plant based milk, non dairy milk, dairy free milk, vegan milk], allergens: [], diet_conflicts: []}
+  - {name: soy yogurt, aliases: [soy yoghurt, soya yogurt, soya yoghurt], allergens: [soy], diet_conflicts: []}
+  - {name: coconut yogurt, aliases: [coconut yoghurt, coconut curd], allergens: [], diet_conflicts: []}
 
   # --- Nuts and seeds ---
   - {name: almond, aliases: [almonds, badam], allergens: [tree_nut], diet_conflicts: []}
@@ -823,6 +835,26 @@ ingredients:
   - {name: corn, aliases: [makka, makki, maize, sweet corn], allergens: [], diet_conflicts: []}
   - {name: besan, aliases: [gram flour, chickpea flour], allergens: [], diet_conflicts: []}
   - {name: lupin flour, aliases: [lupini beans, lupin], allergens: [lupin], diet_conflicts: []}
+  # Plain "flour" in a recipe is wheat flour
+  - {name: flour, aliases: [plain flour], allergens: [gluten], diet_conflicts: []}
+  - {name: rice flour, aliases: [chawal ka atta], allergens: [], diet_conflicts: []}
+  - {name: buckwheat, aliases: [kuttu, kuttu ka atta, buckwheat flour], allergens: [], diet_conflicts: []}
+  - {name: spelt, aliases: [spelt flour], allergens: [gluten], diet_conflicts: []}
+  # Certified gluten-free versions (owner, 29 Oct 2026: they pass, no oat warning)
+  - {name: gluten free oats, aliases: [certified gluten free oats, gf oats], allergens: [], diet_conflicts: []}
+  - {name: gluten free oat milk, aliases: [], allergens: [], diet_conflicts: []}
+  - {name: gluten free bread, aliases: [gf bread], allergens: [], diet_conflicts: []}
+  - {name: gluten free pasta, aliases: [gf pasta], allergens: [], diet_conflicts: []}
+
+  # --- Dishes whose name hides an allergen or diet conflict ---
+  - {name: pastry, aliases: [pastries, puff pastry, shortcrust pastry, croissant, croissants], allergens: [gluten, milk], diet_conflicts: [animal_product]}
+  - {name: cake, aliases: [cakes, sponge cake], allergens: [gluten, egg, milk], diet_conflicts: [animal_product, egg]}
+  - {name: eggless cake, aliases: [], allergens: [gluten, milk], diet_conflicts: [animal_product]}
+  - {name: pizza, aliases: [pizzas], allergens: [gluten, milk], diet_conflicts: [animal_product]}
+  - {name: biscuits, aliases: [biscuit, cookie, cookies], allergens: [gluten], diet_conflicts: []}
+  - {name: masala dosa, aliases: [], allergens: [], diet_conflicts: [root_vegetable]}
+  # Made with sambar powder and hing (owner, 29 Oct 2026)
+  - {name: sambar, aliases: [sambhar], allergens: [gluten], diet_conflicts: []}
 
   # --- Pulses and soy ---
   - {name: chickpeas, aliases: [chana, chole, kabuli chana, garbanzo beans], allergens: [], diet_conflicts: []}

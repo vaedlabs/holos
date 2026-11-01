@@ -1,7 +1,8 @@
 """The gate: checks a reply or a write against the user's profile (Plan C.14).
 
     gate(domain, reply_or_write, profile) -> GateResult
-    gate_text(text, profile) -> GateResult      # the holistic summary
+    gate(domain, reply, profile, purpose="photo")  # a meal photo (C.14 step 7)
+    gate_text(text, profile) -> GateResult      # the multi-coach summary
 
 Input is plain data (`model.model_dump(mode="json")`), because guardrails/ can't
 import the app's schemas. A reply is told from a write by its `summary` field.
@@ -16,6 +17,14 @@ import the app's schemas. A reply is told from a write by its `summary` field.
 
 Items are judged, not removed: BaseAgent retries first, then drops blocked items
 (Plan C.10). Every decision carries a rule ID and the rules version.
+
+A meal photo shows food the user already has (owner, Part E #31): an item conflict is
+a warning naming it ("Likely contains gluten, which is in your allergies"), never a
+block, so it is neither retried nor removed. Prose is gated as for a plan, except that
+naming a food that is one of the photo's own items describes the plate, not a
+recommendation ("This looks like a chicken sandwich"); any other conflicting food
+in the prose is removed as usual. A user with allergies or a diet also gets
+PHOTO_CAVEAT on the reply.
 """
 
 import copy
@@ -36,6 +45,7 @@ from .types import (
     GateResult,
     ItemVerdict,
     ProfileLike,
+    Purpose,
     Scrub,
 )
 
@@ -44,6 +54,8 @@ MALFORMED_RULE = "GT-MALFORMED-01"
 UNCHECKED_RULE = "GT-UNCHECKED-01"
 MALFORMED_REASON = "Not a known catalogue item"
 UNCHECKED_REASON = "Not checked against your allergies"
+PHOTO_CAVEAT = ("A photo can't show every ingredient (oils, sauces, spice mixes). "
+                "Check with whoever made it.")
 REASON_MAX = 200
 
 # A declared allergen says something about the diet too
@@ -96,8 +108,10 @@ def _active(rule: Rule, profile: ProfileLike) -> bool:
 class _Check:
     """One gate call: the active rules, and everything the gate decides."""
 
-    def __init__(self, guardrails: Guardrails, matcher: Matcher, profile: ProfileLike):
+    def __init__(self, guardrails: Guardrails, matcher: Matcher, profile: ProfileLike,
+                 purpose: Purpose = "plan"):
         rules = guardrails.rules
+        self.purpose = purpose
         self.version = rules.version
         self.matcher = matcher
         self.profile = profile
@@ -119,6 +133,7 @@ class _Check:
         self.allowed_domains = {
             h.contact.lower() for h in rules.crisis.helplines if "." in h.contact
         }
+        self.on_plate: set[Entry] = set()  # photo mode: the ingredients of the photo's items
         self.decisions: list[Decision] = []
         self.scrubbed: list[Scrub] = []
         self.malformed = False
@@ -181,13 +196,36 @@ class _Check:
                 allergens |= entry.allergens
                 conflicts |= entry.diet_conflicts
         food_entry = Entry("food", name, name)
-        verdict = self._verdict(index, self._tag_hits(food_entry, allergens, conflicts), name)
+        hits = self._tag_hits(food_entry, allergens, conflicts)
+        if self.purpose == "photo":
+            verdict = self._photo_verdict(index, hits, name, allergens)
+        else:
+            verdict = self._verdict(index, hits, name)
         if unknown and self.allergies:
             d = self.decision("warn", UNCHECKED_RULE, UNCHECKED_REASON, unknown)
             caveat = f"{UNCHECKED_REASON}: {', '.join(unknown)}"
             verdict = ItemVerdict(index, max(verdict.action, "warn", key=ACTION_ORDER.get),
                                   (*verdict.caveats, caveat), (*verdict.decisions, d))
         return verdict
+
+    def _photo_verdict(self, index: int, hits: list[Rule], name: str,
+                       allergens: set[str]) -> ItemVerdict:
+        """Food the user already has: every conflict is a warning that names it."""
+        decisions, caveats = [], []
+        for rule in hits:
+            if rule.severity == "block" and "allergen" in rule.block:
+                found = sorted(a.replace("_", " ") for a in allergens & self.allergies)
+                named = " and ".join([", ".join(found[:-1]), found[-1]] if len(found) > 1
+                                     else found)
+                verb = "are" if len(found) > 1 else "is"
+                caveat = f"Likely contains {named}, which {verb} in your allergies"
+            elif rule.severity == "block":
+                caveat = f"Likely {rule.reason[0].lower()}{rule.reason[1:]}"
+            else:
+                caveat = rule.reason
+            decisions.append(self.decision("warn", rule.id, caveat, [name]))
+            caveats.append(caveat)
+        return ItemVerdict(index, "warn" if hits else "allow", tuple(caveats), tuple(decisions))
 
     def _verdict(self, index: int, hits: list[Rule], name: str) -> ItemVerdict:
         decisions = tuple(self.decision(r.severity.value, r.id, r.reason, [name]) for r in hits)
@@ -239,7 +277,7 @@ class _Check:
                 self.decision(rule.severity.value, rule.id, rule.reason, [match.group(0)])
                 ok = ok and rule.severity != "block"
         for mention in self.matcher.find(sentence):
-            if mention.negated:
+            if mention.negated or mention.entry in self.on_plate:
                 continue
             for rule in self.entry_hits(mention.entry):
                 self.decision(rule.severity.value, rule.id, rule.reason, [mention.entry.name])
@@ -248,15 +286,19 @@ class _Check:
 
     def result(self, content: Any, items: list[ItemVerdict]) -> GateResult:
         action = max((d.action for d in self.decisions), key=ACTION_ORDER.get, default="allow")
+        caveats = ()
+        if self.purpose == "photo" and (self.allergies or self.profile.diet_tags):
+            caveats = (PHOTO_CAVEAT,)
         return GateResult(action, tuple(self.decisions), content, tuple(items),
-                          tuple(self.scrubbed), self.malformed)
+                          tuple(self.scrubbed), self.malformed, caveats)
 
 
-def _new_check(guardrails: Guardrails | None, profile: ProfileLike) -> _Check:
+def _new_check(guardrails: Guardrails | None, profile: ProfileLike,
+               purpose: Purpose = "plan") -> _Check:
     """Tests may pass their own rules; the packaged ones use the shared matcher."""
     if guardrails is None or guardrails is get_guardrails():
-        return _Check(get_guardrails(), get_matcher(), profile)
-    return _Check(guardrails, Matcher(guardrails.catalogue), profile)
+        return _Check(get_guardrails(), get_matcher(), profile, purpose)
+    return _Check(guardrails, Matcher(guardrails.catalogue), profile, purpose)
 
 
 ITEM_KIND = {"physical": "exercise", "mental": "practice", "nutrition": "food"}
@@ -278,19 +320,36 @@ def _items(check: _Check, domain: Domain, items: Any, prefix: str) -> list[ItemV
     return verdicts
 
 
+def _plate(check: _Check, items: Any) -> set[Entry]:
+    """Every catalogue ingredient named by the photo's items."""
+    plate: set[Entry] = set()
+    for food in items if isinstance(items, list) else []:
+        if isinstance(food, Mapping):
+            for text in [food.get("name"), *(food.get("ingredients") or [])]:
+                if isinstance(text, str):
+                    plate.update(check.matcher.ingredients(text))
+    return plate
+
+
 def gate(
     domain: Domain,
     reply_or_write: Mapping[str, Any],
     profile: ProfileLike,
     guardrails: Guardrails | None = None,
+    purpose: Purpose = "plan",
 ) -> GateResult:
-    """Check an agent reply or a write (log_workout, log_meal, log_practice arguments)."""
+    """Check an agent reply or a write (log_workout, log_meal, log_practice arguments).
+    purpose="photo": a nutrition reply about a meal photo (C.14 step 7)."""
     if domain not in ITEM_KIND:
         raise ValueError(f"unknown domain '{domain}'")
-    check = _new_check(guardrails, profile)
+    if purpose == "photo" and (domain != "nutrition" or "summary" not in reply_or_write):
+        raise ValueError("photo mode is for nutrition replies")
+    check = _new_check(guardrails, profile, purpose)
     content = copy.deepcopy(dict(reply_or_write))
 
     if "summary" in content:  # a reply
+        if purpose == "photo":
+            check.on_plate = _plate(check, content.get("items"))
         items = _items(check, domain, content.get("items", []), "items")
         content["summary"] = check.prose(content["summary"], "summary")
         notes = [check.prose(n, f"notes[{i}]") for i, n in enumerate(content.get("notes") or [])]

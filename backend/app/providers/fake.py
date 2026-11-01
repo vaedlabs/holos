@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from .base import GenerateOptions, LLMResult, Message, ModelTurn, ToolSpec
+from .base import GenerateOptions, LLMResult, Message, ModelTurn, Opened, Progress, ToolSpec
 
 
 @dataclass(frozen=True)
@@ -18,8 +18,21 @@ class Slow:
     step: "Step"
 
 
-# A script step: a result, an exception to raise, a function of the call, or a slow step
-Step = LLMResult | Exception | Callable[["FakeCall"], LLMResult] | Slow
+@dataclass(frozen=True)
+class Stream:
+    """A streamed step: for each gap, sleep it, then report one event; then the step
+    happens. `silent` sleeps before the first event and reports nothing. output=False:
+    the events only say the stream is alive (no reply text)."""
+
+    gaps: tuple[float, ...]
+    step: "Step"
+    silent: float = 0.0
+    output: bool = True
+
+
+# A script step: a result, an exception to raise, a function of the call, a slow step
+# or a streamed one
+Step = LLMResult | Exception | Callable[["FakeCall"], LLMResult] | Slow | Stream
 
 
 @dataclass(frozen=True)
@@ -36,6 +49,8 @@ class FakeProvider:
     script: list[Step] = field(default_factory=list)
     delay_s: float = 0.0
     name: str = "fake"
+    streams: bool = False  # True: the ResilientProvider applies its silence rules
+    request_id: str | None = None  # reported to `opened` when a call starts
     calls: list[FakeCall] = field(default_factory=list)
 
     async def generate(
@@ -46,9 +61,13 @@ class FakeProvider:
         system: str | None = None,
         tools: list[ToolSpec] | None = None,
         schema: type[BaseModel] | None = None,
+        progress: Progress | None = None,
+        opened: Opened | None = None,
     ) -> LLMResult:
         call = FakeCall(list(messages), options, system, tools, schema)
         self.calls.append(call)
+        if opened is not None and self.request_id is not None:
+            opened(self.request_id)
         if self.delay_s:
             await asyncio.sleep(self.delay_s)
         if not self.script:
@@ -56,6 +75,13 @@ class FakeProvider:
         step = self.script.pop(0)
         if isinstance(step, Slow):
             await asyncio.sleep(step.seconds)
+            step = step.step
+        if isinstance(step, Stream):
+            await asyncio.sleep(step.silent)
+            for gap in step.gaps:
+                await asyncio.sleep(gap)
+                if progress is not None:
+                    progress(step.output)
             step = step.step
         if isinstance(step, Exception):
             raise step

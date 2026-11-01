@@ -144,16 +144,36 @@ async def test_a_guest_with_no_profile():
     LLMResult(provider="openai", model="m", text='{"kind": "coaching"}', parsed=None,
               truncated=True),
 ])
-async def test_an_unusable_model_reply_is_an_error_not_a_made_up_answer(step):
-    router, _ = _router(step)
+async def test_an_unusable_model_reply_twice_is_an_error_not_a_made_up_answer(step):
+    router, fake = _router(step, step)
     with pytest.raises(MalformedOutput):
         await router.route("write me Python code", plan=_plan())
+    assert len(fake.calls) == 2
+
+
+async def test_an_unusable_reply_is_asked_for_once_more():
+    # Live (Part D): valid JSON followed by more characters, twice in 1,200 calls
+    router, fake = _router(MalformedOutput("Extra data: line 1 column 55"),
+                           _says("coaching", ["physical"]))
+    decision = await router.route("leg day", plan=_plan())
+    assert decision.agents == ("physical",) and len(fake.calls) == 2
+
+
+async def test_no_second_ask_without_the_time_for_it():
+    router, fake = _router(MalformedOutput("not json"), _says("coaching", ["physical"]))
+    plan = CallPlan(deadline=time.monotonic() + 2.5, speed=ROUTER, principal="p",
+                    kind="router")  # p95 2.2 + 0.5 is not left
+    with pytest.raises(MalformedOutput):
+        await router.route("leg day", plan=plan)
+    assert len(fake.calls) == 1
 
 
 async def test_a_truncated_reply_is_an_error_even_when_it_parsed():
-    router, _ = _router(_says("coaching", ["physical"], truncated=True))
-    with pytest.raises(MalformedOutput):
+    cut = _says("coaching", ["physical"], truncated=True)
+    router, _ = _router(cut, cut)
+    with pytest.raises(MalformedOutput) as caught:
         await router.route("leg day", plan=_plan())
+    assert caught.value.cause == "truncated"
 
 
 async def test_a_provider_failure_is_raised_for_the_caller_to_report():
@@ -189,7 +209,7 @@ async def test_other_languages_are_found_without_the_model(text):
     "Que sera sera, my mom used to say. How do I sleep better?",
     "café con leche please",  # one foreign small word, no English ones
     "la vida es una fiesta, my friend says, and I want to feel that way again",
-    "ok ঘুম",  # mostly Latin: the model decides
+    "ok thanks, ঘুম",  # mostly Latin: the model decides
     "👍",
     "",
 ])
@@ -272,8 +292,9 @@ async def test_hindi_is_told_it_is_supported():
 
 async def test_hindi_called_another_language_twice_is_an_error():
     router, _ = _router(_says("other_language", reply="No."), _says("other_language", reply="No."))
-    with pytest.raises(MalformedOutput):
+    with pytest.raises(MalformedOutput) as caught:
         await router.route("अभी दो रोटी और दाल खाई", plan=_plan())
+    assert caught.value.cause == "wrong_language"
 
 
 async def test_mixed_english_called_another_language_twice_is_the_models_call():

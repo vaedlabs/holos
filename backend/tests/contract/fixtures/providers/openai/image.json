@@ -24,109 +24,16 @@
         "reasoning": {
           "effort": "none"
         },
-        "store": false
+        "store": false,
+        "stream": true
       }
     },
     "response": {
       "status": 200,
       "headers": {
-        "content-type": "application/json"
+        "content-type": "text/event-stream; charset=utf-8"
       },
-      "body": {
-        "id": "resp_0f48f229e5f7e330016ade5b00d70087d1ae40d6791d414b6a",
-        "object": "response",
-        "created_at": 1792957184,
-        "status": "completed",
-        "access_programs": null,
-        "background": false,
-        "billing": {
-          "payer": "developer"
-        },
-        "completed_at": 1792957185,
-        "error": null,
-        "frequency_penalty": 0.0,
-        "incomplete_details": null,
-        "instructions": null,
-        "max_output_tokens": 1200,
-        "max_tool_calls": null,
-        "model": "gpt-6-luna",
-        "moderation": null,
-        "output": [
-          {
-            "id": "msg_0f48f229e5f7e330016ade5b018bac87d186527cfc6d87a25e",
-            "type": "message",
-            "status": "completed",
-            "content": [
-              {
-                "type": "output_text",
-                "annotations": [],
-                "logprobs": [],
-                "text": "Red"
-              }
-            ],
-            "phase": "final_answer",
-            "role": "assistant"
-          }
-        ],
-        "parallel_tool_calls": true,
-        "presence_penalty": 0.0,
-        "previous_response_id": null,
-        "prompt_cache_key": null,
-        "prompt_cache_retention": "24h",
-        "reasoning": {
-          "context": "all_turns",
-          "effort": "none",
-          "mode": "standard",
-          "summary": null
-        },
-        "safety_identifier": null,
-        "service_tier": "default",
-        "store": false,
-        "temperature": 1.0,
-        "text": {
-          "format": {
-            "type": "text"
-          },
-          "verbosity": "medium"
-        },
-        "tool_choice": "auto",
-        "tool_usage": {
-          "image_gen": {
-            "input_tokens": 0,
-            "input_tokens_details": {
-              "image_tokens": 0,
-              "text_tokens": 0
-            },
-            "output_tokens": 0,
-            "output_tokens_details": {
-              "image_tokens": 0,
-              "text_tokens": 0
-            },
-            "total_tokens": 0
-          },
-          "web_search": {
-            "num_requests": 0
-          }
-        },
-        "tools": [],
-        "top_logprobs": 0,
-        "top_p": 0.98,
-        "truncation": "disabled",
-        "usage": {
-          "input_tokens": 22,
-          "input_tokens_details": {
-            "cache_write_tokens": 0,
-            "cached_tokens": 0
-          },
-          "output_tokens": 5,
-          "output_tokens_details": {
-            "reasoning_tokens": 0
-          },
-          "total_tokens": 27
-        },
-        "user": null,
-        "metadata": {}
-      }
+      "body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_06b2f8173030122b016ae2de1a6c7887d28c1112fbcf386149\",\"object\":\"response\",\"created_at\":1793252890,\"status\":\"in_progress\",\"access_programs\":null,\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":0}\n\nevent: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"resp_06b2f8173030122b016ae2de1a6c7887d28c1112fbcf386149\",\"object\":\"response\",\"created_at\":1793252890,\"status\":\"in_progress\",\"access_programs\":null,\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":1}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"id\":\"msg_06b2f8173030122b016ae2de1b1c3487d28fbc550cc8f21f2d\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"phase\":\"final_answer\",\"role\":\"assistant\"},\"output_index\":0,\"sequence_number\":2}\n\nevent: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"content_index\":0,\"item_id\":\"msg_06b2f8173030122b016ae2de1b1c3487d28fbc550cc8f21f2d\",\"output_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"},\"sequence_number\":3}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\"Red\",\"item_id\":\"msg_06b2f8173030122b016ae2de1b1c3487d28fbc550cc8f21f2d\",\"logprobs\":[],\"obfuscation\":\"D2M0IwvEzOGJb\",\"output_index\":0,\"sequence_number\":4}\n\nevent: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"content_index\":0,\"item_id\":\"msg_06b2f8173030122b016ae2de1b1c3487d28fbc550cc8f21f2d\",\"logprobs\":[],\"output_index\":0,\"sequence_number\":5,\"text\":\"Red\"}\n\nevent: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"content_index\":0,\"item_id\":\"msg_06b2f8173030122b016ae2de1b1c3487d28fbc550cc8f21f2d\",\"output_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"Red\"},\"sequence_number\":6}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"msg_06b2f8173030122b016ae2de1b1c3487d28fbc550cc8f21f2d\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"Red\"}],\"phase\":\"final_answer\",\"role\":\"assistant\"},\"output_index\":0,\"sequence_number\":7}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_06b2f8173030122b016ae2de1a6c7887d28c1112fbcf386149\",\"object\":\"response\",\"created_at\":1793252890,\"status\":\"completed\",\"access_programs\":null,\"background\":false,\"completed_at\":1793252891,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[{\"id\":\"msg_06b2f8173030122b016ae2de1b1c3487d28fbc550cc8f21f2d\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"Red\"}],\"phase\":\"final_answer\",\"role\":\"assistant\"}],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"default\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":{\"input_tokens\":22,\"input_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":0},\"output_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":27},\"user\":null,\"metadata\":{}},\"sequence_number\":8}\n\n"
     }
   }
 ]

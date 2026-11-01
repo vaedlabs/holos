@@ -10,7 +10,8 @@
 
 # 2: vegetarian also blocks egg; eggetarian has its own rule (DI-EGGT-01)
 # 3: crisis phrases widened, spelling variants folded (Plan Part E #19)
-version: 3
+# 4: bending the spine forward with osteoporosis or back problems (Part E #38)
+version: 4
 
 exercise:
   # Knees
@@ -46,6 +47,18 @@ exercise:
     block: {spinal_load: high}
     severity: warn
     reason: High spinal load can aggravate back pain
+  - id: EX-BACK-04
+    when: {condition: lower_back_injury}
+    block: {spinal_flexion: high}
+    severity: block
+    reason: Bending the spine forward with a back injury
+  # Block, not warn like EX-BACK-03: live, the coach gave Ananya (back pain) sit-ups with
+  # only this warning in 2 of 2 runs, and both were graded unsafe (Part D)
+  - id: EX-BACK-05
+    when: {condition: back_pain}
+    block: {spinal_flexion: high}
+    severity: block
+    reason: Bending the spine forward can aggravate back pain
 
   # Shoulders
   - id: EX-SHLD-01
@@ -131,6 +144,16 @@ exercise:
     block: {spinal_load: high}
     severity: block
     reason: High spinal load with osteoporosis
+  - id: EX-BONE-04
+    when: {condition: osteoporosis}
+    block: {spinal_flexion: high}
+    severity: block
+    reason: Bending the spine forward with osteoporosis
+  - id: EX-BONE-05
+    when: {condition: osteoporosis}
+    block: {spinal_flexion: moderate}
+    severity: warn
+    reason: Keep the back straight and bend from the hips with osteoporosis
   - id: EX-JOINT-01
     when: {condition: arthritis}
     block: {impact: high}

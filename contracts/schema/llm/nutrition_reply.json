@@ -10,7 +10,7 @@
       ]
     },
     "items": {
-      "description": "1 to 5 items when kind is plan; empty otherwise.",
+      "description": "1 to 21 items when kind is plan, including each food seen in a photo; empty otherwise.",
       "items": {
         "additionalProperties": false,
         "properties": {
@@ -46,6 +46,14 @@
             "title": "Calories",
             "type": [
               "number",
+              "null"
+            ]
+          },
+          "day": {
+            "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise. At most 16 characters.",
+            "title": "Day",
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -97,6 +105,7 @@
           }
         },
         "required": [
+          "day",
           "name",
           "ingredients",
           "allergen_tags",
@@ -108,12 +117,12 @@
         "title": "FoodItem",
         "type": "object"
       },
-      "maxItems": 5,
+      "maxItems": 21,
       "title": "Items",
       "type": "array"
     },
     "kind": {
-      "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+      "description": "plan: concrete food items, either a plan to follow or the foods seen in a meal photo; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
       "enum": [
         "plan",
         "answer",

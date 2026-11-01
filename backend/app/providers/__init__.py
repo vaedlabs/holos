@@ -10,8 +10,11 @@ from .base import (
     Message,
     ModelTurn,
     NoCapacity,
+    Opened,
     OverBudget,
+    Progress,
     ProviderError,
+    ProviderStalled,
     ProviderTimeout,
     ProviderUnavailable,
     RateLimited,
@@ -28,7 +31,7 @@ from .scheduler import FairScheduler
 __all__ = [
     "Backups", "BadRequest", "Breakers", "CallPlan", "FairScheduler", "FakeProvider",
     "GenerateOptions", "ImageInput", "LLMProvider", "LLMResult", "MalformedOutput", "Message",
-    "Meter", "ModelTurn", "NoCapacity", "OverBudget", "ProviderError", "ProviderTimeout",
-    "ProviderUnavailable", "RateLimited", "ResilientProvider", "Route", "ToolCall", "ToolResult",
-    "ToolSpec", "Turn", "Usage",
+    "Meter", "ModelTurn", "NoCapacity", "Opened", "OverBudget", "Progress", "ProviderError",
+    "ProviderStalled", "ProviderTimeout", "ProviderUnavailable", "RateLimited",
+    "ResilientProvider", "Route", "ToolCall", "ToolResult", "ToolSpec", "Turn", "Usage",
 ]

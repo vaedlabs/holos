@@ -20,6 +20,7 @@ from app.providers import (
     MalformedOutput,
     NoCapacity,
     OverBudget,
+    ProviderStalled,
     ProviderTimeout,
     ProviderUnavailable,
     RateLimited,
@@ -28,7 +29,7 @@ from app.providers import (
     Turn,
 )
 from app.providers import resilient as rs
-from app.providers.fake import Slow, reply
+from app.providers.fake import Slow, Stream, reply
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
@@ -510,3 +511,109 @@ async def test_breakers_are_per_provider():
     for _ in range(5):
         breakers["openai"].record_failure()
     assert breakers["openai"].state == "open" and breakers["gemini"].state == "closed"
+
+
+# --- Streaming calls: silence rules and first-output backups (Part E #35) ---
+# Real time, small limits: no output for 0.2 s, or a 0.1 s gap once writing, is a stall
+
+STREAM_SPEED = Speed(p50=0.05, p90=1.0, p95=0.15, p99=0.3, first_p90=0.1)
+# Backups only after the stall limit, so a stall is seen as a stall
+NO_BACKUP = Speed(p50=0.05, p90=1.0, p95=0.15, p99=0.3, first_p90=10.0)
+
+
+def _streaming(script, breakers=None, backups=None):
+    primary = FakeProvider(list(script), name="openai", streams=True)
+    rp = ResilientProvider(
+        Route(primary, GenerateOptions(model="m", max_output_tokens=100)), None,
+        breakers or Breakers(), scheduler=FairScheduler(SLOTS, global_slots=24),
+        backups=backups, jitter=lambda: 0.0, stall_first_s=0.2, stall_gap_s=0.1)
+    return rp, primary
+
+
+def _stream_plan(left=3.0, meter=None, kind="", speed=STREAM_SPEED):
+    return CallPlan(deadline=time.monotonic() + left, speed=speed, principal="p",
+                    meter=meter, kind=kind)
+
+
+async def test_a_long_reply_that_keeps_writing_is_not_cut():
+    # 30 pieces 0.03 s apart: 0.9 s in all, three times the p99, never silent for 0.1 s
+    rp, primary = _streaming([Stream((0.03,) * 30, OK)])
+    result = await rp.generate(MSG, plan=_stream_plan())
+    assert result.parsed == OK.parsed and len(primary.calls) == 1
+
+
+async def test_a_long_streaming_reply_is_healthy_for_the_breaker():
+    breakers = Breakers()
+    rp, _ = _streaming([Stream((0.03,) * 15, OK)], breakers=breakers)
+    await rp.generate(MSG, plan=_stream_plan())
+    assert list(breakers["openai"].calls)[-1][1] is False  # not bad, though past p99
+
+
+async def test_no_first_output_is_a_stall_and_is_retried():
+    meter = Meter()
+    rp, primary = _streaming([Stream((), OK, silent=5), Stream((0.01,), OK)])
+    began = time.monotonic()
+    result = await rp.generate(MSG, plan=_stream_plan(meter=meter, speed=NO_BACKUP))
+    assert result.parsed == OK.parsed and len(primary.calls) == 2
+    assert 0.2 <= time.monotonic() - began < 1.0
+    assert meter.ends() == ["keep", "settle"]  # the stalled call's usage is unknown
+
+
+async def test_output_that_stops_is_a_stall():
+    rp, primary = _streaming([Stream((0.02, 0.02, 5.0), OK)] * 3)
+    with pytest.raises(ProviderStalled, match="output stopped"):
+        await rp.generate(MSG, plan=_stream_plan(left=1.5, speed=NO_BACKUP))
+    assert rp._scheduler.in_use("openai") == 0
+
+
+async def test_a_stall_is_bad_for_the_breaker():
+    breakers = Breakers()
+    rp, _ = _streaming([Stream((), OK, silent=5)] * 3, breakers=breakers)
+    with pytest.raises(ProviderStalled):
+        await rp.generate(MSG, plan=_stream_plan(left=0.6, speed=NO_BACKUP))
+    assert sum(bad for _, bad in breakers["openai"].calls) >= 1
+
+
+async def test_the_deadline_cuts_a_writing_call_without_blaming_the_provider():
+    breakers = Breakers()
+    rp, _ = _streaming([Stream((0.03,) * 100, OK)], breakers=breakers)
+    with pytest.raises(ProviderTimeout):
+        await rp.generate(MSG, plan=_stream_plan(left=0.5))
+    assert list(breakers["openai"].calls) == []  # neither good nor bad
+
+
+async def test_a_slow_start_gets_a_backup_call():
+    # No output by first_p90 (0.1 s): the backup (at 0.11 s) beats the primary (0.17 s)
+    rp, primary = _streaming([Stream((0.05,), OK, silent=0.12), Stream((0.01,), BACKUP_OK)])
+    began = time.monotonic()
+    result = await rp.generate(MSG, plan=_stream_plan())
+    assert result.parsed == BACKUP_OK.parsed and len(primary.calls) == 2
+    assert time.monotonic() - began < 0.16
+
+
+async def test_events_without_output_do_not_keep_a_call_alive():
+    # Keep-alive events every 0.05 s, but no reply text: stalled at 0.2 s
+    rp, _ = _streaming([Stream((0.05,) * 20, OK, output=False)] * 3)
+    with pytest.raises(ProviderStalled, match="no output"):
+        await rp.generate(MSG, plan=_stream_plan(left=0.6, speed=NO_BACKUP))
+
+
+async def test_a_call_that_is_writing_gets_no_backup():
+    # Writing from 0.05 s, finishing at 0.5 s: past the first_p90, but on its way
+    rp, primary = _streaming([Stream((0.05,) + (0.05,) * 9, OK), BACKUP_OK])
+    result = await rp.generate(MSG, plan=_stream_plan())
+    assert result.parsed == OK.parsed and len(primary.calls) == 1
+
+
+async def test_backups_learn_the_time_to_first_output():
+    backups = Backups()
+    rp, _ = _streaming([Stream((0.05,) + (0.02,) * 10, OK)], backups=backups)
+    await rp.generate(MSG, plan=_stream_plan(kind="physical"))
+    (sample,) = backups._times["physical"]
+    assert 0.05 <= sample < 0.1  # the first output, not the 0.25 s total
+
+
+async def test_the_streaming_threshold_falls_back_to_the_p90():
+    assert Backups().threshold("x", Speed(1, 2, 3, 4), streaming=True) == 2
+    assert Backups().threshold("x", Speed(1, 2, 3, 4, first_p90=0.5), streaming=True) == 0.5
+    assert Backups().threshold("x", Speed(1, 2, 3, 4, first_p90=0.5)) == 2

@@ -69,6 +69,7 @@ LEVELS = ("low", "moderate", "high")
 EXERCISE_TAGS: dict[str, tuple] = {
     "knee_load": LEVELS,
     "spinal_load": LEVELS,
+    "spinal_flexion": LEVELS,  # bending the spine forward (catalogue version 4)
     "shoulder_load": LEVELS,
     "wrist_load": LEVELS,
     "ankle_load": LEVELS,
@@ -157,6 +158,9 @@ class Scrub:
     text: str
 
 
+Purpose = Literal["plan", "photo"]
+
+
 @dataclass(frozen=True)
 class GateResult:
     action: Action  # the worst decision; malformed counts as block
@@ -165,6 +169,7 @@ class GateResult:
     items: tuple[ItemVerdict, ...] = ()
     scrubbed: tuple[Scrub, ...] = ()
     malformed: bool = False
+    caveats: tuple[str, ...] = ()  # for the whole reply, e.g. the photo caveat
 
     @property
     def blocked_items(self) -> list[int]:

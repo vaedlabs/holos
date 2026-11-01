@@ -40,6 +40,14 @@
               "null"
             ]
           },
+          "day": {
+            "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise. At most 16 characters.",
+            "title": "Day",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "diet_tags": {
             "items": {
               "description": "Diet tags a profile can carry (Plan C.3).",
@@ -88,6 +96,7 @@
           }
         },
         "required": [
+          "day",
           "name",
           "ingredients",
           "allergen_tags",

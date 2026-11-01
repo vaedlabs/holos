@@ -2,19 +2,27 @@
 breaker per provider (Plan C.9). Every time rule reads the call's measured Speed.
 
 * Each call is bounded in our code at its deadline; no time left → ProviderTimeout.
-* A call still running at its kind's live p90 (Backups) gets one identical backup
-  call, if the p50 is still left, a slot is free at once, backups are under 10% of
-  the last minute's calls and the budget allows it. The first reply wins; the
-  cancelled call is charged at the winner's usage.
+* A streaming call (Part E #35) also fails on silence: no output within
+  STALL_FIRST_S of sending, or no new output for STALL_GAP_S once writing →
+  ProviderStalled. A long reply that keeps writing runs to the deadline.
+* A slow call gets one identical backup call (Backups): a streaming call with no
+  output yet at its kind's live p90 of time to first output (never once writing); a
+  non-streaming call still running at its kind's live p90. Only if the p50 is still
+  left, a slot is free at once, backups are under 10% of the last minute's calls and
+  the budget allows it. The first reply wins; the cancelled call is charged at the
+  winner's usage.
 * Retry on 429, 5xx and timeouts: at most 2, and only if the call's p95 + 0.5 s is
   left after the wait. A longer Retry-After gives the route up at once.
 * Then the fallback (another model or provider), with the same rules.
-* Breaker per provider: a call is bad if it fails retryably or is still running at
-  its p99; a timeout at our own deadline before p99 is neither good nor bad. Opens
+* Breaker per provider: a call is bad if it fails retryably (a stall included) or, not
+  streaming, is still running at its p99; a timeout at our own deadline is neither
+  good nor bad (for a non-streaming call, only before its p99). Opens
   when 5 calls within 60 s were bad and they were at least half; after 30 s one
   trial call goes through (half-open); good closes it, bad reopens it.
 * Bad requests and malformed replies are not retried here: they say nothing about
   provider health. The agent's own retry (C.10 step 6) handles malformed replies.
+* Every attempt, also one that never went out, is recorded on the plan's trace with
+  its timings, the provider's request ID and its cause (Part E #39).
 """
 
 import asyncio
@@ -28,6 +36,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel
 
 from app.config.speeds import TIMEOUT_OVERSHOOT_S, Speed
+from app.observability.tracer import Attempt, Role, Trace
 
 from .base import (
     BadRequest,
@@ -37,6 +46,7 @@ from .base import (
     Message,
     OverBudget,
     ProviderError,
+    ProviderStalled,
     ProviderTimeout,
     RateLimited,
     ToolSpec,
@@ -56,6 +66,12 @@ SPEED_WINDOW = 200  # the live p90 is taken over this many recent calls of a kin
 SPEED_MIN_SAMPLES = 50  # below this, the measured table's p90 is used
 BACKUP_SHARE = 0.1  # at most this share of the last minute's calls get a backup
 BACKUP_WINDOW_S = 60.0
+# Silence rules for streaming calls (Part E #35). Measured 29 Oct 2026: on a typical
+# day the first output came within 4.7 s (84 calls), but in an hour when OpenAI was
+# slower healthy calls took up to 13.9 s (1,665 calls), so 20 s; pauses once writing
+# were at most 0.6 s
+STALL_FIRST_S = 20.0
+STALL_GAP_S = 5.0
 
 
 @dataclass
@@ -139,16 +155,17 @@ class Backups:
         self._calls: deque[float] = deque()
         self._backups: deque[float] = deque()
 
-    def threshold(self, kind: str, table: Speed) -> float:
+    def threshold(self, kind: str, table: Speed, streaming: bool = False) -> float:
         times = self._times.get(kind)
         if not times or len(times) < SPEED_MIN_SAMPLES:
-            return table.p90
+            return (table.first_p90 or table.p90) if streaming else table.p90
         ordered = sorted(times)
         return ordered[int(0.9 * len(ordered))]
 
     def record_time(self, kind: str, seconds: float) -> None:
-        """A call's time to its reply; a cancelled call's time so far. Cancelled calls
-        all ran past the threshold, so they still count on the right side of p90."""
+        """A call's time to its first output (streaming) or to its reply; a cancelled
+        call's time so far. Cancelled calls all ran past the threshold, so they still
+        count on the right side of p90."""
         self._times.setdefault(kind, deque(maxlen=SPEED_WINDOW)).append(seconds)
 
     def note_call(self) -> None:
@@ -189,11 +206,21 @@ class CallPlan:
     principal: str  # scheduler fairness key
     meter: Meter | None = None
     kind: str = ""  # names the call's kind for its live speed (Backups); "" = table only
+    trace: Trace | None = None  # the request's trace; None: a trace of this call alone
 
 
 @dataclass
 class _Race:
     usage: Usage | None = None  # the winning call's usage, to charge the cancelled one
+
+
+@dataclass
+class _Watch:
+    """One streaming call's progress, for the silence rules and the backup decision."""
+
+    started: float
+    first_output: float | None = None
+    last_output: float | None = None
 
 
 @dataclass(frozen=True)
@@ -217,8 +244,12 @@ class ResilientProvider:
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         jitter: Callable[[], float] = random.random,
         clock: Callable[[], float] = time.monotonic,
+        stall_first_s: float = STALL_FIRST_S,
+        stall_gap_s: float = STALL_GAP_S,
     ):
         self._routes = [r for r in (primary, fallback) if r is not None]
+        self._stall_first_s = stall_first_s
+        self._stall_gap_s = stall_gap_s
         self._breakers = breakers
         self._scheduler = scheduler or FairScheduler(clock=clock)
         self._backups = backups or Backups(clock)
@@ -236,10 +267,12 @@ class ResilientProvider:
         schema: type[BaseModel] | None = None,
     ) -> LLMResult:
         call = {"messages": messages, "system": system, "tools": tools, "schema": schema}
+        if plan.trace is None:
+            plan = replace(plan, trace=Trace("untraced", self._clock))
         last: ProviderError | None = None
-        for route in self._routes:
+        for n, route in enumerate(self._routes):
             try:
-                return await self._route(route, plan, call)
+                return await self._route(route, plan, call, fallback=n > 0)
             except ProviderError as exc:
                 if not exc.retryable:
                     raise
@@ -250,13 +283,17 @@ class ResilientProvider:
     def _left(self, plan: CallPlan) -> float:
         return plan.deadline - self._clock()
 
-    async def _route(self, route: Route, plan: CallPlan, call: dict) -> LLMResult:
+    async def _route(self, route: Route, plan: CallPlan, call: dict,
+                     fallback: bool) -> LLMResult:
         breaker = self._breakers[route.provider.name]
         for attempt in range(MAX_RETRIES + 1):
+            role: Role = "retry" if attempt else "fallback" if fallback else "first"
             if not breaker.allow():
-                raise Unavailable("circuit open", route.provider.name)
+                exc = Unavailable("circuit open", route.provider.name, cause="circuit_open")
+                plan.trace.end(self._record(plan, route, role), exc)
+                raise exc
             try:
-                return await self._attempt(route, plan, call, breaker)
+                return await self._attempt(route, plan, call, breaker, role)
             except ProviderError as exc:
                 if not exc.retryable or attempt == MAX_RETRIES or breaker.state == "open":
                     raise
@@ -266,9 +303,10 @@ class ResilientProvider:
                 await self._sleep(wait)
         raise AssertionError("unreachable")
 
-    async def _attempt(self, route, plan, call, breaker) -> LLMResult:
+    async def _attempt(self, route, plan, call, breaker, role: Role) -> LLMResult:
         """One try, with its backup call if it runs slow; records it on the breaker."""
         name = route.provider.name
+        record = self._record(plan, route, role)
         try:
             hold = await self._reserve(plan, route.options)
             try:
@@ -277,15 +315,20 @@ class ResilientProvider:
             except BaseException:
                 await self._release(plan, hold)
                 raise
-        except BaseException:
+        except BaseException as exc:
             breaker.end_trial()  # no call was made
+            plan.trace.end(record, exc)
             raise
+        record.queued_ms = plan.trace.ms() - record.began_ms
         started = self._clock()
+        streaming = _streams(route)
         try:
-            result = await self._race(route, plan, call, hold, breaker)
+            result = await self._race(route, plan, call, hold, breaker, record)
         except ProviderError as exc:
-            if isinstance(exc, ProviderTimeout) and self._clock() - started < plan.speed.p99:
-                # Cut short by our own deadline: says nothing about the provider
+            if isinstance(exc, ProviderTimeout) and (
+                    streaming or self._clock() - started < plan.speed.p99):
+                # Cut short by our own deadline: says nothing about the provider. A
+                # streaming call that went silent raised ProviderStalled instead
                 breaker.end_trial()
             elif exc.retryable:
                 breaker.record_failure()
@@ -294,23 +337,35 @@ class ResilientProvider:
                 # nothing about its health. End a half-open trial as healthy.
                 breaker.record_success()
             raise
-        if self._clock() - started >= plan.speed.p99:
+        if not streaming and self._clock() - started >= plan.speed.p99:
             breaker.record_failure()  # slow: still running at p99
         else:
             breaker.record_success()
         return result
 
-    async def _race(self, route, plan, call, hold, breaker) -> LLMResult:
+    async def _race(self, route, plan, call, hold, breaker, record: Attempt) -> LLMResult:
         race = _Race()
         self._backups.note_call()
-        tasks = [asyncio.create_task(self._one(route, plan, call, hold, race))]
+        streaming = _streams(route)
+        watch = _Watch(self._clock())
+        tasks = [asyncio.create_task(self._one(route, plan, call, hold, race, watch,
+                                               record))]
         try:
-            wait = self._backups.threshold(plan.kind, plan.speed) if plan.kind else plan.speed.p90
+            if plan.kind:
+                wait = self._backups.threshold(plan.kind, plan.speed, streaming)
+            else:
+                wait = (plan.speed.first_p90 or plan.speed.p90) if streaming else plan.speed.p90
             done, _ = await asyncio.wait(tasks, timeout=wait)
-            if not done and breaker.state == "closed":
-                backup = await self._backup(route, plan, call, race)
-                if backup is not None:
+            # A streaming call that is writing is on its way: never back it up
+            writing = streaming and watch.first_output is not None
+            if not done and not writing:
+                # A slow call without a backup says why on the trace (Part E #39)
+                backup = (await self._backup(route, plan, call, race)
+                          if breaker.state == "closed" else "breaker_not_closed")
+                if isinstance(backup, asyncio.Task):
                     tasks.append(backup)
+                else:
+                    plan.trace.step("backup_skipped", outcome=backup, detail=plan.kind)
             pending = set(tasks)
             while pending:
                 done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
@@ -324,53 +379,84 @@ class ResilientProvider:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _backup(self, route, plan, call, race) -> asyncio.Task | None:
+    async def _backup(self, route, plan, call, race) -> asyncio.Task | str:
+        """The backup call's task, or why there is none."""
         name = route.provider.name
         if self._left(plan) < plan.speed.p50:
-            return None
+            return "no_time"
         if not self._scheduler.take_now(name, plan.principal):
-            return None
+            return "no_slot"
         try:
             hold = await self._reserve(plan, route.options)
         except OverBudget:
             self._scheduler.release(name, plan.principal)
-            return None
+            return "over_budget"
         if not self._backups.take():
             self._scheduler.release(name, plan.principal)
             await self._release(plan, hold)
-            return None
-        return asyncio.create_task(self._one(route, plan, call, hold, race))
+            return "share_cap"
+        return asyncio.create_task(self._one(route, plan, call, hold, race,
+                                             _Watch(self._clock()),
+                                             self._record(plan, route, "backup")))
 
-    async def _one(self, route, plan, call, hold, race) -> LLMResult:
-        """One provider call in a slot already taken; frees the slot and settles."""
+    async def _one(self, route, plan, call, hold, race, watch: _Watch,
+                   record: Attempt) -> LLMResult:
+        """One provider call in a slot already taken: frees the slot, settles, and ends
+        its record on the trace."""
+        try:
+            result = await self._call(route, plan, call, hold, race, watch, record)
+        except BaseException as exc:
+            plan.trace.end(record, exc)
+            raise
+        plan.trace.end(record, tokens=(result.usage.tokens_in, result.usage.tokens_out),
+                       request_id=result.request_id)
+        return result
+
+    async def _call(self, route, plan, call, hold, race, watch: _Watch,
+                    record: Attempt) -> LLMResult:
         name = route.provider.name
-        started = self._clock()
+        started = watch.started = self._clock()
+        record.sent_ms = plan.trace.ms()
+        streaming = _streams(route)
         options = route.options
         outcome = "keep"  # timed out, cancelled or unparsable: usage unknown
+
+        def speed_sample() -> float:
+            # Streaming: time to first output, the start that backups key on
+            end = watch.first_output if streaming and watch.first_output else self._clock()
+            return end - started
+
         try:
             left = self._left(plan)
             if left <= 0:
                 outcome = "release"
-                raise ProviderTimeout("no time left", name)
+                raise ProviderTimeout("no time left", name, cause="no_time_left")
             options = replace(route.options, timeout_s=left)
             try:
                 async with asyncio.timeout(left):
-                    result = await route.provider.generate(call["messages"], options=options,
-                                                           system=call["system"],
-                                                           tools=call["tools"],
-                                                           schema=call["schema"])
+                    request = route.provider.generate(
+                        call["messages"], options=options, system=call["system"],
+                        tools=call["tools"], schema=call["schema"],
+                        progress=self._progress(watch, record, plan.trace) if streaming
+                        else None,
+                        opened=self._opened(record, plan.trace))
+                    result = await (self._watched(request, watch, name) if streaming
+                                    else request)
             except TimeoutError:
-                raise ProviderTimeout("deadline reached", name) from None
+                writing = watch.first_output is not None
+                raise ProviderTimeout(
+                    "deadline reached" + (" while writing" if writing else ""), name,
+                    cause="deadline_writing" if writing else "deadline_waiting") from None
             except _NOT_BILLED:
                 outcome = "release"
                 raise
             except asyncio.CancelledError:
                 if plan.kind:
-                    self._backups.record_time(plan.kind, self._clock() - started)
+                    self._backups.record_time(plan.kind, speed_sample())
                 raise
             outcome = "settle"
             if plan.kind:
-                self._backups.record_time(plan.kind, self._clock() - started)
+                self._backups.record_time(plan.kind, speed_sample())
             if plan.meter is not None and hold is not None:
                 await plan.meter.settle(hold, options, result.usage)
             return result
@@ -385,6 +471,52 @@ class ResilientProvider:
                 await self._keep(plan, hold)
             elif outcome == "release":
                 await self._release(plan, hold)
+
+    def _progress(self, watch: _Watch, record: Attempt,
+                  trace: Trace) -> Callable[[bool], None]:
+        def on_event(output: bool) -> None:
+            if output:
+                now = self._clock()
+                watch.last_output = now
+                if watch.first_output is None:
+                    watch.first_output = now
+                    record.first_output_ms = trace.ms()
+        return on_event
+
+    @staticmethod
+    def _opened(record: Attempt, trace: Trace) -> Callable[[str | None], None]:
+        def on_open(request_id: str | None) -> None:
+            record.opened_ms = trace.ms()
+            record.request_id = request_id
+        return on_open
+
+    @staticmethod
+    def _record(plan: CallPlan, route: Route, role: Role) -> Attempt:
+        return plan.trace.attempt(plan.kind, route.provider.name, route.options.model, role)
+
+    async def _watched(self, request: Awaitable[LLMResult], watch: _Watch,
+                       name: str) -> LLMResult:
+        """Await a streaming call, failing it when it goes silent (Part E #35)."""
+        task = asyncio.ensure_future(request)
+        try:
+            while True:
+                if watch.first_output is None:
+                    silent_until = watch.started + self._stall_first_s
+                else:
+                    silent_until = watch.last_output + self._stall_gap_s
+                wait = silent_until - self._clock()
+                if wait <= 0:
+                    first = watch.first_output is None
+                    raise ProviderStalled(
+                        f"stalled: {'no output' if first else 'output stopped'}", name,
+                        cause="no_first_output" if first else "output_stopped")
+                done, _ = await asyncio.wait({task}, timeout=wait)
+                if done:
+                    return task.result()
+        finally:
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
 
     async def _reserve(self, plan: CallPlan, options: GenerateOptions) -> Any | None:
         if plan.meter is None:
@@ -407,3 +539,7 @@ class ResilientProvider:
             return retry_after
         backoff = BASE_DELAY_S * 2**attempt
         return min(backoff * (0.5 + self._jitter() / 2), MAX_DELAY_S)
+
+
+def _streams(route: Route) -> bool:
+    return bool(getattr(route.provider, "streams", False))

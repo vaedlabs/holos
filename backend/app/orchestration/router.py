@@ -10,7 +10,9 @@ language Holos doesn't support never reaches a coach (below); a photo goes to nu
 else is one small-model call that either names every coach the request needs, or, when
 no coach is needed (a greeting, a question about Holos, off topic, unclear, a language
 Holos doesn't support), writes a short personal reply. That reply is model prose: the
-caller gates it (gate_text) before it is sent.
+caller gates it (gate_text) before it is sent. A reply that doesn't parse is asked for
+once more if the time is left (live, twice in 1,200 calls: valid JSON followed by more
+characters), as a coach's is (C.10).
 
 Holos supports English and Hindi only (Part E #37): the crisis check and the gate read
 nothing else. A message mostly in another script (Bengali, Tamil, Gujarati, Arabic...)
@@ -20,6 +22,7 @@ languages in Latin letters are the model's call.
 """
 
 import re
+import time
 import unicodedata
 from dataclasses import dataclass
 from typing import Literal, Protocol
@@ -27,6 +30,8 @@ from typing import Literal, Protocol
 from pydantic import BaseModel
 
 from app.agents.schemas import AgentName, HistoryTurn, RouterReply, TurnKind, UserProfile
+from app.agents.style import letters as all_letters
+from app.config.speeds import TIMEOUT_OVERSHOOT_S
 from app.providers import CallPlan, LLMResult, MalformedOutput, Message, Turn, Usage
 
 AGENT_ORDER: tuple[AgentName, ...] = ("physical", "nutrition", "mental")
@@ -107,7 +112,7 @@ def language(text: str) -> Language:
     """Deterministic. other: mostly another script, or plainly German, Spanish, French,
     Portuguese, Italian or Dutch. hindi: mostly Devanagari. ours: plainly English or
     Hinglish. unsure: short or mixed Latin text, for the model to judge."""
-    letters = [c for c in text if c.isalpha()]
+    letters = all_letters(text)
     scripts = [unicodedata.name(c, "").split(" ")[0] for c in letters]
     foreign = sum(1 for name in scripts if name not in SUPPORTED_SCRIPTS)
     if letters and foreign * 2 > len(letters):
@@ -197,7 +202,8 @@ class Router:
                 # Telling a Hindi speaker Holos doesn't speak Hindi is not an answer.
                 # English mixed with another language ("Danke, klingt gut. I'll try
                 # it") the model may judge: live, twice in a row once in 215
-                raise MalformedOutput("router called Hindi another language")
+                raise MalformedOutput("router called Hindi another language",
+                                      cause="wrong_language")
         if lang == "other" and parsed.kind != "other_language":
             # Never to a coach: neither the crisis check nor the gate can read it
             return RouteDecision("other_language", (), OTHER_LANGUAGE_FALLBACK, usage=usage)
@@ -205,12 +211,21 @@ class Router:
 
     async def _ask(self, messages: list[Message], plan: CallPlan,
                    system: str) -> tuple[RouterReply, Usage]:
-        result = await self.llm.generate(messages, plan=plan, system=system,
-                                         schema=RouterReply)
-        if result.truncated or not isinstance(result.parsed, RouterReply):
-            # Not a conversation reply to make up: the caller reports an error (C.5)
-            raise MalformedOutput("router reply missing or cut off")
-        return result.parsed, result.usage
+        for attempt in range(2):
+            try:
+                result = await self.llm.generate(messages, plan=plan, system=system,
+                                                 schema=RouterReply)
+                if result.truncated or not isinstance(result.parsed, RouterReply):
+                    raise MalformedOutput("router reply missing or cut off",
+                                          cause="truncated" if result.truncated else None)
+                return result.parsed, result.usage
+            except MalformedOutput:
+                # Not a conversation reply to make up: once more, then the caller
+                # reports an error (C.5)
+                left = plan.deadline - time.monotonic()
+                if attempt or left < plan.speed.p95 + TIMEOUT_OVERSHOOT_S:
+                    raise
+        raise AssertionError("unreachable")
 
 
 def _add(a: Usage, b: Usage) -> Usage:

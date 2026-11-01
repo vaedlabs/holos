@@ -59,8 +59,15 @@ class _Model(BaseModel):
 
 # --- Items (C.3) ---
 
+# A plan over several days labels each item with its day (owner, Part E #38): relative
+# days, not dates. Grouped by it in the app; the gate checks every item as before
+DAY = Field(max_length=16, description=(
+    "Only in a plan over several days: the day or meal this item belongs to, for example "
+    "'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise."))
+
 
 class ExerciseItem(_LLMModel):
+    day: str | None = DAY
     catalogue_id: ExerciseId
     sets: int | None = Field(ge=1, le=10)
     reps: int | None = Field(ge=1, le=100)
@@ -70,12 +77,14 @@ class ExerciseItem(_LLMModel):
 
 
 class PracticeItem(_LLMModel):
+    day: str | None = DAY
     catalogue_id: PracticeId
     duration_min: int = Field(ge=1, le=60)
     note: str = Field(max_length=120, description="At most 120 characters.")
 
 
 class FoodItem(_LLMModel):
+    day: str | None = DAY  # null in a meal log
     name: str = Field(max_length=60, description="The dish, at most 60 characters.")
     # Gemini doesn't enforce item counts and OpenAI doesn't enforce string lengths
     # (Part D): the descriptions are how the model learns these limits
@@ -92,12 +101,13 @@ class FoodItem(_LLMModel):
 
 # --- Replies (C.3) ---
 
-PLAN_MAX_ITEMS = {"PhysicalReply": 8, "NutritionReply": 5, "MentalReply": 5}
+# A week plan fits (Part E #38: 30 of 44 live week plans complete, 16 of 44 at 8/5/5)
+PLAN_MAX_ITEMS = {"PhysicalReply": 24, "NutritionReply": 21, "MentalReply": 14}
 
-# Output tokens for the reply itself, per agent (Plan C.9). Nutrition is higher
-# because a full 5-food plan needs it (Part E #10). The largest valid reply must
-# fit in the cap minus SIZE_RULE_MARGIN, so a reply is never cut off.
-REPLY_TOKEN_CAP = {"physical": 1200, "nutrition": 1400, "mental": 1200}
+# Output tokens for the reply itself, per agent (Plan C.9), sized to the week-plan item
+# limits (Part E #38): the largest valid reply must fit in the cap minus
+# SIZE_RULE_MARGIN, so a reply is never cut off.
+REPLY_TOKEN_CAP = {"physical": 2000, "nutrition": 4800, "mental": 1200}
 SIZE_RULE_MARGIN = 100
 
 
@@ -120,30 +130,39 @@ class _ReplyBase(_LLMModel):
         description="True if the user may be at risk of self-harm or in a medical emergency.")
 
     @model_validator(mode="after")
-    def _items_match_kind(self):
-        count = len(self.items)  # type: ignore[attr-defined]
-        if self.kind == "plan" and count == 0:
-            raise ValueError("a plan needs at least one item")
-        if self.kind != "plan" and count:
-            raise ValueError(f"kind '{self.kind}' must have no items")
-        if self.kind != "clarify" and self.follow_up is not None:
-            raise ValueError("follow_up is only for kind 'clarify'")
+    def _kind_matches_content(self):
+        # The content decides, so a reply isn't failed and retried over its label (live,
+        # 3 in 378 coach replies, Part D): items make it a plan, a plan without items is
+        # an answer, and only a clarify asks a follow-up question
+        if self.items and self.kind != "plan":  # type: ignore[attr-defined]
+            self.kind = "plan"
+        elif not self.items and self.kind == "plan":  # type: ignore[attr-defined]
+            self.kind = "answer"
+        if self.kind != "clarify":
+            self.follow_up = None
         return self
 
 
 class PhysicalReply(_ReplyBase):
     items: list[ExerciseItem] = Field(
-        max_length=8, description="1 to 8 items when kind is plan; empty otherwise.")
+        max_length=24, description="1 to 24 items when kind is plan; empty otherwise.")
 
 
 class NutritionReply(_ReplyBase):
-    items: list[FoodItem] = Field(
-        max_length=5, description="1 to 5 items when kind is plan; empty otherwise.")
+    # A meal photo's foods are items (kind plan): live, 12 of 12 replies listed them with
+    # these descriptions, 0 of 12 without (Part D, Part E #29)
+    kind: ReplyKind = Field(description=(
+        "plan: concrete food items, either a plan to follow or the foods seen in a meal photo; "
+        "answer: an information reply; log_ack: confirms a log; clarify: ask one question "
+        "first."))
+    items: list[FoodItem] = Field(max_length=21, description=(
+        "1 to 21 items when kind is plan, including each food seen in a photo; empty "
+        "otherwise."))
 
 
 class MentalReply(_ReplyBase):
     items: list[PracticeItem] = Field(
-        max_length=5, description="1 to 5 items when kind is plan; empty otherwise.")
+        max_length=14, description="1 to 14 items when kind is plan; empty otherwise.")
 
 
 AgentReply = PhysicalReply | NutritionReply | MentalReply  # backend only, never sent to an LLM
@@ -319,11 +338,14 @@ class StagedWrite(_Model):
 
 
 class AgentResult(_Model):
-    reply: AgentReply
+    reply: AgentReply | None  # None: the coach failed (`error`); the app offers Retry
     warnings: list[str] = []
+    item_caveats: list[list[str]] = []  # per item of reply.items (C.5 `item` caveats)
     decisions: list[Decision] = []
     sources: list[Source] = []
     staged_writes: list[StagedWrite] = []
+    # Set when there is no reply: the stream's notice or error (C.5)
+    error: Literal["busy", "cap_reached", "unavailable", "malformed"] | None = None
 
 
 class HolisticResult(_Model):

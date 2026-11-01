@@ -29,6 +29,8 @@ from .base import (
     MalformedOutput,
     Message,
     ModelTurn,
+    Opened,
+    Progress,
     ProviderTimeout,
     ProviderUnavailable,
     RateLimited,
@@ -46,6 +48,7 @@ THINKING = {"none": "minimal", "low": "low", "medium": "medium", "high": "high"}
 
 class GeminiProvider:
     name = "gemini"
+    streams = False  # not on the chat path; no silence rules (Part E #29, #35)
 
     def __init__(self, api_key: str, http_client: httpx.AsyncClient | None = None):
         options = types.HttpOptions(
@@ -67,6 +70,8 @@ class GeminiProvider:
         system: str | None = None,
         tools: list[ToolSpec] | None = None,
         schema: type[BaseModel] | None = None,
+        progress: Progress | None = None,
+        opened: Opened | None = None,
     ) -> LLMResult:
         request: dict[str, Any] = {
             "model": options.model,
@@ -91,7 +96,8 @@ class GeminiProvider:
             raise ProviderTimeout(str(exc), self.name) from exc
         except compat_errors.APIStatusError as exc:
             raise _status_error(exc.status_code, str(exc),
-                                _retry_after(exc.response.headers)) from exc
+                                _retry_after(exc.response.headers),
+                                getattr(exc, "request_id", None)) from exc
         except genai_errors.APIError as exc:
             raise _status_error(exc.code or 0, str(exc), None) from exc
         except (compat_errors.APIConnectionError, httpx.TransportError) as exc:
@@ -102,12 +108,14 @@ class GeminiProvider:
 
 
 def gemini_schema(schema: type[BaseModel]) -> dict[str, Any]:
-    """The provider-safe schema with item limits removed from nested arrays.
+    """The provider-safe schema with item limits removed from arrays of objects and
+    everything inside them.
 
-    Gemini rejects NutritionReply as "too many states for serving": its foods array
-    holds arrays of ingredients and tags, each with its own maxItems (Part D, 26 Oct
-    2026). Dropping minItems/maxItems below the top level fixes it; the top-level item
-    limit stays. Pydantic still enforces every limit when the reply is parsed, so a
+    Gemini rejects a schema as "too many states for serving" when an array of objects
+    has an item limit: NutritionReply's nested ingredient and tag limits (Part D, 26 Oct
+    2026), then the week-plan limits of 21 foods and 24 exercises themselves (2 Nov
+    2026). Short lists of strings (notes, source ids) keep theirs. The descriptions
+    still state every limit, and Pydantic enforces them when the reply is parsed, so a
     reply over a limit becomes MalformedOutput and the agent retries (C.10).
     """
 
@@ -116,11 +124,13 @@ def gemini_schema(schema: type[BaseModel]) -> dict[str, Any]:
             return [walk(n, inside_array) for n in node]
         if not isinstance(node, dict):
             return node
+        is_array = node.get("type") == "array"
+        of_objects = is_array and "properties" in node.get("items", {})
         out = {}
         for key, value in node.items():
-            if inside_array and node.get("type") == "array" and key in ("minItems", "maxItems"):
+            if (inside_array or of_objects) and is_array and key in ("minItems", "maxItems"):
                 continue
-            nested = inside_array or (key == "items" and node.get("type") == "array")
+            nested = inside_array or (key == "items" and of_objects)
             out[key] = walk(value, nested)
         return out
 
@@ -173,22 +183,26 @@ def _to_result(interaction: Any, model: str, schema: type[BaseModel] | None) -> 
     parsed = None
     if schema is not None and not calls:
         if truncated:
-            raise MalformedOutput("reply cut off at max_output_tokens", "gemini")
+            raise MalformedOutput("reply cut off at max_output_tokens", "gemini",
+                                  cause="truncated")
         parsed = parse_reply(text, schema, "gemini")
     turn = ModelTurn(provider="gemini",
                      items=tuple(s.model_dump(mode="json", exclude_none=True, by_alias=True)
                                  for s in steps),
                      tool_calls=calls, text=text)
     return LLMResult(provider="gemini", model=model, tool_calls=calls, text=text,
-                     parsed=parsed, usage=result_usage, truncated=truncated, turn=turn)
+                     parsed=parsed, usage=result_usage, truncated=truncated, turn=turn,
+                     request_id=getattr(interaction, "id", None))
 
 
-def _status_error(status: int, message: str, retry_after: float | None):
+def _status_error(status: int, message: str, retry_after: float | None,
+                  request_id: str | None = None):
+    ids = {"request_id": request_id, "status": status or None}
     if status == 429:
-        return RateLimited(message, "gemini", retry_after)
+        return RateLimited(message, "gemini", retry_after, **ids)
     if status >= 500:
-        return ProviderUnavailable(message, "gemini", retry_after)
-    return BadRequest(message, "gemini")
+        return ProviderUnavailable(message, "gemini", retry_after, **ids)
+    return BadRequest(message, "gemini", **ids)
 
 
 def _retry_after(headers: Any) -> float | None:

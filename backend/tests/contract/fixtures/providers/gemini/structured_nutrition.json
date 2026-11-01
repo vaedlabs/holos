@@ -26,7 +26,7 @@
             "additionalProperties": false,
             "properties": {
               "kind": {
-                "description": "plan: concrete items to do; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
+                "description": "plan: concrete food items, either a plan to follow or the foods seen in a meal photo; answer: an information reply; log_ack: confirms a log; clarify: ask one question first.",
                 "enum": [
                   "plan",
                   "answer",
@@ -75,10 +75,18 @@
                 "type": "boolean"
               },
               "items": {
-                "description": "1 to 5 items when kind is plan; empty otherwise.",
+                "description": "1 to 21 items when kind is plan, including each food seen in a photo; empty otherwise.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
+                    "day": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise. At most 16 characters.",
+                      "title": "Day"
+                    },
                     "name": {
                       "description": "The dish, at most 60 characters. At most 60 characters.",
                       "title": "Name",
@@ -158,6 +166,7 @@
                     }
                   },
                   "required": [
+                    "day",
                     "name",
                     "ingredients",
                     "allergen_tags",
@@ -169,7 +178,6 @@
                   "title": "FoodItem",
                   "type": "object"
                 },
-                "maxItems": 5,
                 "title": "Items",
                 "type": "array"
               }
@@ -199,7 +207,7 @@
       "body": {
         "status": "completed",
         "usage": {
-          "total_tokens": 418,
+          "total_tokens": 433,
           "total_input_tokens": 25,
           "input_tokens_by_modality": [
             {
@@ -208,22 +216,23 @@
             }
           ],
           "total_cached_tokens": 0,
-          "total_output_tokens": 393,
+          "total_output_tokens": 408,
           "total_tool_use_tokens": 0,
-          "total_thought_tokens": 0
+          "total_thought_tokens": 0,
+          "initial_input_tokens": 1088
         },
-        "created": "2026-10-27T13:44:21Z",
-        "updated": "2026-10-27T13:44:21Z",
+        "created": "2026-11-01T18:43:02Z",
+        "updated": "2026-11-01T18:43:02Z",
         "service_tier": "standard",
         "steps": [
           {
-            "signature": "EmAKXgFpFH0T1lG74IHAM290i1kVUwgo4HZ3HxK+eJBMJCIWVwFetKWLhFUznfdE9tsqLUPZnByUcD2ZR9/3+EbeokzfFTOiTKgwaPxRLCgyKSAN3vVlSS6p3CKRA9siufQ=",
+            "signature": "EmAKXgFpFH0TuLMcqYzTfku0QDX9pf1+HE79DRAexL0R8tErxvOcV1Gotu8zgHHw4+iHiAlUvNdvM4UAVaY9rL0fFrC74LQUZgx61T+/m9Zb9zjQYLLBbBFla9KjwRCkaBU=",
             "type": "thought"
           },
           {
             "content": [
               {
-                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Here is a high-protein vegetarian lunch featuring a paneer wrap and a Greek yogurt berry bowl, designed to keep you full and energized.\",\n  \"notes\": [\n    \"Make sure to use whole wheat tortillas for extra fiber.\",\n    \"Greek yogurt is naturally high in protein and helps support muscle recovery.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"name\": \"Paneer and Veggie Wrap\",\n      \"ingredients\": [\n        \"paneer\",\n        \"whole wheat tortilla\",\n        \"bell peppers\",\n        \"spinach\",\n        \"yogurt sauce\"\n      ],\n      \"allergen_tags\": [\n        \"milk\",\n        \"gluten\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\"\n      ],\n      \"portion\": \"1 wrap (250 g)\",\n      \"calories\": 420,\n      \"note\": \"Pan-sear the paneer lightly with spices for extra flavor.\"\n    },\n    {\n      \"name\": \"Greek Yogurt Berry Bowl\",\n      \"ingredients\": [\n        \"greek yogurt\",\n        \"mixed berries\",\n        \"chia seeds\",\n        \"almonds\"\n      ],\n      \"allergen_tags\": [\n        \"milk\",\n        \"tree_nut\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\"\n      ],\n      \"portion\": \"1 bowl (200 g)\",\n      \"calories\": 250,\n      \"note\": \"Use plain low-fat Greek yogurt to keep added sugars low.\"\n    }\n  ]\n}",
+                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Here is a high-protein vegetarian lunch plan featuring a tofu quinoa bowl and a side of Greek yogurt with almonds.\",\n  \"notes\": [\n    \"Ensure you use firm tofu for a better texture and higher protein density.\",\n    \"Almonds add a great crunch and healthy fats to round out the meal.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"day\": \"Today\",\n      \"name\": \"High-Protein Tofu Quinoa Bowl\",\n      \"ingredients\": [\n        \"firm tofu\",\n        \"cooked quinoa\",\n        \"edamame\",\n        \"spinach\",\n        \"tahini dressing\"\n      ],\n      \"allergen_tags\": [\n        \"soy\",\n        \"sesame\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\",\n        \"vegan\"\n      ],\n      \"portion\": \"1 large bowl (400 g)\",\n      \"calories\": 480,\n      \"note\": \"Packed with complete plant-based proteins.\"\n    },\n    {\n      \"day\": \"Today\",\n      \"name\": \"Greek Yogurt with Almonds\",\n      \"ingredients\": [\n        \"plain Greek yogurt\",\n        \"almonds\",\n        \"honey\"\n      ],\n      \"allergen_tags\": [\n        \"milk\",\n        \"tree_nut\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\"\n      ],\n      \"portion\": \"1 cup (200 g)\",\n      \"calories\": 250,\n      \"note\": \"A creamy, protein-rich addition to finish your lunch.\"\n    }\n  ]\n}",
                 "type": "text"
               }
             ],

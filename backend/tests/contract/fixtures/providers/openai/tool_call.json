@@ -21,6 +21,7 @@
           "effort": "none"
         },
         "store": false,
+        "stream": true,
         "tools": [
           {
             "type": "function",
@@ -59,129 +60,9 @@
     "response": {
       "status": 200,
       "headers": {
-        "content-type": "application/json"
+        "content-type": "text/event-stream; charset=utf-8"
       },
-      "body": {
-        "id": "resp_0005a4b3cce6dae5016ade5afdeb9087d18ff7355368c23864",
-        "object": "response",
-        "created_at": 1792957181,
-        "status": "completed",
-        "access_programs": null,
-        "background": false,
-        "billing": {
-          "payer": "developer"
-        },
-        "completed_at": 1792957182,
-        "error": null,
-        "frequency_penalty": 0.0,
-        "incomplete_details": null,
-        "instructions": null,
-        "max_output_tokens": 1200,
-        "max_tool_calls": null,
-        "model": "gpt-6-luna",
-        "moderation": null,
-        "output": [
-          {
-            "id": "fc_0005a4b3cce6dae5016ade5afeba2087d1bf51cf8bac99231d",
-            "type": "function_call",
-            "status": "completed",
-            "arguments": "{\"kind\":\"meal\",\"days\":7}",
-            "call_id": "call_odH5CpFVRW90iv74ZAIuYhrT",
-            "name": "get_recent_logs"
-          }
-        ],
-        "parallel_tool_calls": true,
-        "presence_penalty": 0.0,
-        "previous_response_id": null,
-        "prompt_cache_key": null,
-        "prompt_cache_retention": "24h",
-        "reasoning": {
-          "context": "all_turns",
-          "effort": "none",
-          "mode": "standard",
-          "summary": null
-        },
-        "safety_identifier": null,
-        "service_tier": "default",
-        "store": false,
-        "temperature": 1.0,
-        "text": {
-          "format": {
-            "type": "text"
-          },
-          "verbosity": "medium"
-        },
-        "tool_choice": "auto",
-        "tool_usage": {
-          "image_gen": {
-            "input_tokens": 0,
-            "input_tokens_details": {
-              "image_tokens": 0,
-              "text_tokens": 0
-            },
-            "output_tokens": 0,
-            "output_tokens_details": {
-              "image_tokens": 0,
-              "text_tokens": 0
-            },
-            "total_tokens": 0
-          },
-          "web_search": {
-            "num_requests": 0
-          }
-        },
-        "tools": [
-          {
-            "type": "function",
-            "description": "The user's recent workout, meal or practice logs, newest first.",
-            "name": "get_recent_logs",
-            "output_schema": null,
-            "parameters": {
-              "additionalProperties": false,
-              "properties": {
-                "kind": {
-                  "enum": [
-                    "workout",
-                    "meal",
-                    "practice"
-                  ],
-                  "title": "Kind",
-                  "type": "string"
-                },
-                "days": {
-                  "maximum": 14,
-                  "minimum": 1,
-                  "title": "Days",
-                  "type": "integer"
-                }
-              },
-              "required": [
-                "kind",
-                "days"
-              ],
-              "type": "object"
-            },
-            "strict": true
-          }
-        ],
-        "top_logprobs": 0,
-        "top_p": 0.98,
-        "truncation": "disabled",
-        "usage": {
-          "input_tokens": 101,
-          "input_tokens_details": {
-            "cache_write_tokens": 0,
-            "cached_tokens": 0
-          },
-          "output_tokens": 23,
-          "output_tokens_details": {
-            "reasoning_tokens": 0
-          },
-          "total_tokens": 124
-        },
-        "user": null,
-        "metadata": {}
-      }
+      "body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_06f4ca5b1b34ca91016ae2de154b4087d28bfa4267a7a8be58\",\"object\":\"response\",\"created_at\":1793252885,\"status\":\"in_progress\",\"access_programs\":null,\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"The user's recent workout, meal or practice logs, newest first.\",\"name\":\"get_recent_logs\",\"output_schema\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"enum\":[\"workout\",\"meal\",\"practice\"],\"title\":\"Kind\",\"type\":\"string\"},\"days\":{\"maximum\":14,\"minimum\":1,\"title\":\"Days\",\"type\":\"integer\"}},\"required\":[\"kind\",\"days\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":0}\n\nevent: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"resp_06f4ca5b1b34ca91016ae2de154b4087d28bfa4267a7a8be58\",\"object\":\"response\",\"created_at\":1793252885,\"status\":\"in_progress\",\"access_programs\":null,\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"The user's recent workout, meal or practice logs, newest first.\",\"name\":\"get_recent_logs\",\"output_schema\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"enum\":[\"workout\",\"meal\",\"practice\"],\"title\":\"Kind\",\"type\":\"string\"},\"days\":{\"maximum\":14,\"minimum\":1,\"title\":\"Days\",\"type\":\"integer\"}},\"required\":[\"kind\",\"days\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":1}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"type\":\"function_call\",\"status\":\"in_progress\",\"arguments\":\"\",\"call_id\":\"call_endkDJfHYxSf2dVvs8qr8SLY\",\"name\":\"get_recent_logs\"},\"output_index\":0,\"sequence_number\":2}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"{\\\"\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"1W2tAlJb1i8xh7\",\"output_index\":0,\"sequence_number\":3}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"kind\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"PL77M8jZWIIb\",\"output_index\":0,\"sequence_number\":4}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"\\\":\\\"\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"fPEJUhfmJxb9t\",\"output_index\":0,\"sequence_number\":5}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"meal\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"mXTcPyGl87XZ\",\"output_index\":0,\"sequence_number\":6}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"\\\",\\\"\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"lu9hTTvmIsy7d\",\"output_index\":0,\"sequence_number\":7}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"days\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"N9zOdC8snjQi\",\"output_index\":0,\"sequence_number\":8}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"\\\":\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"aV2CGfYRuU2NYh\",\"output_index\":0,\"sequence_number\":9}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"7\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"kyQ7CIAma8OlDOo\",\"output_index\":0,\"sequence_number\":10}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"delta\":\"}\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"obfuscation\":\"HX2vVa4Ene8rUAa\",\"output_index\":0,\"sequence_number\":11}\n\nevent: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"arguments\":\"{\\\"kind\\\":\\\"meal\\\",\\\"days\\\":7}\",\"item_id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"output_index\":0,\"sequence_number\":12}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"kind\\\":\\\"meal\\\",\\\"days\\\":7}\",\"call_id\":\"call_endkDJfHYxSf2dVvs8qr8SLY\",\"name\":\"get_recent_logs\"},\"output_index\":0,\"sequence_number\":13}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_06f4ca5b1b34ca91016ae2de154b4087d28bfa4267a7a8be58\",\"object\":\"response\",\"created_at\":1793252885,\"status\":\"completed\",\"access_programs\":null,\"background\":false,\"completed_at\":1793252886,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[{\"id\":\"fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"kind\\\":\\\"meal\\\",\\\"days\\\":7}\",\"call_id\":\"call_endkDJfHYxSf2dVvs8qr8SLY\",\"name\":\"get_recent_logs\"}],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"default\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"The user's recent workout, meal or practice logs, newest first.\",\"name\":\"get_recent_logs\",\"output_schema\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"enum\":[\"workout\",\"meal\",\"practice\"],\"title\":\"Kind\",\"type\":\"string\"},\"days\":{\"maximum\":14,\"minimum\":1,\"title\":\"Days\",\"type\":\"integer\"}},\"required\":[\"kind\",\"days\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":{\"input_tokens\":101,\"input_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":0},\"output_tokens\":23,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":124},\"user\":null,\"metadata\":{}},\"sequence_number\":14}\n\n"
     }
   },
   {
@@ -201,15 +82,15 @@
           },
           {
             "arguments": "{\"kind\":\"meal\",\"days\":7}",
-            "call_id": "call_odH5CpFVRW90iv74ZAIuYhrT",
+            "call_id": "call_endkDJfHYxSf2dVvs8qr8SLY",
             "name": "get_recent_logs",
             "type": "function_call",
-            "id": "fc_0005a4b3cce6dae5016ade5afeba2087d1bf51cf8bac99231d",
+            "id": "fc_06f4ca5b1b34ca91016ae2de16b29487d2aec02d2d7dbdee72",
             "status": "completed"
           },
           {
             "type": "function_call_output",
-            "call_id": "call_odH5CpFVRW90iv74ZAIuYhrT",
+            "call_id": "call_endkDJfHYxSf2dVvs8qr8SLY",
             "output": "{\"entries\": [{\"date\": \"2026-10-24\", \"meal_type\": \"lunch\", \"foods\": \"dal, rice\", \"calories\": 520, \"notes\": null}]}"
           }
         ],
@@ -219,6 +100,7 @@
           "effort": "none"
         },
         "store": false,
+        "stream": true,
         "tools": [
           {
             "type": "function",
@@ -257,136 +139,9 @@
     "response": {
       "status": 200,
       "headers": {
-        "content-type": "application/json"
+        "content-type": "text/event-stream; charset=utf-8"
       },
-      "body": {
-        "id": "resp_0005a4b3cce6dae5016ade5aff492c87d1b88ce6344fbb1d3e",
-        "object": "response",
-        "created_at": 1792957183,
-        "status": "completed",
-        "access_programs": null,
-        "background": false,
-        "billing": {
-          "payer": "developer"
-        },
-        "completed_at": 1792957184,
-        "error": null,
-        "frequency_penalty": 0.0,
-        "incomplete_details": null,
-        "instructions": null,
-        "max_output_tokens": 1200,
-        "max_tool_calls": null,
-        "model": "gpt-6-luna",
-        "moderation": null,
-        "output": [
-          {
-            "id": "msg_0005a4b3cce6dae5016ade5afffe3487d1b5e9e39f82f42fb2",
-            "type": "message",
-            "status": "completed",
-            "content": [
-              {
-                "type": "output_text",
-                "annotations": [],
-                "logprobs": [],
-                "text": "In the last 7 days, you logged dal and rice for lunch."
-              }
-            ],
-            "phase": "final_answer",
-            "role": "assistant"
-          }
-        ],
-        "parallel_tool_calls": true,
-        "presence_penalty": 0.0,
-        "previous_response_id": null,
-        "prompt_cache_key": null,
-        "prompt_cache_retention": "24h",
-        "reasoning": {
-          "context": "all_turns",
-          "effort": "none",
-          "mode": "standard",
-          "summary": null
-        },
-        "safety_identifier": null,
-        "service_tier": "default",
-        "store": false,
-        "temperature": 1.0,
-        "text": {
-          "format": {
-            "type": "text"
-          },
-          "verbosity": "medium"
-        },
-        "tool_choice": "auto",
-        "tool_usage": {
-          "image_gen": {
-            "input_tokens": 0,
-            "input_tokens_details": {
-              "image_tokens": 0,
-              "text_tokens": 0
-            },
-            "output_tokens": 0,
-            "output_tokens_details": {
-              "image_tokens": 0,
-              "text_tokens": 0
-            },
-            "total_tokens": 0
-          },
-          "web_search": {
-            "num_requests": 0
-          }
-        },
-        "tools": [
-          {
-            "type": "function",
-            "description": "The user's recent workout, meal or practice logs, newest first.",
-            "name": "get_recent_logs",
-            "output_schema": null,
-            "parameters": {
-              "additionalProperties": false,
-              "properties": {
-                "kind": {
-                  "enum": [
-                    "workout",
-                    "meal",
-                    "practice"
-                  ],
-                  "title": "Kind",
-                  "type": "string"
-                },
-                "days": {
-                  "maximum": 14,
-                  "minimum": 1,
-                  "title": "Days",
-                  "type": "integer"
-                }
-              },
-              "required": [
-                "kind",
-                "days"
-              ],
-              "type": "object"
-            },
-            "strict": true
-          }
-        ],
-        "top_logprobs": 0,
-        "top_p": 0.98,
-        "truncation": "disabled",
-        "usage": {
-          "input_tokens": 179,
-          "input_tokens_details": {
-            "cache_write_tokens": 0,
-            "cached_tokens": 0
-          },
-          "output_tokens": 19,
-          "output_tokens_details": {
-            "reasoning_tokens": 0
-          },
-          "total_tokens": 198
-        },
-        "user": null,
-        "metadata": {}
-      }
+      "body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_06f4ca5b1b34ca91016ae2de18c05c87d2ac9a053b83c5468f\",\"object\":\"response\",\"created_at\":1793252888,\"status\":\"in_progress\",\"access_programs\":null,\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"The user's recent workout, meal or practice logs, newest first.\",\"name\":\"get_recent_logs\",\"output_schema\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"enum\":[\"workout\",\"meal\",\"practice\"],\"title\":\"Kind\",\"type\":\"string\"},\"days\":{\"maximum\":14,\"minimum\":1,\"title\":\"Days\",\"type\":\"integer\"}},\"required\":[\"kind\",\"days\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":0}\n\nevent: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"response\":{\"id\":\"resp_06f4ca5b1b34ca91016ae2de18c05c87d2ac9a053b83c5468f\",\"object\":\"response\",\"created_at\":1793252888,\"status\":\"in_progress\",\"access_programs\":null,\"background\":false,\"completed_at\":null,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"auto\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"The user's recent workout, meal or practice logs, newest first.\",\"name\":\"get_recent_logs\",\"output_schema\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"enum\":[\"workout\",\"meal\",\"practice\"],\"title\":\"Kind\",\"type\":\"string\"},\"days\":{\"maximum\":14,\"minimum\":1,\"title\":\"Days\",\"type\":\"integer\"}},\"required\":[\"kind\",\"days\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":null,\"user\":null,\"metadata\":{}},\"sequence_number\":1}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"phase\":\"final_answer\",\"role\":\"assistant\"},\"output_index\":0,\"sequence_number\":2}\n\nevent: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"content_index\":0,\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"output_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"},\"sequence_number\":3}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\"You\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"lteL7CCDeOITd\",\"output_index\":0,\"sequence_number\":4}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" logged\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"pAp8axaq5\",\"output_index\":0,\"sequence_number\":5}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" dal\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"B8AtfOLKMBwR\",\"output_index\":0,\"sequence_number\":6}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" and\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"AG80el3IKpPh\",\"output_index\":0,\"sequence_number\":7}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" rice\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"B38QkTWQvQI\",\"output_index\":0,\"sequence_number\":8}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" for\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"zotND1cyYpai\",\"output_index\":0,\"sequence_number\":9}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" lunch\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"VGGV7rUZFz\",\"output_index\":0,\"sequence_number\":10}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" on\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"EyGkyiMFaARlI\",\"output_index\":0,\"sequence_number\":11}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" October\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"3ifxjvN0\",\"output_index\":0,\"sequence_number\":12}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\" \",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"2notcknhWKazpit\",\"output_index\":0,\"sequence_number\":13}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\"24\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"DEzo8utblsnvBh\",\"output_index\":0,\"sequence_number\":14}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"content_index\":0,\"delta\":\".\",\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"obfuscation\":\"kSQPSxuqd0OyNMh\",\"output_index\":0,\"sequence_number\":15}\n\nevent: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"content_index\":0,\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"logprobs\":[],\"output_index\":0,\"sequence_number\":16,\"text\":\"You logged dal and rice for lunch on October 24.\"}\n\nevent: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"content_index\":0,\"item_id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"output_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"You logged dal and rice for lunch on October 24.\"},\"sequence_number\":17}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"You logged dal and rice for lunch on October 24.\"}],\"phase\":\"final_answer\",\"role\":\"assistant\"},\"output_index\":0,\"sequence_number\":18}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_06f4ca5b1b34ca91016ae2de18c05c87d2ac9a053b83c5468f\",\"object\":\"response\",\"created_at\":1793252888,\"status\":\"completed\",\"access_programs\":null,\"background\":false,\"completed_at\":1793252889,\"error\":null,\"frequency_penalty\":0.0,\"incomplete_details\":null,\"instructions\":null,\"max_output_tokens\":1200,\"max_tool_calls\":null,\"model\":\"gpt-6-luna\",\"moderation\":null,\"output\":[{\"id\":\"msg_06f4ca5b1b34ca91016ae2de19904487d2bd6ee36a33c6d9c3\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"You logged dal and rice for lunch on October 24.\"}],\"phase\":\"final_answer\",\"role\":\"assistant\"}],\"parallel_tool_calls\":true,\"presence_penalty\":0.0,\"previous_response_id\":null,\"prompt_cache_key\":null,\"prompt_cache_retention\":\"24h\",\"reasoning\":{\"context\":\"all_turns\",\"effort\":\"none\",\"mode\":\"standard\",\"summary\":null},\"safety_identifier\":null,\"service_tier\":\"default\",\"store\":false,\"temperature\":1.0,\"text\":{\"format\":{\"type\":\"text\"},\"verbosity\":\"medium\"},\"tool_choice\":\"auto\",\"tool_usage\":{\"image_gen\":{\"input_tokens\":0,\"input_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"image_tokens\":0,\"text_tokens\":0},\"total_tokens\":0},\"web_search\":{\"num_requests\":0}},\"tools\":[{\"type\":\"function\",\"description\":\"The user's recent workout, meal or practice logs, newest first.\",\"name\":\"get_recent_logs\",\"output_schema\":null,\"parameters\":{\"additionalProperties\":false,\"properties\":{\"kind\":{\"enum\":[\"workout\",\"meal\",\"practice\"],\"title\":\"Kind\",\"type\":\"string\"},\"days\":{\"maximum\":14,\"minimum\":1,\"title\":\"Days\",\"type\":\"integer\"}},\"required\":[\"kind\",\"days\"],\"type\":\"object\"},\"strict\":true}],\"top_logprobs\":0,\"top_p\":0.98,\"truncation\":\"disabled\",\"usage\":{\"input_tokens\":179,\"input_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":0},\"output_tokens\":16,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":195},\"user\":null,\"metadata\":{}},\"sequence_number\":19}\n\n"
     }
   }
 ]
