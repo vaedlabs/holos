@@ -1,0 +1,11 @@
+{"event":"accepted","data":{"seq":0,"trace_id":"tr_coach_failed","contract_version":1,"mode":"account"}}
+{"event":"step","data":{"seq":1,"trace_id":"tr_coach_failed","name":"admitted"}}
+{"event":"step","data":{"seq":2,"trace_id":"tr_coach_failed","name":"routed","detail":"physical, nutrition"}}
+{"event":"step","data":{"seq":3,"trace_id":"tr_coach_failed","name":"agent_started","agent":"physical"}}
+{"event":"step","data":{"seq":4,"trace_id":"tr_coach_failed","name":"agent_started","agent":"nutrition"}}
+{"event":"step","data":{"seq":5,"trace_id":"tr_coach_failed","name":"composing"}}
+{"event":"section_start","data":{"seq":6,"trace_id":"tr_coach_failed","agent":"physical","kind":"plan"}}
+{"event":"item","data":{"seq":7,"trace_id":"tr_coach_failed","agent":"physical","item":{"day":null,"catalogue_id":"brisk_walking","sets":null,"reps":null,"duration_s":1200,"intensity":"low","note":"Easy pace"},"display":"Brisk walking: 20 min","caveats":[]}}
+{"event":"section_end","data":{"seq":8,"trace_id":"tr_coach_failed","agent":"physical","removed_count":0,"decisions":[]}}
+{"event":"section_end","data":{"seq":9,"trace_id":"tr_coach_failed","agent":"nutrition","removed_count":0,"decisions":[],"error":"unavailable"}}
+{"event":"done","data":{"seq":10,"trace_id":"tr_coach_failed","trace":{"trace_id":"tr_coach_failed","route":"coaching","agents":["physical","nutrition"],"steps":[{"name":"routed","agent":null,"start_ms":0,"duration_ms":1400,"queue_ms":0},{"name":"coach","agent":"physical","start_ms":1401,"duration_ms":5200,"queue_ms":0},{"name":"failed","agent":"nutrition","start_ms":1401,"duration_ms":21000,"queue_ms":0}],"tools":[],"decisions":[],"retries":0,"sources":[],"usage":{"tokens_in":6100,"tokens_out":420,"cost_usd":0.0008}},"usage":{"tokens_in":6100,"tokens_out":420,"cost_usd":0.0008}}}

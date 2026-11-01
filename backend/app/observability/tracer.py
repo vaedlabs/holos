@@ -10,7 +10,8 @@ other exception is a "bug", logged with its stack. Each failed attempt writes on
 line with the trace ID and the provider's request ID, which OpenAI or Google support can
 look up. Never the person's message, prompts or replies.
 
-P4.10 adds the background writer (`traces`, `gate_decisions`) and the TraceView.
+P4.10 adds the background writer (`traces`, `gate_decisions`); the TraceView is built by
+the composer (`orchestration.composer.trace_view`).
 """
 
 import asyncio
@@ -93,6 +94,8 @@ class Trace:
     started: float = field(default=0.0)
     steps: list[Step] = field(default_factory=list)
     attempts: list[Attempt] = field(default_factory=list)
+    # Told of each step as it is recorded: the stream shows progress (C.5 `step`)
+    listener: Callable[[Step], None] | None = None
 
     def __post_init__(self) -> None:
         if not self.started:
@@ -112,6 +115,8 @@ class Trace:
         at = now if began_ms is None else began_ms
         record = Step(name, agent, at, now - at, outcome, detail[:120])
         self.steps.append(record)
+        if self.listener is not None:
+            self.listener(record)
         return record
 
     def end(self, attempt: Attempt, exc: BaseException | None = None, *,

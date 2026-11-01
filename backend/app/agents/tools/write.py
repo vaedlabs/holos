@@ -9,6 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.agents.display import item_display
 from app.agents.schemas import (
     LogMealArgs,
     LogPracticeArgs,
@@ -16,25 +17,15 @@ from app.agents.schemas import (
     StagedWrite,
     WriteKind,
 )
-from app.guardrails.loader import get_guardrails
 
 from .base import Tool, ToolContext
 
-_catalogue = get_guardrails().catalogue
-_NAMES = {item.id: item.name for item in [*_catalogue.exercises, *_catalogue.practices]}
-
 
 def summarise(kind: WriteKind, args: BaseModel) -> str:
-    """A short human summary of a staged write, e.g. "Push-up: 3 x 10"."""
-    if isinstance(args, LogWorkoutArgs):
-        name = _NAMES[args.catalogue_id]
-        if args.sets and args.reps:
-            return f"{name}: {args.sets} x {args.reps}"
-        if args.duration_s:
-            return f"{name}: {round(args.duration_s / 60)} min"
-        return name
-    if isinstance(args, LogPracticeArgs):
-        return f"{_NAMES[args.catalogue_id]}: {args.duration_min} min"
+    """A short human summary of a staged write, e.g. "Push-up: 3 x 10" (a hold under a
+    minute read "0 min")."""
+    if isinstance(args, LogWorkoutArgs | LogPracticeArgs):
+        return item_display(args)
     if isinstance(args, LogMealArgs):
         return f"{args.meal.capitalize()}: {', '.join(f.name for f in args.foods)}"
     raise TypeError(f"no summary for {kind}")

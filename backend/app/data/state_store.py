@@ -305,15 +305,16 @@ class StateStore:
         ip_key: str | None = None,
         global_slots: int = 0,
         counters: tuple[Counter, ...] = (),
-        claim: tuple[int, uuid.UUID] | None = None,
+        claim: tuple[uuid.UUID, int | None] | None = None,
     ) -> AdmitResult:
         """Everything a chat request takes, in one transaction: the request claim
-        (accounts), the principal's lease, an IP slot (guests), a global slot, and one
-        count on every counter. All or nothing: a refused request holds no lease and
+        (`chat_requests`), the principal's lease, an IP slot (guests), a global slot,
+        and one count on every counter. All or nothing: a refused request holds no lease and
         counts nowhere, and a refused claim can be sent again."""
         try:
             async with self._engine.begin() as conn:
-                if claim is not None and not await self._claim(conn, *claim, trace_id):
+                if claim is not None and not await self._claim(conn, principal_key, *claim,
+                                                               trace_id):
                     raise _Refused(by="duplicate")
                 await self._take_lease(conn, principal_key, trace_id)
                 if ip_key is not None:
@@ -595,22 +596,26 @@ class StateStore:
     # --- Request claims (C.5) ---
 
     async def claim_request(
-        self, user_id: int, client_request_id: uuid.UUID, trace_id: str
+        self, principal_key: str, client_request_id: uuid.UUID, user_id: int | None,
+        trace_id: str,
     ) -> bool:
-        """True for the first claim of (user_id, client_request_id); False for a duplicate."""
+        """True for the first claim of (principal, client_request_id); False for a
+        duplicate. The claim is the request's `chat_requests` row (Part E #34)."""
         async with self._engine.begin() as conn:
-            return await self._claim(conn, user_id, client_request_id, trace_id)
+            return await self._claim(conn, principal_key, client_request_id, user_id, trace_id)
 
     @staticmethod
     async def _claim(
-        conn: AsyncConnection, user_id: int, client_request_id: uuid.UUID, trace_id: str
+        conn: AsyncConnection, principal_key: str, client_request_id: uuid.UUID,
+        user_id: int | None, trace_id: str,
     ) -> bool:
         claimed = await conn.execute(
             text(
-                "INSERT INTO request_claims (user_id, client_request_id, trace_id) "
-                "VALUES (:uid, :rid, :trace) ON CONFLICT DO NOTHING RETURNING trace_id"
+                "INSERT INTO chat_requests (principal_key, client_request_id, user_id, "
+                "trace_id) VALUES (:key, :rid, :uid, :trace) ON CONFLICT DO NOTHING "
+                "RETURNING trace_id"
             ),
-            {"uid": user_id, "rid": client_request_id, "trace": trace_id},
+            {"key": principal_key, "rid": client_request_id, "uid": user_id, "trace": trace_id},
         )
         return claimed.one_or_none() is not None
 

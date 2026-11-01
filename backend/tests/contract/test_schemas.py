@@ -19,7 +19,8 @@ CONTRACTS = generate.CONTRACTS_DIR
 STREAMS = CONTRACTS / "streams"
 REQUIRED_STREAMS = {
     "plan_single", "holistic", "blocked_and_retried", "pending_write",
-    "crisis", "cap_reached", "search_off", "error_mid_stream",
+    "crisis", "cap_reached", "search_off", "error_mid_stream", "coach_failed", "own_reply",
+    "risk_flag",
 }
 LLM_IDS = [m.__name__ for m in schemas.LLM_MODELS]
 
@@ -154,11 +155,16 @@ def test_only_endurance_exercises_last_over_90_minutes(exercise, seconds, ok):
     def item():
         return schemas.ExerciseItem(day=None, catalogue_id=exercise, sets=None, reps=None,
                                     duration_s=seconds, intensity="low", note="")
-    if ok:
-        assert item().duration_s == seconds
-    else:
-        with pytest.raises(ValidationError):
-            item()
+
+    def log():  # the same rule when the person logs it
+        return schemas.LogWorkoutArgs(catalogue_id=exercise, sets=None, reps=None,
+                                      duration_s=seconds, note="")
+    for make in (item, log):
+        if ok:
+            assert make().duration_s == seconds
+        else:
+            with pytest.raises(ValidationError):
+                make()
 
 
 @pytest.mark.parametrize(

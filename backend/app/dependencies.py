@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.config.settings import Settings, get_settings
 from app.data.engine import get_async_engine, get_async_sessionmaker
 from app.data.state_store import StateStore
+from app.data.stream_store import StreamStore
 from app.database import get_db
 from app.models.user import User
 from app.orchestration.principal import SAFE_METHODS, Principal, check_csrf, resolve_principal
@@ -31,6 +32,11 @@ def get_database() -> Generator[Session, None, None]:
 @lru_cache(maxsize=1)
 def get_state_store() -> StateStore:
     return StateStore(get_async_engine())
+
+
+@lru_cache(maxsize=1)
+def get_stream_store() -> StreamStore:
+    return StreamStore(get_async_engine())
 
 
 @lru_cache(maxsize=1)

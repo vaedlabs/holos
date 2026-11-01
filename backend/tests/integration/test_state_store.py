@@ -324,12 +324,14 @@ async def test_other_users_write_is_404(store, user_id, async_engine):
 
 
 async def test_two_concurrent_claims_one_succeeds(store, user_id):
-    request_id = uuid.uuid4()
+    request_id, key = uuid.uuid4(), f"user:{user_id}"
     results = await asyncio.gather(
-        *(store.claim_request(user_id, request_id, f"t{i}") for i in range(2))
+        *(store.claim_request(key, request_id, user_id, f"t{i}") for i in range(2))
     )
     assert sorted(results) == [False, True]
-    assert await store.claim_request(user_id, uuid.uuid4(), "t3") is True
+    assert await store.claim_request(key, uuid.uuid4(), user_id, "t3") is True
+    # The same id from another principal is its own request (a guest has no user)
+    assert await store.claim_request("session:abc", request_id, None, "t4") is True
 
 
 # --- Amounts must not be negative (a negative reservation would free budget) ---

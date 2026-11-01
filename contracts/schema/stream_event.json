@@ -964,7 +964,7 @@
         "duration_s": {
           "anyOf": [
             {
-              "maximum": 3600,
+              "maximum": 86400,
               "minimum": 1,
               "type": "integer"
             },
@@ -972,6 +972,7 @@
               "type": "null"
             }
           ],
+          "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical and swimming, which may be longer.",
           "title": "Duration S"
         },
         "note": {
@@ -1261,6 +1262,24 @@
           "title": "Decisions",
           "type": "array"
         },
+        "error": {
+          "anyOf": [
+            {
+              "enum": [
+                "busy",
+                "cap_reached",
+                "unavailable",
+                "malformed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
         "removed_count": {
           "minimum": 0,
           "title": "Removed Count",
@@ -1275,6 +1294,15 @@
           "maxLength": 64,
           "title": "Trace Id",
           "type": "string"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "maxLength": 400,
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
         }
       },
       "required": [
@@ -1529,7 +1557,8 @@
             "tool_call",
             "gate",
             "retry",
-            "composing"
+            "composing",
+            "still_working"
           ],
           "title": "Name",
           "type": "string"
@@ -1574,6 +1603,7 @@
     },
     "TextData": {
       "additionalProperties": false,
+      "description": "One coach's text, the multi-coach summary, or neither: Holos's own reply.",
       "properties": {
         "agent": {
           "anyOf": [

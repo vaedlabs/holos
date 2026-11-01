@@ -232,7 +232,7 @@ async def health():
 
 # Include routers
 # Import all router modules - each router handles a specific domain of endpoints
-from app.routers import auth, medical, agents, preferences, conversation, logs, cache, session
+from app.routers import auth, medical, agents, chat, preferences, conversation, logs, cache, session
 
 # Register routers with the FastAPI application
 # Order matters: more specific routes should be registered before more general ones
@@ -242,6 +242,7 @@ app.include_router(auth.router)          # Authentication endpoints (/auth/*)
 app.include_router(auth.invites_router)  # Invite acceptance (/invites/*)
 app.include_router(session.router)       # Guest sessions and CSRF (/session/*)
 app.include_router(medical.router)       # Medical history endpoints (/medical/*)
+app.include_router(chat.router)          # Chat stream and reconnect (/agents/chat/*)
 app.include_router(agents.router)        # AI agent endpoints (/agents/*)
 app.include_router(preferences.router)    # User preferences endpoints (/preferences/*)
 app.include_router(conversation.router)   # Conversation endpoints (/conversation/*)

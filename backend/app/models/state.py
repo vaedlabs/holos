@@ -117,14 +117,32 @@ class PendingWrite(Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-class RequestClaim(Base):
-    """Claims (user_id, client_request_id) so a request runs once (Plan C.5)."""
+class ChatRequest(Base):
+    """One chat request per (principal, client_request_id): it runs once, and a
+    reconnect finds it by that pair (Plan C.5, Part E #34)."""
 
-    __tablename__ = "request_claims"
+    __tablename__ = "chat_requests"
 
-    user_id: Mapped[int] = mapped_column(_user_fk(), primary_key=True)
+    principal_key: Mapped[str] = mapped_column(String(128), primary_key=True)
     client_request_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
-    trace_id: Mapped[str] = mapped_column(String(64))
+    trace_id: Mapped[str] = mapped_column(String(64), unique=True)
+    user_id: Mapped[int | None] = mapped_column(_user_fk(), index=True)
+    worker: Mapped[str | None] = mapped_column(String(128))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _now()
+
+
+class StreamEventRow(Base):
+    """A sent stream event, for a reconnect (Plan C.5). Health advice: kept 10 minutes."""
+
+    __tablename__ = "stream_events"
+
+    trace_id: Mapped[str] = mapped_column(
+        ForeignKey("chat_requests.trace_id", ondelete="CASCADE"), primary_key=True)
+    seq: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event: Mapped[str] = mapped_column(String(20))
+    data: Mapped[dict[str, Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = _now()
 
 

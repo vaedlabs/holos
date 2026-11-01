@@ -11,8 +11,8 @@ from app.agents.base import (
     LOG_RETRY,
     UNSAFE_FALLBACK,
     AgentRun,
-    history_text,
 )
+from app.agents.display import history_text
 from app.agents.mental import MentalAgent
 from app.agents.nutrition import NutritionAgent
 from app.agents.physical import PhysicalAgent
@@ -493,7 +493,7 @@ def test_history_text_shows_the_plan_not_only_the_summary():
     assert history_text(reply) == ("A gentle week.\n1. Glute bridge: 2 x 10\n"
                                    "2. Walking: 20 min\n- Stop if it hurts.")
     meal = _nutrition(_food("Dal", ["lentils"]))
-    assert history_text(meal) == "Here you go.\n1. Dal (1 plate)"
+    assert history_text(meal) == "Here you go.\n1. Dal (1 plate, about 400 kcal)"
     practice = MentalReply(kind="plan", summary="Tonight:", notes=[], source_ids=[],
                            follow_up=None, risk_flag=False,
                            items=[PracticeItem(day=None, catalogue_id="box_breathing",

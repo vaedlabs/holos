@@ -496,12 +496,14 @@ async def test_a_duplicate_while_the_first_is_in_flight_is_409(store, async_engi
     await held.release()
 
 
-async def test_guests_have_no_request_claims(store, async_engine):
+async def test_a_guest_request_is_claimed_too(store, async_engine):
+    # Resumable requests find a guest's request by (session, client_request_id) (#34)
     me = await guest(store)
     rid = uuid.uuid4()
     await (await admit(me, rid, store)).release()
-    await (await admit(me, rid, store)).release()
-    assert await sql(async_engine, "SELECT * FROM request_claims") == []
+    assert (await refused(me, store, rid)).code == "duplicate_request"
+    rows = await sql(async_engine, "SELECT principal_key, user_id FROM chat_requests")
+    assert rows == [(me.principal_key, None)]
 
 
 async def test_admitted_carries_the_spend_and_search_keys(store, async_engine):

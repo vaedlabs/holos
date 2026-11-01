@@ -1,0 +1,5 @@
+{"event":"accepted","data":{"seq":0,"trace_id":"tr_own_reply","contract_version":1,"mode":"guest"}}
+{"event":"step","data":{"seq":1,"trace_id":"tr_own_reply","name":"admitted"}}
+{"event":"step","data":{"seq":2,"trace_id":"tr_own_reply","name":"routed","detail":"greeting"}}
+{"event":"text","data":{"seq":3,"trace_id":"tr_own_reply","chunk":"Good morning, Riya! How did yesterday's revision go?"}}
+{"event":"done","data":{"seq":4,"trace_id":"tr_own_reply","trace":{"trace_id":"tr_own_reply","route":"greeting","agents":[],"steps":[{"name":"routed","agent":null,"start_ms":0,"duration_ms":1300,"queue_ms":0}],"tools":[],"decisions":[],"retries":0,"sources":[],"usage":{"tokens_in":6100,"tokens_out":420,"cost_usd":0.0008}},"usage":{"tokens_in":6100,"tokens_out":420,"cost_usd":0.0008},"turn":{"role":"assistant","content":"Good morning, Riya! How did yesterday's revision go?","agents":null,"ts":"2026-11-02T08:00:00Z"}}}

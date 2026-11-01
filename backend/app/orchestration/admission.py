@@ -8,7 +8,7 @@
 
 A request is refused before it takes anything if the chat provider's circuit breaker
 is open (503 until its trial call) or a spend cap has nothing left. Then,
-in one transaction: the request claim (accounts), the principal's lease, an IP slot
+in one transaction: the request claim (`chat_requests`), the principal's lease, an IP slot
 (guests), a global slot, and one count on each request counter. A refused request
 holds no lease and counts nowhere. Runs before any image is decoded (stage 7).
 """
@@ -137,7 +137,7 @@ async def admit(
         ip_key=principal.ip_key if guest else None,
         global_slots=limits.INFLIGHT_GLOBAL,
         counters=_counters(principal),
-        claim=None if guest else (principal.user_id, client_request_id),
+        claim=(client_request_id, principal.user_id),
     )
     if not result.admitted:
         retry_after = (SERVER_BUSY_RETRY_S if result.refused_by == "global_slot"

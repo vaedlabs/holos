@@ -132,7 +132,8 @@
       "type": "string"
     },
     "duration_s": {
-      "maximum": 3600,
+      "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical and swimming, which may be longer.",
+      "maximum": 86400,
       "minimum": 1,
       "title": "Duration S",
       "type": [

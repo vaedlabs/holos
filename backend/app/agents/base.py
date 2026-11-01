@@ -27,13 +27,14 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import ClassVar, Literal, Protocol
+from typing import ClassVar, Protocol
 
 from pydantic import BaseModel
 
 from app.agents import schemas
 from app.agents.prefix import prefix
 from app.agents.schemas import (
+    AgentError,
     AgentName,
     AgentResult,
     HistoryTurn,
@@ -42,10 +43,9 @@ from app.agents.schemas import (
 )
 from app.agents.style import STYLE_NOTE, writing_style
 from app.agents.tools import AGENT_TOOLS, ToolContext
-from app.config.limits import HISTORY_TURN_CHARS, REASONING_ALLOWANCE_LOW, TOOL_ROUNDS
+from app.config.limits import REASONING_ALLOWANCE_LOW, TOOL_ROUNDS
 from app.config.speeds import TIMEOUT_OVERSHOOT_S, Speed
 from app.guardrails.gate import gate
-from app.guardrails.loader import get_guardrails
 from app.guardrails.types import GateResult
 from app.observability.tracer import Trace, cause_of
 from app.providers import (
@@ -63,11 +63,10 @@ from app.providers import (
     ToolSpec,
     Turn,
 )
-from app.providers.base import trim
 
 log = logging.getLogger(__name__)
 
-AgentError = Literal["busy", "cap_reached", "unavailable", "malformed"]
+
 # Physical, Mental and Nutrition (text and photos): gpt-6-luna, reasoning low (C.9,
 # Part E #29). P4.12 may move the model name to settings.
 MODEL = "gpt-6-luna"
@@ -279,8 +278,9 @@ class BaseAgent:
         return AgentResult(
             reply=self.schema.model_validate(content),
             warnings=warnings,
+            removed_count=len(blocked),
             item_caveats=[list(v.caveats) for _, v in kept],
-            decisions=[*_decisions(gated), *run.tools.decisions],
+            decisions=[*decisions_of(gated), *run.tools.decisions],
             sources=[s for s in run.tools.sources if s.id in content["source_ids"]],
             staged_writes=list(run.tools.staged_writes),
         )
@@ -312,12 +312,14 @@ class BaseAgent:
                 run.trace.step("explain", self.domain, began_ms=began)
                 return AgentResult(
                     reply=self.schema.model_validate(told.content), warnings=warnings,
-                    decisions=[*_decisions(gated), *_decisions(told), *run.tools.decisions])
+                    removed_count=len(gated.blocked_items),
+                    decisions=[*decisions_of(gated), *decisions_of(told), *run.tools.decisions])
         run.trace.step("explain", self.domain, "fixed_reply", began_ms=began)
         fixed = self.schema(kind="answer", summary=UNSAFE_FALLBACK[self.domain], items=[],
                             notes=[], source_ids=[], follow_up=None, risk_flag=False)
         return AgentResult(reply=fixed, warnings=warnings,
-                           decisions=[*_decisions(gated), *run.tools.decisions])
+                           removed_count=len(gated.blocked_items),
+                           decisions=[*decisions_of(gated), *run.tools.decisions])
 
     def _failed(self, run: AgentRun, error: AgentError, cause: str) -> AgentResult:
         """No answer: the app shows a status with Retry, not a chat message (C.5)."""
@@ -358,40 +360,6 @@ class BaseAgent:
 
 
 _NO_PROFILE = UserProfile(condition_ids=[], allergen_tags=[], diet_tags=[], notes="")
-_NAMES = {i.id: i.name for i in [*get_guardrails().catalogue.exercises,
-                                 *get_guardrails().catalogue.practices]}
-
-
-def history_text(reply: BaseModel, limit: int = HISTORY_TURN_CHARS) -> str:
-    """A gated reply as conversation history: the summary, then each item, then the
-    notes, so a follow-up ("change Wednesday", "make the second one easier") can see the
-    plan, not only its summary."""
-    lines = [reply.summary] if reply.summary else []
-    for n, item in enumerate(reply.items, 1):
-        day = f"{item.day}: " if item.day else ""
-        if isinstance(item, schemas.FoodItem):
-            lines.append(f"{n}. {day}{item.name} ({item.portion})")
-        elif isinstance(item, schemas.PracticeItem):
-            lines.append(f"{n}. {day}{_NAMES[item.catalogue_id]}: {item.duration_min} min")
-        else:
-            dose = (f"{item.sets} x {item.reps}" if item.sets and item.reps
-                    else _duration(item.duration_s, item.sets) if item.duration_s else "")
-            lines.append(f"{n}. {day}{_NAMES[item.catalogue_id]}" + (f": {dose}" if dose else ""))
-    lines += [f"- {note}" for note in reply.notes]
-    kept: list[str] = []
-    for line in lines:  # whole lines only, so no item is cut in half
-        if len("\n".join([*kept, line])) > limit:
-            break
-        kept.append(line)
-    return "\n".join(kept) if kept else trim(lines[0], limit) if lines else ""
-
-
-def _duration(seconds: int, sets: int | None) -> str:
-    """"30 s", "2 x 45 s", "20 min": seconds under a minute were shown as "0.2 min"."""
-    one = f"{seconds} s" if seconds < 60 else f"{round(seconds / 60, 1):g} min"
-    return f"{sets} x {one}" if sets and sets > 1 else one
-
-
 def _profile_text(profile: UserProfile | None) -> str:
     if profile is None:
         return "My profile: none yet (a guest)."
@@ -410,7 +378,7 @@ def _blocked(gated: GateResult) -> str:
                              for d in gated.decisions if d.action == "block"}))
 
 
-def _decisions(gated: GateResult) -> list[schemas.Decision]:
+def decisions_of(gated: GateResult) -> list[schemas.Decision]:
     return [schemas.Decision(action=d.action, rule_id=d.rule_id,
                              rules_version=d.rules_version, reason=d.reason,
                              offending_items=list(d.offending_items))

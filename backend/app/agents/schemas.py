@@ -74,6 +74,8 @@ ENDURANCE_IDS = frozenset({"walking", "brisk_walking", "hiking", "jogging", "run
                            "rowing_machine", "elliptical", "swimming"})
 DURATION_MAX_S = 5400
 ENDURANCE_MAX_S = 86400
+DURATION_RULE = ("Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, "
+                 "running, cycling, rowing, elliptical and swimming, which may be longer.")
 
 
 class ExerciseItem(_LLMModel):
@@ -81,17 +83,19 @@ class ExerciseItem(_LLMModel):
     catalogue_id: ExerciseId
     sets: int | None = Field(ge=1, le=10)
     reps: int | None = Field(ge=1, le=100)
-    duration_s: int | None = Field(ge=1, le=ENDURANCE_MAX_S, description=(
-        "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, "
-        "cycling, rowing, elliptical and swimming, which may be longer."))
+    duration_s: int | None = Field(ge=1, le=ENDURANCE_MAX_S, description=DURATION_RULE)
     intensity: Intensity
     note: str = Field(max_length=120, description="At most 120 characters.")
 
     @model_validator(mode="after")
     def _duration_fits_the_exercise(self):
-        if (self.duration_s or 0) > DURATION_MAX_S and self.catalogue_id not in ENDURANCE_IDS:
-            raise ValueError(f"{self.catalogue_id} lasts at most {DURATION_MAX_S} s")
+        _check_duration(self.catalogue_id, self.duration_s)
         return self
+
+
+def _check_duration(catalogue_id: str, duration_s: int | None) -> None:
+    if (duration_s or 0) > DURATION_MAX_S and catalogue_id not in ENDURANCE_IDS:
+        raise ValueError(f"{catalogue_id} lasts at most {DURATION_MAX_S} s")
 
 
 class PracticeItem(_LLMModel):
@@ -246,8 +250,14 @@ class LogWorkoutArgs(_LLMModel):
     catalogue_id: ExerciseId
     sets: int | None = Field(ge=1, le=10)
     reps: int | None = Field(ge=1, le=100)
-    duration_s: int | None = Field(ge=1, le=3600)
+    # As a plan's item: a logged long run may last hours (Part E #38)
+    duration_s: int | None = Field(ge=1, le=ENDURANCE_MAX_S, description=DURATION_RULE)
     note: str = Field(max_length=120)
+
+    @model_validator(mode="after")
+    def _duration_fits_the_exercise(self):
+        _check_duration(self.catalogue_id, self.duration_s)
+        return self
 
 
 class LogMealArgs(_LLMModel):
@@ -356,15 +366,19 @@ class StagedWrite(_Model):
         return self
 
 
+AgentError = Literal["busy", "cap_reached", "unavailable", "malformed"]
+
+
 class AgentResult(_Model):
     reply: AgentReply | None  # None: the coach failed (`error`); the app offers Retry
     warnings: list[str] = []
+    removed_count: int = Field(default=0, ge=0)  # items the gate removed (C.5 section_end)
     item_caveats: list[list[str]] = []  # per item of reply.items (C.5 `item` caveats)
     decisions: list[Decision] = []
     sources: list[Source] = []
     staged_writes: list[StagedWrite] = []
     # Set when there is no reply: the stream's notice or error (C.5)
-    error: Literal["busy", "cap_reached", "unavailable", "malformed"] | None = None
+    error: AgentError | None = None
 
 
 class HolisticResult(_Model):
@@ -423,7 +437,8 @@ class AcceptedData(_EventData):
 
 class StepData(_EventData):
     name: Literal[
-        "admitted", "routed", "agent_started", "tool_call", "gate", "retry", "composing"
+        "admitted", "routed", "agent_started", "tool_call", "gate", "retry", "composing",
+        "still_working",
     ]
     agent: AgentName | None = None
     detail: str | None = Field(default=None, max_length=200)
@@ -442,14 +457,16 @@ class ItemData(_EventData):
 
 
 class TextData(_EventData):
+    """One coach's text, the multi-coach summary, or neither: Holos's own reply."""
+
     agent: AgentName | None = None
     summary: bool = False
     chunk: str = Field(min_length=1, max_length=1000)
 
     @model_validator(mode="after")
     def _agent_or_summary(self):
-        if (self.agent is None) == (not self.summary):
-            raise ValueError("text is either for one agent or the holistic summary")
+        if self.agent is not None and self.summary:
+            raise ValueError("text is for one agent or the summary, not both")
         return self
 
 
@@ -462,6 +479,8 @@ class SectionEndData(_EventData):
     agent: AgentName
     removed_count: int = Field(ge=0)
     decisions: list[Decision] = []
+    warnings: list[Annotated[str, Field(max_length=400)]] = []
+    error: AgentError | None = None  # the coach failed: no section_start came before
 
 
 class PendingWriteData(_EventData):

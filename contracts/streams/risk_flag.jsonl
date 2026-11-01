@@ -1,0 +1,10 @@
+{"event":"accepted","data":{"seq":0,"trace_id":"tr_risk_flag","contract_version":1,"mode":"account"}}
+{"event":"step","data":{"seq":1,"trace_id":"tr_risk_flag","name":"admitted"}}
+{"event":"step","data":{"seq":2,"trace_id":"tr_risk_flag","name":"routed","agent":"mental","detail":"mental"}}
+{"event":"step","data":{"seq":3,"trace_id":"tr_risk_flag","name":"agent_started","agent":"mental"}}
+{"event":"step","data":{"seq":4,"trace_id":"tr_risk_flag","name":"composing"}}
+{"event":"section_start","data":{"seq":5,"trace_id":"tr_risk_flag","agent":"mental","kind":"answer"}}
+{"event":"text","data":{"seq":6,"trace_id":"tr_risk_flag","agent":"mental","chunk":"I'm really glad you told me. You don't have to carry this alone."}}
+{"event":"section_end","data":{"seq":7,"trace_id":"tr_risk_flag","agent":"mental","removed_count":0,"decisions":[]}}
+{"event":"crisis","data":{"seq":8,"trace_id":"tr_risk_flag","text":"It sounds like you're going through something really painful, and you don't have to face it alone. If you or someone you know might be in danger, please reach out now. Tele-MANAS (India): call 14416, free and open 24/7. 988 Suicide & Crisis Lifeline (US): call or text 988. Anywhere else: findahelpline.com. If you are in immediate danger, call your local emergency number.","helplines":[{"name":"Tele-MANAS","region":"India","contact":"14416"},{"name":"988 Suicide & Crisis Lifeline","region":"US","contact":"988"},{"name":"Find a Helpline","region":"Worldwide","contact":"findahelpline.com"}]}}
+{"event":"done","data":{"seq":9,"trace_id":"tr_risk_flag","trace":{"trace_id":"tr_risk_flag","route":"coaching","agents":["mental"],"steps":[{"name":"routed","agent":null,"start_ms":0,"duration_ms":1500,"queue_ms":0},{"name":"coach","agent":"mental","start_ms":1501,"duration_ms":3900,"queue_ms":0}],"tools":[],"decisions":[],"retries":0,"sources":[],"usage":{"tokens_in":6100,"tokens_out":420,"cost_usd":0.0008}},"usage":{"tokens_in":6100,"tokens_out":420,"cost_usd":0.0008}}}
