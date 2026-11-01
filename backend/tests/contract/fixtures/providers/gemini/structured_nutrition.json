@@ -146,7 +146,7 @@
                       "type": "array"
                     },
                     "portion": {
-                      "description": "At most 40 characters, for example '1 bowl (250 g)'. At most 40 characters.",
+                      "description": "At most 80 characters, for example '1 bowl (250 g)' or '2 rotis, 1 cup dal'. At most 80 characters.",
                       "title": "Portion",
                       "type": "string"
                     },
@@ -207,7 +207,7 @@
       "body": {
         "status": "completed",
         "usage": {
-          "total_tokens": 433,
+          "total_tokens": 410,
           "total_input_tokens": 25,
           "input_tokens_by_modality": [
             {
@@ -216,23 +216,23 @@
             }
           ],
           "total_cached_tokens": 0,
-          "total_output_tokens": 408,
+          "total_output_tokens": 385,
           "total_tool_use_tokens": 0,
           "total_thought_tokens": 0,
-          "initial_input_tokens": 1088
+          "initial_input_tokens": 1100
         },
-        "created": "2026-11-01T18:43:02Z",
-        "updated": "2026-11-01T18:43:02Z",
+        "created": "2026-11-01T20:14:15Z",
+        "updated": "2026-11-01T20:14:15Z",
         "service_tier": "standard",
         "steps": [
           {
-            "signature": "EmAKXgFpFH0TuLMcqYzTfku0QDX9pf1+HE79DRAexL0R8tErxvOcV1Gotu8zgHHw4+iHiAlUvNdvM4UAVaY9rL0fFrC74LQUZgx61T+/m9Zb9zjQYLLBbBFla9KjwRCkaBU=",
+            "signature": "EmAKXgFpFH0TMa5NUhZoaVQ6/zuE1rYVv1HcNbrAOKn6yctKXd0ttV63+9Ck4PnJfdFK1+MFWPjOpuvKPWDNfwvefAg4jZNFJsVbAwoop37h/EwoeU6h65VKf6Gu7rbnprs=",
             "type": "thought"
           },
           {
             "content": [
               {
-                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Here is a high-protein vegetarian lunch plan featuring a tofu quinoa bowl and a side of Greek yogurt with almonds.\",\n  \"notes\": [\n    \"Ensure you use firm tofu for a better texture and higher protein density.\",\n    \"Almonds add a great crunch and healthy fats to round out the meal.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"day\": \"Today\",\n      \"name\": \"High-Protein Tofu Quinoa Bowl\",\n      \"ingredients\": [\n        \"firm tofu\",\n        \"cooked quinoa\",\n        \"edamame\",\n        \"spinach\",\n        \"tahini dressing\"\n      ],\n      \"allergen_tags\": [\n        \"soy\",\n        \"sesame\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\",\n        \"vegan\"\n      ],\n      \"portion\": \"1 large bowl (400 g)\",\n      \"calories\": 480,\n      \"note\": \"Packed with complete plant-based proteins.\"\n    },\n    {\n      \"day\": \"Today\",\n      \"name\": \"Greek Yogurt with Almonds\",\n      \"ingredients\": [\n        \"plain Greek yogurt\",\n        \"almonds\",\n        \"honey\"\n      ],\n      \"allergen_tags\": [\n        \"milk\",\n        \"tree_nut\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\"\n      ],\n      \"portion\": \"1 cup (200 g)\",\n      \"calories\": 250,\n      \"note\": \"A creamy, protein-rich addition to finish your lunch.\"\n    }\n  ]\n}",
+                "text": "{\n  \"kind\": \"plan\",\n  \"summary\": \"Here is a high-protein vegetarian lunch plan featuring paneer tikka and a protein-rich lentil quinoa bowl.\",\n  \"notes\": [\n    \"Ensure you stay hydrated throughout the day.\",\n    \"You can add pumpkin seeds on top of the bowl for an extra protein boost.\"\n  ],\n  \"source_ids\": [],\n  \"follow_up\": null,\n  \"risk_flag\": false,\n  \"items\": [\n    {\n      \"day\": \"Today\",\n      \"name\": \"Grilled Paneer Tikka\",\n      \"ingredients\": [\n        \"paneer\",\n        \"bell peppers\",\n        \"yogurt\",\n        \"spices\"\n      ],\n      \"allergen_tags\": [\n        \"milk\"\n      ],\n      \"diet_tags\": [\n        \"vegetarian\"\n      ],\n      \"portion\": \"150g paneer with veggies\",\n      \"calories\": 350,\n      \"note\": \"Rich in casein protein and healthy fats.\"\n    },\n    {\n      \"day\": \"Today\",\n      \"name\": \"Lentil Quinoa Power Bowl\",\n      \"ingredients\": [\n        \"quinoa\",\n        \"brown lentils\",\n        \"spinach\",\n        \"olive oil\"\n      ],\n      \"allergen_tags\": [],\n      \"diet_tags\": [\n        \"vegan\",\n        \"vegetarian\",\n        \"lactose_free\"\n      ],\n      \"portion\": \"1 large bowl (300g)\",\n      \"calories\": 420,\n      \"note\": \"Provides complete plant-based protein and fiber.\"\n    }\n  ]\n}",
                 "type": "text"
               }
             ],

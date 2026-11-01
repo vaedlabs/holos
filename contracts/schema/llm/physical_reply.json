@@ -10,7 +10,7 @@
       ]
     },
     "items": {
-      "description": "1 to 24 items when kind is plan; empty otherwise.",
+      "description": "1 to 30 items when kind is plan; empty otherwise.",
       "items": {
         "additionalProperties": false,
         "properties": {
@@ -153,7 +153,8 @@
             ]
           },
           "duration_s": {
-            "maximum": 3600,
+            "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical and swimming, which may be longer.",
+            "maximum": 86400,
             "minimum": 1,
             "title": "Duration S",
             "type": [
@@ -206,7 +207,7 @@
         "title": "ExerciseItem",
         "type": "object"
       },
-      "maxItems": 24,
+      "maxItems": 30,
       "title": "Items",
       "type": "array"
     },

@@ -75,7 +75,7 @@
                 "type": "boolean"
               },
               "items": {
-                "description": "1 to 24 items when kind is plan; empty otherwise.",
+                "description": "1 to 30 items when kind is plan; empty otherwise.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
@@ -236,12 +236,13 @@
                       "title": "Reps"
                     },
                     "duration_s": {
-                      "maximum": 3600,
+                      "maximum": 86400,
                       "minimum": 1,
                       "type": [
                         "integer",
                         "null"
                       ],
+                      "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical and swimming, which may be longer.",
                       "title": "Duration S"
                     },
                     "intensity": {

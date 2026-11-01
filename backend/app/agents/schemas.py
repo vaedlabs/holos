@@ -66,14 +66,32 @@ DAY = Field(max_length=16, description=(
     "'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise."))
 
 
+# Owner, 2 Nov 2026 (Part E #38): a marathon long run, a long ride or an Ironman day runs
+# for hours; any other exercise at most 90 minutes. The ceiling only stops impossible
+# numbers.
+ENDURANCE_IDS = frozenset({"walking", "brisk_walking", "hiking", "jogging", "running",
+                           "long_distance_running", "cycling", "stationary_cycling",
+                           "rowing_machine", "elliptical", "swimming"})
+DURATION_MAX_S = 5400
+ENDURANCE_MAX_S = 86400
+
+
 class ExerciseItem(_LLMModel):
     day: str | None = DAY
     catalogue_id: ExerciseId
     sets: int | None = Field(ge=1, le=10)
     reps: int | None = Field(ge=1, le=100)
-    duration_s: int | None = Field(ge=1, le=3600)
+    duration_s: int | None = Field(ge=1, le=ENDURANCE_MAX_S, description=(
+        "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, "
+        "cycling, rowing, elliptical and swimming, which may be longer."))
     intensity: Intensity
     note: str = Field(max_length=120, description="At most 120 characters.")
+
+    @model_validator(mode="after")
+    def _duration_fits_the_exercise(self):
+        if (self.duration_s or 0) > DURATION_MAX_S and self.catalogue_id not in ENDURANCE_IDS:
+            raise ValueError(f"{self.catalogue_id} lasts at most {DURATION_MAX_S} s")
+        return self
 
 
 class PracticeItem(_LLMModel):
@@ -93,21 +111,22 @@ class FoodItem(_LLMModel):
         description="1 to 8 main ingredients, in English, each at most 30 characters.")
     allergen_tags: list[Allergen] = Field(max_length=len(Allergen))
     diet_tags: list[Diet] = Field(max_length=len(Diet))
-    portion: str = Field(max_length=40, description=(
-        "At most 40 characters, for example '1 bowl (250 g)'."))
+    portion: str = Field(max_length=80, description=(
+        "At most 80 characters, for example '1 bowl (250 g)' or '2 rotis, 1 cup dal'."))
     calories: float | None = Field(ge=0, le=5000)
     note: str = Field(max_length=120, description="At most 120 characters.")
 
 
 # --- Replies (C.3) ---
 
-# A week plan fits (Part E #38: 30 of 44 live week plans complete, 16 of 44 at 8/5/5)
-PLAN_MAX_ITEMS = {"PhysicalReply": 24, "NutritionReply": 21, "MentalReply": 14}
+# A week plan fits (Part E #38: 30 of 44 live week plans complete, 16 of 44 at 8/5/5;
+# 30 exercises for a 6-day split, owner, 2 Nov 2026)
+PLAN_MAX_ITEMS = {"PhysicalReply": 30, "NutritionReply": 21, "MentalReply": 14}
 
 # Output tokens for the reply itself, per agent (Plan C.9), sized to the week-plan item
 # limits (Part E #38): the largest valid reply must fit in the cap minus
 # SIZE_RULE_MARGIN, so a reply is never cut off.
-REPLY_TOKEN_CAP = {"physical": 2000, "nutrition": 4800, "mental": 1200}
+REPLY_TOKEN_CAP = {"physical": 2400, "nutrition": 5000, "mental": 1200}
 SIZE_RULE_MARGIN = 100
 
 
@@ -145,7 +164,7 @@ class _ReplyBase(_LLMModel):
 
 class PhysicalReply(_ReplyBase):
     items: list[ExerciseItem] = Field(
-        max_length=24, description="1 to 24 items when kind is plan; empty otherwise.")
+        max_length=30, description="1 to 30 items when kind is plan; empty otherwise.")
 
 
 class NutritionReply(_ReplyBase):

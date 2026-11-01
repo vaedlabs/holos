@@ -564,7 +564,7 @@
         "duration_s": {
           "anyOf": [
             {
-              "maximum": 3600,
+              "maximum": 86400,
               "minimum": 1,
               "type": "integer"
             },
@@ -572,6 +572,7 @@
               "type": "null"
             }
           ],
+          "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical and swimming, which may be longer.",
           "title": "Duration S"
         },
         "intensity": {
@@ -697,8 +698,8 @@
           "type": "string"
         },
         "portion": {
-          "description": "At most 40 characters, for example '1 bowl (250 g)'.",
-          "maxLength": 40,
+          "description": "At most 80 characters, for example '1 bowl (250 g)' or '2 rotis, 1 cup dal'.",
+          "maxLength": 80,
           "title": "Portion",
           "type": "string"
         }

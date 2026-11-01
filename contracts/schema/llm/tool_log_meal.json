@@ -90,7 +90,7 @@
             "type": "string"
           },
           "portion": {
-            "description": "At most 40 characters, for example '1 bowl (250 g)'. At most 40 characters.",
+            "description": "At most 80 characters, for example '1 bowl (250 g)' or '2 rotis, 1 cup dal'. At most 80 characters.",
             "title": "Portion",
             "type": "string"
           }

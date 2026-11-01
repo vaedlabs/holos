@@ -41,12 +41,13 @@ def test_over_long_notes_and_summary_are_trimmed():
 
 def test_an_over_long_field_in_an_item_is_trimmed():
     food = {"day": None, "name": "Dal", "ingredients": ["lentils"], "allergen_tags": [],
-            "diet_tags": [], "portion": "1 large bowl of dal with rice and a side of salad",
+            "diet_tags": [], "portion": "1 large bowl of dal with rice, 2 rotis, a side of "
+                                        "cucumber salad and a glass of buttermilk",
             "calories": 400, "note": ""}
     data = dict(kind="plan", summary="ok", items=[food], notes=[], source_ids=[],
                 follow_up=None, risk_flag=False)
     reply = parse_reply(json.dumps(data), NutritionReply, "openai")
-    assert len(reply.items[0].portion) <= 40
+    assert len(reply.items[0].portion) <= 80
 
 
 def test_the_router_reply_is_trimmed_too():

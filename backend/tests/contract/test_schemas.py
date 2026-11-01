@@ -145,6 +145,22 @@ def test_unknown_catalogue_id_is_malformed():
                              duration_s=None, intensity="high", note="")
 
 
+@pytest.mark.parametrize(("exercise", "seconds", "ok"), [
+    ("long_distance_running", 3 * 3600, True),  # a marathon long run (owner, 2 Nov 2026)
+    ("cycling", 86400, True), ("cycling", 86401, False),
+    ("plank", 5400, True), ("plank", 5401, False), ("circuit_training", 4 * 3600, False),
+])
+def test_only_endurance_exercises_last_over_90_minutes(exercise, seconds, ok):
+    def item():
+        return schemas.ExerciseItem(day=None, catalogue_id=exercise, sets=None, reps=None,
+                                    duration_s=seconds, intensity="low", note="")
+    if ok:
+        assert item().duration_s == seconds
+    else:
+        with pytest.raises(ValidationError):
+            item()
+
+
 @pytest.mark.parametrize(
     ("kind", "items", "follow_up", "kind_after", "follow_up_after"),
     [("plan", 0, None, "answer", None), ("plan", 1, None, "plan", None),
@@ -178,11 +194,13 @@ def _largest(model: type[schemas._ReplyBase]) -> BaseModel:
     longest = lambda e: max(e, key=lambda m: len(m.value))  # noqa: E731
     items = {
         "PhysicalReply": dict(day=_text(16), catalogue_id=longest(schemas.ExerciseId),
-                              sets=10, reps=100, duration_s=3600, intensity="moderate",
+                              # The longest ID beats an endurance one with 86400 s (measured)
+                              sets=10, reps=100, duration_s=schemas.DURATION_MAX_S,
+                              intensity="moderate",
                               note=_text(120)),
         "NutritionReply": dict(day=_text(16), name=_text(60), ingredients=[_text(30)] * 8,
                                allergen_tags=list(Allergen), diet_tags=list(Diet),
-                               portion=_text(40), calories=4999.5, note=_text(120)),
+                               portion=_text(80), calories=4999.5, note=_text(120)),
         "MentalReply": dict(day=_text(16), catalogue_id=longest(schemas.PracticeId),
                             duration_min=60, note=_text(120)),
     }[model.__name__]

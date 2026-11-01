@@ -53,10 +53,19 @@ GLUTEN = UserProfile(condition_ids=[], allergen_tags=["gluten"], diet_tags=["veg
 NONE = UserProfile(condition_ids=[], allergen_tags=[], diet_tags=[], notes="")
 
 
-def _agent(cls, *script):
+def _agent(cls, *script, took: float = 0.0):
+    """took: seconds each model call takes on the agent's clock (none really pass)."""
     fake = FakeProvider(list(script), name="openai")
     llm = ResilientProvider(Route(fake, cls.options()), None, Breakers())
-    return cls(llm), fake
+    passed = [0.0]
+    generate = fake.generate
+
+    async def timed(*args, **kwargs):
+        passed[0] += took
+        return await generate(*args, **kwargs)
+
+    fake.generate = timed
+    return cls(llm, clock=lambda: time.monotonic() + passed[0]), fake
 
 
 def _run(message="a leg workout", profile=KNEE, left=60.0, images=(), ctx=None, trace=None):
@@ -122,6 +131,7 @@ async def test_a_blocked_plan_retries_once_with_the_violations_in_the_prompt():
     assert [i.catalogue_id for i in result.reply.items] == ["glute_bridge"]
     correction = fake.calls[1].messages[-1].text
     assert "not allowed" in correction and "knee ligament injury" in correction.lower()
+    assert "whole reply again" in correction and "keep every other item" in correction
     assert "Back squat" in correction
     assert _steps(trace) == [("gate", "block", ""), ("retry", "ok", "blocked"),
                              ("gate", "allow", ""), ("coach", "ok", "")]
@@ -181,24 +191,26 @@ async def test_a_failed_explanation_gives_the_fixed_reply():
 
 
 async def test_no_time_to_explain_gives_the_fixed_reply():
-    # 9 s left: no retry (week-plan p95 12.7 + 0.5) and no explanation (p95 8.7 + 0.5)
-    agent, fake = _agent(PhysicalAgent, _result(_physical("back_squat")))
+    # The first try took 5 of 9 s: no retry (5 x 1.35 + 0.5) and no explanation (p95 8.7
+    # + 0.5)
+    agent, fake = _agent(PhysicalAgent, _result(_physical("back_squat")), took=5.0)
     result = await agent.run(_run(left=9.0))
     assert len(fake.calls) == 1 and result.reply.summary == UNSAFE_FALLBACK["physical"]
 
 
 async def test_the_explanation_needs_only_a_short_answers_time():
-    # 10 s left: no retry (a week plan's 12.7 + 0.5) but an explanation, which has no
-    # items (8.7 + 0.5)
+    # The first try took 10 of 22 s: no retry (10 x 1.35 + 0.5 = 14) but an
+    # explanation, which has no items (p95 8.7 + 0.5)
     agent, fake = _agent(PhysicalAgent, _result(_physical("back_squat")),
-                         _result(_physical(kind="answer", summary="That move loads the knee.")))
-    result = await agent.run(_run(left=10.0))
+                         _result(_physical(kind="answer", summary="That move loads the knee.")),
+                         took=10.0)
+    result = await agent.run(_run(left=22.0))
     assert len(fake.calls) == 2 and result.reply.summary == "That move loads the knee."
 
 
 async def test_the_provider_retries_only_with_time_for_a_week_plan():
     # 12 s left: an outage retry would fit a short answer (8.7 + 0.5) but not a week
-    # plan (12.7 + 0.5), so the call is given up rather than run into the deadline
+    # plan (16.3 + 0.5), so the call is given up rather than run into the deadline
     agent, fake = _agent(PhysicalAgent, ProviderUnavailable("down", "openai"),
                          _result(_physical("glute_bridge")))
     result = await agent.run(_run(left=12.0))
@@ -214,18 +226,38 @@ async def test_a_retry_clears_the_staged_writes():
     assert result.staged_writes == []
 
 
-async def test_without_the_reserve_left_there_is_no_retry():
-    # 13 s left: enough for a short answer (p95 8.7 + 0.5), not for a week plan (12.7 +
-    # 0.5), which the retry may be: the blocked item is dropped (Part E #38)
-    agent, fake = _agent(PhysicalAgent, _result(_physical("back_squat", "glute_bridge")))
-    result = await agent.run(_run(left=13.0))
+async def test_a_long_first_try_needs_as_long_for_its_retry():
+    # The first try took 20 of 45 s: 25 s left is more than any fixed figure (week plan
+    # 16.3 + 0.5) but less than a retry of the same size (20 x 1.35 + 0.5 = 27.5), so the
+    # blocked item is dropped
+    agent, fake = _agent(PhysicalAgent, _result(_physical("back_squat", "glute_bridge")),
+                         took=20.0)
+    result = await agent.run(_run(left=45.0))
     assert len(fake.calls) == 1
     assert [i.catalogue_id for i in result.reply.items] == ["glute_bridge"]
 
 
+async def test_a_quick_first_try_leaves_room_for_a_retry():
+    # The first try took 2 of 8 s: 6 s left is enough for a retry of a short answer
+    # (the floor, p50 3.3 x 1.35 + 0.5 = 5.0), though not for a week plan
+    agent, fake = _agent(PhysicalAgent, _result(_physical("back_squat")),
+                         _result(_physical("glute_bridge")), took=2.0)
+    result = await agent.run(_run(left=8.0))
+    assert len(fake.calls) == 2
+    assert [i.catalogue_id for i in result.reply.items] == ["glute_bridge"]
+
+
+async def test_a_try_that_failed_fast_still_needs_a_short_answers_time():
+    # A garbled reply after 1 s of 5.5: 4.5 s left is under the floor (5.0), so no retry
+    cut = LLMResult(provider="openai", model="m", parsed=None, truncated=True)
+    agent, fake = _agent(PhysicalAgent, cut, took=1.0)
+    result = await agent.run(_run(left=5.5))
+    assert len(fake.calls) == 1 and result.error == "malformed"
+
+
 async def test_the_deadline_reserve_skips_tool_rounds_when_time_is_short():
     # 20 s: room for one call, not a tool round (p95 8.7) plus the final reserve (a week
-    # plan's 12.7 + 0.5)
+    # plan's 16.3 + 0.5)
     agent, fake = _agent(PhysicalAgent, _result(_physical("glute_bridge")))
     await agent.run(_run(left=20.0))
     assert fake.calls[0].tools is None
@@ -294,7 +326,7 @@ async def test_a_bug_is_logged_and_ends_only_this_coach(caplog):
 # --- Model settings and the prompt (C.9) ---
 
 
-@pytest.mark.parametrize(("cls", "max_out"), [(PhysicalAgent, 3000), (NutritionAgent, 5800),
+@pytest.mark.parametrize(("cls", "max_out"), [(PhysicalAgent, 3400), (NutritionAgent, 6000),
                                               (MentalAgent, 2200)])
 async def test_each_agent_sends_its_max_output_setting(cls, max_out):
     options = cls.options()
@@ -412,10 +444,10 @@ async def test_the_same_food_in_a_plan_is_still_removed():
 
 async def test_a_tool_round_leaves_the_final_calls_reserve():
     # The call with tools must end with the final call's reserve left: a week plan's
-    # p95 12.7 + 0.5
+    # p95 16.3 + 0.5
     agent, fake = _agent(PhysicalAgent, _result(_physical("glute_bridge")))
     await agent.run(_run(left=60.0))
-    assert 46.0 < fake.calls[0].options.timeout_s <= 60.0 - 13.2
+    assert 42.0 < fake.calls[0].options.timeout_s <= 60.0 - 16.8
 
 
 async def test_a_cut_off_reply_is_malformed_even_if_it_parsed():
@@ -438,7 +470,7 @@ async def test_saying_logged_with_a_write_is_fine():
 
 async def test_a_photo_uses_the_photo_speed():
     # 15 s left: room for a photo tool round (p95 4.7 + reserve 5.2 = 9.9) but not a text
-    # one, whose reply may be a week plan (4.6 + reserve 16.7 + 0.5 = 21.8)
+    # one, whose reply may be a week plan (4.6 + reserve 23.7 + 0.5 = 28.8)
     agent, fake = _agent(NutritionAgent, _result(_nutrition(_food("Dal", ["lentils"]))))
     await agent.run(_run(message="is this ok?", profile=NONE, images=PHOTO, left=15.0))
     assert fake.calls[0].tools is not None

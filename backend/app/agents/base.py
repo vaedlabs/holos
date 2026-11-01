@@ -71,6 +71,9 @@ AgentError = Literal["busy", "cap_reached", "unavailable", "malformed"]
 # Physical, Mental and Nutrition (text and photos): gpt-6-luna, reasoning low (C.9,
 # Part E #29). P4.12 may move the model name to settings.
 MODEL = "gpt-6-luna"
+# A retry rewrites the same reply, so it takes about as long as the first try: live, 16
+# retries took 0.13-1.31x the first try's time, median 0.83 (owner, 2 Nov 2026)
+RETRY_TIME_RATIO = 1.35
 
 # Only when the coach couldn't explain itself either (Part E #38)
 UNSAFE_FALLBACK = {
@@ -175,6 +178,7 @@ class BaseAgent:
             if attempt:
                 run.tools.clear_staged()
                 run.trace.step("retry", self.domain, detail=last.why)
+            began = self.clock()
             try:
                 current = await self._try(messages, run, speed, reply_speed, photo)
             except MalformedOutput as exc:
@@ -182,7 +186,7 @@ class BaseAgent:
                                why=exc.cause, messages=messages)
             last = current
             if (current.retry_because is None or attempt
-                    or not self._time_left(run, reply_speed)):
+                    or not self._room_to_retry(run, self.clock() - began, speed)):
                 break
             messages = [*current.messages, Turn("user", current.retry_because)]
         if last.gated is None:
@@ -236,9 +240,12 @@ class BaseAgent:
         run.trace.step("gate", self.domain, gated.action)
         because, why = None, ""
         if gated.needs_retry:
+            # The whole reply: live, a week plan's retry came back with only the swaps
+            # and the rest of the week was lost (3 of 9 retries, Part E #38)
             because = ("Your reply was checked against the person's profile and these "
-                       "items are not allowed: " + _blocked(gated) + ". Reply again "
-                       "with safe alternatives from the catalogue.")
+                       "items are not allowed: " + _blocked(gated) + ". Write your whole "
+                       "reply again: keep every other item as it was and replace only "
+                       "these with safe alternatives from the catalogue.")
             why = "blocked"
         elif (any(s.kind == "write_claim" for s in gated.scrubbed)
               and not run.tools.staged_writes):
@@ -339,6 +346,12 @@ class BaseAgent:
                      f"answering the rest of this message: answer only the "
                      f"{AREA[self.domain]} part.")
         return note
+
+    def _room_to_retry(self, run: AgentRun, took: float, speed: Speed) -> bool:
+        """Time for a retry the size of the first try, measured, not a fixed figure; a
+        try that failed fast says little, so never less than a short answer's p50."""
+        need = max(took, speed.p50) * RETRY_TIME_RATIO + TIMEOUT_OVERSHOOT_S
+        return run.deadline - self.clock() >= need
 
     def _time_left(self, run: AgentRun, speed: Speed) -> bool:
         return run.deadline - self.clock() >= speed.p95 + TIMEOUT_OVERSHOOT_S

@@ -31,13 +31,13 @@ NUTRITION = Speed(3.6, 4.4, 4.6, 5.1, first_p90=2.1)
 # p99 is the worst of 65 calls: the 66th took 46.9 s, which is what backups are for
 MEAL_PHOTO = Speed(3.2, 4.2, 4.7, 5.4, first_p90=2.4)
 MENTAL = Speed(5.3, 7.5, 7.8, 8.2, first_p90=2.5)
-# A coach reply that may hold a week plan (Part E #38), measured 29 Oct 2026 on 22 week-plan
-# requests run twice at the 24/21/14 item limits: physical 16 calls, nutrition 18, mental
-# 12, so p95 and p99 are the slowest call. A long reply takes longer to write, not to
-# start: the time to first output is the coach's own.
-PHYSICAL_PLAN = Speed(7.5, 11.7, 12.7, 12.7, first_p90=PHYSICAL.first_p90)
-NUTRITION_PLAN = Speed(11.9, 14.1, 16.7, 16.7, first_p90=NUTRITION.first_p90)
-MENTAL_PLAN = Speed(5.4, 6.8, 8.1, 8.1, first_p90=MENTAL.first_p90)
+# A coach reply that may hold a week plan (Part E #38), measured 2 Nov 2026 on 44 fresh
+# week-plan requests run twice at the 30/21/14 item limits, with snacks and session times
+# filled: physical 32 calls, nutrition 39, mental 24, so p99 is the slowest call. A long
+# reply takes longer to write, not to start: the time to first output is the coach's own.
+PHYSICAL_PLAN = Speed(8.1, 14.6, 16.3, 18.3, first_p90=PHYSICAL.first_p90)
+NUTRITION_PLAN = Speed(12.7, 20.1, 23.7, 24.0, first_p90=NUTRITION.first_p90)
+MENTAL_PLAN = Speed(3.3, 4.2, 4.3, 4.5, first_p90=MENTAL.first_p90)
 SUMMARY = SMALL_FREE_TEXT
 
 # The SDK's own timeout ends up to this much late (Part D); our bound doesn't rely on it
