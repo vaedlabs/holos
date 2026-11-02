@@ -2,6 +2,9 @@
 #
 # Exercises and practices: the model may only return these IDs.
 # Conditions: profile text resolves to these IDs through the aliases.
+# Profile terms: words in an account's saved dietary text that mean an allergy or a
+# diet (C.8 profile resolution). Separate from ingredient aliases: "peanut" in a
+# profile means an allergy, in a dish it means an ingredient.
 # Ingredients: aliases map foods to allergen and diet-conflict tags.
 #
 # Tags (vocabulary in guardrails/types.py). A missing tag means "low" for
@@ -15,7 +18,37 @@
 # 3: "tree nuts" as its own ingredient (tree_nut only); batata for potato
 # 4: spinal_flexion tag; milk alternatives, gluten-free versions, flours, and dishes
 #    whose name hides an allergen or diet conflict (owner, 29 Oct 2026)
-version: 4
+# 5: profile terms for allergies and diets, so an account's saved text resolves to tags
+#    (Plan C.8, Part E #41); in the owner's later list check (P6.2)
+version: 5
+
+profile_terms:
+  allergens:
+    peanut: [peanut, peanuts, groundnut, groundnuts, peanut allergy]
+    tree_nut: [tree nut, tree nuts, nuts, nut allergy, almond, almonds, cashew, cashews,
+               walnut, walnuts, pistachio, pistachios, hazelnut, hazelnuts]
+    milk: [milk, dairy, milk allergy, dairy allergy, no dairy, dairy free]
+    egg: [egg, eggs, egg allergy]
+    fish: [fish, fish allergy]
+    crustacean: [shellfish, crustacean, crustaceans, prawn, prawns, shrimp, crab, lobster]
+    mollusc: [mollusc, molluscs, mollusk, mollusks, squid, octopus, clams, mussels, oysters]
+    soy: [soy, soya, soy allergy]
+    gluten: [gluten, wheat, gluten free, coeliac, celiac, coeliac disease, celiac disease,
+             wheat allergy, gluten intolerance]
+    sesame: [sesame, til, sesame allergy]
+    mustard: [mustard, mustard allergy]
+    celery: [celery]
+    lupin: [lupin, lupine]
+    sulphites: [sulphites, sulfites, sulphite, sulfite]
+  diets:
+    vegan: [vegan, plant based]
+    vegetarian: [vegetarian, veg, veggie, pure veg, shakahari]
+    eggetarian: [eggetarian, eggitarian, vegetarian with eggs]
+    jain: [jain, jain food, no root vegetables]
+    halal: [halal]
+    kosher: [kosher]
+    pescatarian: [pescatarian, pescetarian]
+    lactose_free: [lactose free, lactose intolerant, lactose intolerance]
 
 exercises:
   # --- Squats and lunges (every variant carries knee_load: high) ---

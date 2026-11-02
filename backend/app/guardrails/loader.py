@@ -76,8 +76,16 @@ class Ingredient(_Model):
     diet_conflicts: list[DietConflict] = []
 
 
+class ProfileTerms(_Model):
+    """Words in saved profile text that mean an allergy or a diet (C.8)."""
+
+    allergens: dict[Allergen, list[str]]
+    diets: dict[Diet, list[str]]
+
+
 class Catalogue(_Model):
     version: int = Field(ge=1)
+    profile_terms: ProfileTerms
     exercises: list[CatalogueItem] = Field(min_length=1)
     practices: list[CatalogueItem] = Field(min_length=1)
     conditions: list[Condition] = Field(min_length=1)
@@ -239,6 +247,20 @@ def _check_catalogue(catalogue: Catalogue, file: str) -> list[str]:
         for term, labels in owners.items()
         if len(labels) > 1
     ]
+
+    # Profile terms: every allergy and diet has words, and a word means one thing
+    terms = catalogue.profile_terms
+    problems += [f"{file}: profile_terms.allergens has nothing for '{a}'"
+                 for a in Allergen if not terms.allergens.get(a)]
+    problems += [f"{file}: profile_terms.diets has nothing for '{d}'"
+                 for d in Diet if not terms.diets.get(d)]
+    meaning: dict[str, list[str]] = {}
+    for kind, table in (("allergens", terms.allergens), ("diets", terms.diets)):
+        for tag, words in table.items():
+            for word in words:
+                meaning.setdefault(normalise_text(word), []).append(f"{kind}.{tag}")
+    problems += [f"{file}: profile term '{w}' means {', '.join(m)}"
+                 for w, m in meaning.items() if len(m) > 1]
 
     for item in catalogue.exercises:
         problems += _check_tags(item.tags, EXERCISE_TAGS, f"{file}: exercises[{item.id}]")

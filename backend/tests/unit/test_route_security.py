@@ -12,6 +12,9 @@ pytestmark = pytest.mark.unit
 
 # These create a session, so there's no CSRF token yet; they check the Origin instead
 ORIGIN_CHECKED = {"/session/start", "/auth/login", "/invites/accept"}
+# The chat stream runs the crisis check before the session (C.2 stage 3), so it resolves
+# the session and checks CSRF in its own code, after that
+SESSION_IN_CODE = {"/agents/chat/stream"}
 ROUTERS = Path(__file__).parents[2] / "app" / "routers"
 
 
@@ -28,9 +31,25 @@ def _state_changing():
 
 
 def test_every_state_changing_route_resolves_the_session():
-    unchecked = [r.path for r in _state_changing() if r.path not in ORIGIN_CHECKED
+    unchecked = [r.path for r in _state_changing()
+                 if r.path not in ORIGIN_CHECKED | SESSION_IN_CODE
                  and get_principal not in _calls(r.dependant, set())]
     assert unchecked == []
+
+
+def test_the_chat_stream_checks_the_session_and_csrf_in_its_code():
+    import ast
+
+    tree = ast.parse((ROUTERS / "chat.py").read_text())
+    stream = next(f for f in ast.walk(tree)
+                  if isinstance(f, ast.AsyncFunctionDef) and f.name == "chat_stream")
+    called = [n.func.id for n in sorted(
+        (n for n in ast.walk(stream)
+         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)),
+        key=lambda n: (n.lineno, n.col_offset))]
+    # The session, then CSRF, both before admission
+    assert called.index("resolve_principal") < called.index("check_csrf") < called.index(
+        "admit")
 
 
 def test_the_session_creating_routes_exist_and_check_the_origin():

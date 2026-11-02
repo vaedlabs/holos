@@ -16,6 +16,16 @@ HISTORY_TURN_CHARS = 2000
 REASONING_ALLOWANCE_LOW = 1000
 TOOL_ROUNDS = 3
 
+# Deadlines (owner, 29 Oct 2026, Part E #35)
+ROUTING_DEADLINE_S = 5
+AGENT_DEADLINE_S = 60
+REQUEST_DEADLINE_S = 90
+# Input tokens each call reserves for (C.13): the largest measured per kind, rounded up
+# (2 Nov 2026, 1,894 calls in P4.5's runs: physical 7,133, nutrition 5,710, meal photo
+# 5,401, mental 3,152, router 1,454; the summary, not yet measured, from its prompt)
+RESERVE_TOKENS_IN = {"router": 1600, "physical": 8000, "nutrition": 6500,
+                     "meal_photo": 6000, "mental": 3500, "summary": 3000}
+
 # Concurrency
 INFLIGHT_PER_PRINCIPAL = 1
 INFLIGHT_PER_GUEST_IP = 3

@@ -199,6 +199,9 @@ class CallMeter:
         self._budget = budget
         self._keys = keys
         self._tokens_in = tokens_in
+        # The request's totals, for the `done` event (C.5)
+        self.tokens_in = self.tokens_out = 0
+        self.usd = Decimal("0")
 
     async def reserve(self, options: GenerateOptions) -> Reservation | None:
         return await self._budget.reserve_call(self._keys, options.model, self._tokens_in,
@@ -206,9 +209,13 @@ class CallMeter:
 
     async def settle(self, hold: Reservation, options: GenerateOptions, usage: Usage) -> None:
         await self._budget.settle_call(hold, options.model, usage)
+        self.tokens_in += usage.tokens_in
+        self.tokens_out += usage.tokens_out
+        self.usd += call_usd(options.model, usage)
 
     async def keep(self, hold: Reservation) -> None:
         await self._budget.keep(hold)
+        self.usd += hold.usd
 
     async def release(self, hold: Reservation) -> None:
         await self._budget.cancel(hold)

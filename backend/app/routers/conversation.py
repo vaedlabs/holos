@@ -1,10 +1,9 @@
 """
 Conversation history routes for managing chat messages and images.
 
-This module provides FastAPI router endpoints for conversation management:
-- Create messages: Save conversation messages (user and agent messages)
+This module provides FastAPI router endpoints for conversation management. Messages
+are saved by the chat stream (routers/chat.py, P4.7); photos arrive with the message:
 - Get conversation history: Retrieve conversation history with optional agent filtering
-- Upload images: Upload and store images for conversation messages
 - Get images: Serve stored images
 - Clear conversation: Delete all conversation messages and associated images
 
@@ -43,31 +42,26 @@ Usage:
     DELETE /conversation/messages - Clear conversation history
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-from typing import List, Optional
+import io
 import json
 import logging
-import os
-import uuid
-import asyncio
-import base64
-import binascii
-import io
 import re
 import warnings
 from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
-from app.dependencies import get_database, get_current_user
-from app.models.user import User
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.dependencies import get_current_user, get_database
 from app.models.conversation_message import ConversationMessage
+from app.models.user import User
 from app.schemas.conversation import (
     AgentType,
-    ConversationMessageCreate,
+    ConversationHistoryResponse,
     ConversationMessageResponse,
-    ConversationHistoryResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -142,111 +136,9 @@ def _parse_warnings(warnings_json: str | None) -> list | None:
         return None
 
 
-@router.post("/messages", response_model=ConversationMessageResponse)
-async def create_message(
-    message: ConversationMessageCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_database)
-):
-    """
-    Save a conversation message.
-    
-    This endpoint saves a conversation message (user message or agent response)
-    to the database. Messages include content, role, warnings, image path, and
-    agent type. Warnings are stored as JSON strings in the database.
-    
-    Message Types:
-        - User messages: User queries and input (role: "user")
-        - Agent messages: Agent responses and recommendations (role: "assistant")
-    
-    Warnings Storage:
-        - Warnings are stored as JSON strings in database
-        - Parsed back to list when retrieving messages
-        - Includes safety warnings, dietary restrictions, etc.
-    
-    Args:
-        message: ConversationMessageCreate schema containing:
-            - role: str (message role: "user" or "assistant")
-            - content: str (message content)
-            - warnings: Optional[List[str]] (warnings to store as JSON)
-            - image_path: Optional[str] (path to uploaded image)
-            - agent_type: Optional[str] (agent type: coordinator, physical-fitness, nutrition, mental-fitness)
-        current_user: Authenticated user (injected dependency)
-        db: Database session (injected dependency)
-    
-    Returns:
-        ConversationMessageResponse: Saved message with ID and timestamps
-        
-    Raises:
-        HTTPException 500: If message saving fails
-        
-    Security:
-        - Requires authentication (get_current_user dependency)
-        - Messages are associated with authenticated user (user_id)
-        
-    Note:
-        - Warnings are serialized to JSON before storage
-        - Default agent_type is "coordinator" if not provided
-        - Image path should reference uploaded image (via /upload-image endpoint)
-        
-    Example:
-        POST /conversation/messages
-        {
-            "role": "assistant",
-            "content": "Here's your workout plan...",
-            "warnings": ["Exercise conflict detected"],
-            "agent_type": "physical-fitness"
-        }
-    """
-    try:
-        # Serialize warnings to JSON string for database storage
-        # Warnings are stored as JSON in database, parsed back to list when retrieving
-        warnings_json = None
-        if message.warnings:
-            warnings_json = json.dumps(message.warnings)
-        
-        # Create conversation message record
-        # Message is associated with current user
-        db_message = ConversationMessage(
-            user_id=current_user.id,  # Associate message with authenticated user
-            role=message.role,  # Message role: "user" or "assistant"
-            content=message.content,  # Message content
-            warnings=warnings_json,  # Warnings as JSON string (or None)
-            image_path=message.image_path,  # Image path (if image attached)
-            agent_type=message.agent_type or 'coordinator'  # Agent type (default: coordinator)
-        )
-        
-        # Save message to database
-        db.add(db_message)
-        db.commit()
-        db.refresh(db_message)  # Refresh to get database-generated fields (id, created_at)
-        
-        # Parse warnings back to list for response
-        # Warnings are stored as JSON, parsed back to list when returning
-        warnings = _parse_warnings(db_message.warnings)
-        
-        # Return saved message with parsed warnings
-        return ConversationMessageResponse(
-            id=db_message.id,  # Database-generated ID
-            role=db_message.role,  # Message role
-            content=db_message.content,  # Message content
-            warnings=warnings,  # Warnings parsed back to list
-            image_path=db_message.image_path,  # Image path (if any)
-            agent_type=db_message.agent_type,  # Agent type
-            created_at=db_message.created_at  # Creation timestamp
-        )
-    except Exception as e:
-        # Rollback transaction on error
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error saving message: {str(e)}"
-        )
-
-
 @router.get("/messages", response_model=ConversationHistoryResponse)
 async def get_conversation_history(
-    agent_type: Optional[AgentType] = None,
+    agent_type: AgentType | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_database)
 ):
@@ -339,60 +231,6 @@ async def get_conversation_history(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching messages: {str(e)}"
-        )
-
-
-@router.post("/upload-image")
-async def upload_image(
-    data: ImageUploadRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_database)
-):
-    """Upload and store an image, return the path"""
-    try:
-        # Decode base64 image
-        try:
-            image_base64 = data.image_base64
-            # Remove data URL prefix if present (e.g. "data:image/jpeg;base64,...")
-            if ',' in image_base64:
-                image_base64 = image_base64.split(',')[1]
-
-            # Reject oversized payloads before decoding (base64 is 4/3 the size)
-            if len(image_base64) > MAX_IMAGE_BYTES * 4 // 3 + 4:
-                raise HTTPException(
-                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                    detail="Image is too large (max 7 MB).",
-                )
-            image_data = base64.b64decode(image_base64, validate=True)
-        except HTTPException:
-            raise
-        except (binascii.Error, ValueError) as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid base64 image data: {str(e)}"
-            )
-        
-        # Image work is CPU-bound, so keep it off the event loop
-        image_data = await asyncio.to_thread(_clean_image, image_data)
-
-        # Generate unique filename
-        filename = f"{current_user.id}_{uuid.uuid4().hex[:8]}.jpg"
-        file_path = UPLOADS_DIR / filename
-        
-        # Save image
-        with open(file_path, 'wb') as f:
-            f.write(image_data)
-        
-        # Return relative path for storage in DB
-        relative_path = f"images/{filename}"
-        
-        return {"image_path": relative_path}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error uploading image: {str(e)}"
         )
 
 

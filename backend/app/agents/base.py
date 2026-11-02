@@ -89,6 +89,10 @@ AREA = {"physical": "exercise", "nutrition": "food", "mental": "mental wellbeing
 LOG_RETRY = ("You said something was logged or saved, but no log tool returned "
              "\"staged\". If the person asked to log something, call the log tool; "
              "otherwise don't say it was logged.")
+# Prompt guidance, not wording for the person (C.16)
+CRISIS_NOTE = ("This person recently wrote something that suggested they may be in "
+               "distress. Be especially gentle and supportive, don't push, and say that "
+               "support is available if they want it.")
 EXPLAIN = ("Holos note: the safety check removed {what} because of the person's profile: "
            "{reasons}. Reply with kind \"answer\" and no items: say briefly, in your own "
            "words and in the person's language, what you couldn't suggest and why, and ask "
@@ -115,6 +119,7 @@ class AgentRun:
     images: tuple[ImageInput, ...] = ()  # a meal photo (nutrition only)
     others: tuple[AgentName, ...] = ()  # the other coaches answering this message
     trace: Trace | None = None  # the request's trace; None: a trace of this run alone
+    crisis_recent: bool = False  # the crisis check matched in the last 30 minutes (C.16)
 
 
 @dataclass
@@ -157,7 +162,7 @@ class BaseAgent:
         try:
             result = await self._run(run)
         except ProviderError as exc:
-            result = self._failed(run, _error(exc), cause_of(exc))
+            result = self._failed(run, error_code(exc), cause_of(exc))
         except Exception as exc:
             log.error("coach failed: trace=%s agent=%s cause=bug", run.trace.trace_id,
                       self.domain, exc_info=exc)
@@ -347,6 +352,8 @@ class BaseAgent:
             note += (f" The {names} {'coach is' if len(run.others) == 1 else 'coaches are'} "
                      f"answering the rest of this message: answer only the "
                      f"{AREA[self.domain]} part.")
+        if run.crisis_recent and self.domain == "mental":
+            note += " " + CRISIS_NOTE
         return note
 
     def _room_to_retry(self, run: AgentRun, took: float, speed: Speed) -> bool:
@@ -385,7 +392,7 @@ def decisions_of(gated: GateResult) -> list[schemas.Decision]:
             for d in gated.decisions]
 
 
-def _error(exc: ProviderError) -> AgentError:
+def error_code(exc: ProviderError) -> AgentError:
     if isinstance(exc, MalformedOutput):
         return "malformed"
     if isinstance(exc, OverBudget):

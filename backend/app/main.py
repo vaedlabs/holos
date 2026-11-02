@@ -57,6 +57,17 @@ app = FastAPI(
     version="0.1.0"
 )
 
+@app.on_event("shutdown")
+async def finish_running_requests():
+    """A planned restart takes no new chat requests and lets running ones end (Plan C.5,
+    Part E #34); uvicorn waits for this before the process exits."""
+    from app.orchestration import worker
+
+    left = await worker.drain()
+    if left:
+        logger.error("shutdown: %d chat requests still running at the hard limit", left)
+
+
 # Validate environment variables at startup
 @app.on_event("startup")
 async def validate_environment():

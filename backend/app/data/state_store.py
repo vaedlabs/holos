@@ -279,6 +279,15 @@ class StateStore:
         )
         return max(int(seconds or 0), 1)
 
+    async def renew_leases(self, trace_id: str) -> None:
+        """A running request keeps its leases and slots: LEASE_TTL bounds how long a
+        dead worker's lease lasts, not how long a request may run (90 s, C.10)."""
+        async with self._engine.begin() as conn:
+            await conn.execute(
+                text("UPDATE inflight_leases SET expires_at = now() + :ttl "
+                     "WHERE trace_id = :trace AND expires_at > now()"),
+                {"ttl": limits.LEASE_TTL, "trace": trace_id})
+
     async def release_lease(
         self, principal_key: str, trace_id: str, ip_key: str | None = None
     ) -> None:
