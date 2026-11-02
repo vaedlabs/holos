@@ -514,3 +514,16 @@ async def test_a_photo_goes_to_the_food_coach_with_the_image(store, async_engine
     images = models.fakes["nutrition"].calls[0].messages[-1].images
     assert len(images) == 1 and images[0].data[:2] == b"\xff\xd8"  # the cleaned JPEG
     assert models.fakes["router"].calls == []  # a photo goes to nutrition directly
+
+
+async def test_a_guests_notes_are_checked_and_bring_no_caveat(store, async_engine):
+    # The knee is only in the guest's own notes: the gate still blocks the squats
+    notes = {"condition_ids": [], "allergen_tags": [], "diet_tags": [],
+             "notes": "torn ACL last year, very little free time"}
+    models = Models(router=[_route("physical")],
+                    physical=[_physical("back_squat"), _physical("glute_bridge")])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload(guest_profile=notes)))
+    assert ("step", "block") in [(n, d.get("detail")) for n, d in events]
+    end = [d for n, d in events if n == "section_end"][0]
+    assert not any("couldn't check" in w for w in end.get("warnings", []))

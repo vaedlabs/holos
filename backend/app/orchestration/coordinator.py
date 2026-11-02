@@ -93,7 +93,8 @@ async def run_chat(job: ChatJob, services: Services) -> None:
     try:
         await c.step("admitted")
         job.crisis_recent = await job.store.crisis_active(job.principal.principal_key)
-        profile, history = await load_context(job.principal, job.payload, job.sessions)
+        context = await load_context(job.principal, job.payload, job.sessions)
+        profile, history = context.profile, context.history
         try:
             decision = await services.router.route(
                 job.payload.message, plan=_plan(job, ROUTER, "router", meters,
@@ -112,7 +113,8 @@ async def run_chat(job: ChatJob, services: Services) -> None:
             own = gated(decision.reply or "", profile or NO_PROFILE)
             await c.reply(own)
         else:
-            results = await _coaches(job, services, agents, profile, history, meters)
+            results = await _coaches(job, services, agents, profile, history, meters,
+                                     unchecked_caveat(context.unchecked))
             answered = [a for a in agents if results[a].reply is not None]
             if not answered:
                 await _fail(job, results[agents[0]].error or "unavailable", meters)
@@ -155,11 +157,10 @@ async def _fail(job: ChatJob, code: str, meters: "_Meters") -> None:
 
 
 async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
-                   profile: UserProfile | None, history, meters: "_Meters"
-                   ) -> dict[AgentName, AgentResult]:
+                   profile: UserProfile | None, history, meters: "_Meters",
+                   caveat: str | None) -> dict[AgentName, AgentResult]:
     """In parallel; each section goes out as its coach ends (C.2 stage 10)."""
     c = job.composer
-    caveat = unchecked_caveat(profile)
     deadline = min(time.monotonic() + AGENT_DEADLINE_S, job.deadline)
 
     async def one(agent: AgentName) -> tuple[AgentName, AgentResult]:

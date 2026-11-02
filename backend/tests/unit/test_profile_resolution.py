@@ -4,9 +4,10 @@ from types import SimpleNamespace as Row
 
 import pytest
 
+from app.agents.schemas import UserProfile
 from app.guardrails import loader
 from app.guardrails.loader import GuardrailsError, load_guardrails
-from app.storage.profile import phrases, resolve_profile, unchecked_caveat
+from app.storage.profile import phrases, resolve_profile, unchecked_caveat, with_note_terms
 
 pytestmark = pytest.mark.unit
 
@@ -29,7 +30,7 @@ def _diet(text):
     ("no back pain", []),  # negated: not a condition, and kept as a note
 ])
 def test_conditions_resolve_through_the_catalogue(text, ids):
-    assert resolve_profile(_medical(conditions=text), None).condition_ids == ids
+    assert resolve_profile(_medical(conditions=text), None).profile.condition_ids == ids
 
 
 @pytest.mark.parametrize(("text", "allergens", "diets"), [
@@ -42,35 +43,66 @@ def test_conditions_resolve_through_the_catalogue(text, ids):
     ("peanuts", ["peanut"], []),  # "nuts" inside "peanuts" is not tree nuts
 ])
 def test_allergies_and_diets_resolve_through_profile_terms(text, allergens, diets):
-    profile = resolve_profile(None, _diet(text))
+    profile = resolve_profile(None, _diet(text)).profile
     assert ([str(a) for a in profile.allergen_tags], [str(d) for d in profile.diet_tags]) == (
         allergens, diets)
 
 
-def test_what_resolves_nothing_becomes_a_note_with_a_caveat():
-    profile = resolve_profile(_medical(conditions="torn ACL, bad shoulder from cricket",
-                                       medications="metformin",
-                                       notes="Recovering from a slipped disc"), None)
+def test_unchecked_health_text_gets_the_caveat_and_free_notes_do_not():
+    resolved = resolve_profile(_medical(conditions="torn ACL, bad shoulder from cricket",
+                                        medications="metformin",
+                                        notes="Recovering from a slipped disc"),
+                               _diet("low salt, peanuts"))
+    profile = resolved.profile
     # The note's own words still count where they name something
     assert profile.condition_ids == ["knee_ligament_injury", "lower_back_injury"]
-    assert profile.notes == ("bad shoulder from cricket; medications: metformin; "
+    # The coaches read all of it
+    assert profile.notes == ("bad shoulder from cricket; low salt; medications: metformin; "
                              "Recovering from a slipped disc")
-    assert unchecked_caveat(profile) == (
-        "We couldn't check this note: 'bad shoulder from cricket; medications: metformin; "
-        "Recovering from a slipped disc'")
-    assert unchecked_caveat(resolve_profile(_medical(conditions="asthma"), None)) is None
+    # The caveat names only health text the gate can't check (Part E #42)
+    assert unchecked_caveat(resolved.unchecked) == (
+        "We couldn't check this note: 'bad shoulder from cricket; low salt; medications: "
+        "metformin'")
 
 
-def test_long_notes_are_cut_for_the_caveat_and_the_profile():
-    profile = resolve_profile(_medical(notes="x" * 3000), None)
-    assert len(profile.notes) == 1000
-    assert len(unchecked_caveat(profile)) < 260 and unchecked_caveat(profile).endswith("…'")
+@pytest.mark.parametrize("notes", [
+    "very little free time", "walks in the morning", "hostel mess food, no kitchen",
+    "coeliac",  # understood: gluten, so nothing is unchecked
+])
+def test_free_notes_never_bring_the_caveat(notes):
+    resolved = resolve_profile(_medical(conditions="asthma", notes=notes), None)
+    assert resolved.unchecked == () and unchecked_caveat(resolved.unchecked) is None
+    assert notes in resolved.profile.notes
+
+
+def test_a_free_note_that_names_something_still_counts():
+    assert [str(a) for a in resolve_profile(_medical(notes="coeliac"), None)
+            .profile.allergen_tags] == ["gluten"]
+
+
+def test_a_guests_notes_add_to_their_tags_without_a_caveat():
+    guest = UserProfile(condition_ids=["asthma"], allergen_tags=[], diet_tags=[],
+                        notes="torn ACL last year, pure veg, busy mornings")
+    profile = with_note_terms(guest)
+    assert profile.condition_ids == ["asthma", "knee_ligament_injury"]
+    assert [str(d) for d in profile.diet_tags] == ["vegetarian"]
+    assert profile.notes == guest.notes
+    assert with_note_terms(None) is None
+
+
+def test_long_unchecked_text_is_cut_for_the_caveat_and_the_profile():
+    resolved = resolve_profile(_medical(conditions="x" * 3000), None)
+    assert len(resolved.profile.notes) == 1000
+    caveat = unchecked_caveat(resolved.unchecked)
+    assert len(caveat) < 260 and caveat.endswith("…'")
 
 
 def test_empty_and_missing_text():
     assert phrases(None) == phrases("  ") == []
-    profile = resolve_profile(None, None)
+    resolved = resolve_profile(None, None)
+    profile = resolved.profile
     assert (profile.condition_ids, profile.allergen_tags, profile.notes) == ([], [], "")
+    assert resolved.unchecked == ()
 
 
 # --- The catalogue's profile terms are checked when it loads ---

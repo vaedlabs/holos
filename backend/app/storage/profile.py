@@ -1,13 +1,18 @@
 """An account's saved profile text as the IDs and tags the gate checks (Plan C.8).
 
-    profile = resolve_profile(medical, preferences)   # UserProfile
-    caveat = unchecked_caveat(profile)                 # for every plan, or None
+    resolved = resolve_profile(medical, preferences)  # .profile, .unchecked
+    caveat = unchecked_caveat(resolved.unchecked)      # for every plan, or None
+    profile = with_note_terms(guest_profile)           # a guest's notes add tags too
 
 Conditions resolve through the catalogue's condition names and aliases ("torn ACL left
 knee" → knee_ligament_injury); allergies and diets through its profile terms ("no
-dairy" → milk, "pure veg" → vegetarian). A phrase that names nothing the catalogue
-knows goes into `notes`, which the coaches read but the gate can't check, so every plan
-then carries a caveat saying so. Medications are always such a note.
+dairy" → milk, "pure veg" → vegetarian). Everything goes into `notes` for
+the coaches to read. Only health text the gate couldn't check gets the caveat on every
+plan (owner, 2 Nov 2026, Part E #42): a phrase in conditions, limitations or dietary
+restrictions that names nothing the catalogue knows, and the medications. Free notes
+("very little free time") don't: they are context, not a health claim, and a warning on
+every plan for them taught people to ignore warnings (75 of 215 live plans). What a free
+note names still counts ("coeliac" in a note means gluten).
 
 Over-matching is the safe direction: an extra condition only blocks more. A condition
 after "no", "not", "never" or "without" ("no back pain") doesn't count; an allergy or
@@ -86,7 +91,13 @@ def _found(phrase: str) -> list[tuple[str, str]]:
     return found
 
 
-def resolve_profile(medical, preferences) -> UserProfile:
+@dataclass(frozen=True)
+class Resolved:
+    profile: UserProfile
+    unchecked: tuple[str, ...] = ()  # health text the gate can't check: the caveat
+
+
+def resolve_profile(medical, preferences) -> Resolved:
     """`medical`: a MedicalHistory row or None; `preferences`: a UserPreferences row or
     None. Reads conditions, limitations and notes (conditions), dietary restrictions
     (allergies and diets) and medications (a note)."""
@@ -106,22 +117,39 @@ def resolve_profile(medical, preferences) -> UserProfile:
     for kind, tag in _found(free) if free else []:
         found[kind].add(tag)
     medications = (getattr(medical, "medications", None) or "").strip()
-    notes = [*unchecked]
     if medications:
-        notes.append(f"medications: {medications}")
-    if free:
-        notes.append(free)
-    return UserProfile(condition_ids=sorted(found["condition"]),
-                       allergen_tags=sorted(found["allergen"]),
-                       diet_tags=sorted(found["diet"]),
-                       notes="; ".join(notes)[:NOTES_MAX])
+        unchecked.append(f"medications: {medications}")
+    notes = [*unchecked, free] if free else unchecked
+    profile = UserProfile(condition_ids=sorted(found["condition"]),
+                          allergen_tags=sorted(found["allergen"]),
+                          diet_tags=sorted(found["diet"]),
+                          notes="; ".join(notes)[:NOTES_MAX])
+    return Resolved(profile, tuple(unchecked))
 
 
-def unchecked_caveat(profile: UserProfile | None) -> str | None:
-    """Every plan's caveat while the profile has text the gate couldn't check (C.8)."""
+def with_note_terms(profile: UserProfile | None) -> UserProfile | None:
+    """A guest's own notes: what they name joins the tags the gate checks (the safe
+    direction); they get no caveat, like an account's free notes."""
     if profile is None or not profile.notes.strip():
+        return profile
+    found = _found(profile.notes)
+    if not found:
+        return profile
+    tags = {"condition": set(profile.condition_ids),
+            "allergen": set(map(str, profile.allergen_tags)),
+            "diet": set(map(str, profile.diet_tags))}
+    for kind, tag in found:
+        tags[kind].add(tag)
+    return profile.model_copy(update={"condition_ids": sorted(tags["condition"]),
+                                      "allergen_tags": sorted(tags["allergen"]),
+                                      "diet_tags": sorted(tags["diet"])})
+
+
+def unchecked_caveat(unchecked) -> str | None:
+    """Every plan's caveat while health text couldn't be checked (C.8, Part E #42)."""
+    if not unchecked:
         return None
-    note = profile.notes.strip()
+    note = "; ".join(unchecked).strip()
     if len(note) > CAVEAT_NOTE_CHARS:
         note = note[:CAVEAT_NOTE_CHARS - 1] + "…"
     return f"We couldn't check this note: '{note}'"
