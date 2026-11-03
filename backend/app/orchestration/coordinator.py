@@ -63,6 +63,7 @@ from app.orchestration.staging import (
 from app.providers import CallPlan, ImageInput, ProviderError, Turn
 from app.providers.base import trim
 from app.storage.context import Sessions, load_context, save_turn
+from app.storage.images import ImageStore, image_key
 from app.storage.profile import unchecked_caveat
 
 log = logging.getLogger(__name__)
@@ -87,6 +88,7 @@ class ChatJob:
     store: StateStore
     sessions: Sessions | None
     image: ImageInput | None = None
+    images: ImageStore | None = None  # where an account's photo is kept (C.8)
     started: float = field(default_factory=time.monotonic)
     crisis_recent: bool = False  # read once, at the start (C.16)
 
@@ -150,8 +152,15 @@ async def run_chat(job: ChatJob, services: Services) -> None:
                 return await commit_writes(session, job.principal.user_id, writes, hash_,
                                            job.admitted.trace_id)
 
-            saved = await save_turn(job.principal, job.sessions, job.payload.client_request_id,
-                                    job.payload.message, turn, also)
+            key = await _keep_image(job)
+            try:
+                saved = await save_turn(job.principal, job.sessions,
+                                        job.payload.client_request_id, job.payload.message,
+                                        turn, also, image_key=key)
+            except BaseException:
+                if key is not None:  # no message points at it: don't leave it behind
+                    await _forget_image(job, key)
+                raise
         await _writes(job, saved, hash_)
         decisions = [d for r in results.values() for d in r.decisions]
         decisions += [*(own.decisions if own else ()), *(summary.decisions if summary else ())]
@@ -215,6 +224,27 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
         await c.section(agent, result)
         results[agent] = result
     return results, untrusted
+
+
+async def _keep_image(job: ChatJob) -> str | None:
+    """An account's photo, stored before its message so the message can name it. If
+    storage fails the turn is still saved, without the photo (logged)."""
+    if job.image is None or job.images is None:
+        return None
+    key = image_key(job.principal.user_id)
+    try:
+        await job.images.put(key, job.image.data)
+    except Exception:
+        log.warning("image not stored: trace=%s", job.admitted.trace_id, exc_info=True)
+        return None
+    return key
+
+
+async def _forget_image(job: ChatJob, key: str) -> None:
+    try:
+        await job.images.delete_prefix(key)
+    except Exception:
+        log.warning("orphan image left: trace=%s", job.admitted.trace_id, exc_info=True)
 
 
 async def _writes(job: ChatJob, saved: Saved, hash_: str) -> None:

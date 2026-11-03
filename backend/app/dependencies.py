@@ -11,7 +11,7 @@ from functools import lru_cache
 
 import httpx
 from fastapi import Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session
 
 from app.config.settings import Settings, get_settings
@@ -23,6 +23,8 @@ from app.models.user import User
 from app.orchestration.principal import SAFE_METHODS, Principal, check_csrf, resolve_principal
 from app.orchestration.sessions import Turnstile
 from app.routers.errors import ApiError
+from app.storage.images import ImageStore
+from app.storage.images import get_image_store as get_images
 
 
 def get_database() -> Generator[Session, None, None]:
@@ -60,6 +62,16 @@ async def get_principal(
     if request.method not in SAFE_METHODS:
         check_csrf(request, principal, settings)
     return principal
+
+
+def get_engine() -> AsyncEngine:
+    """The async engine for work that is plain SQL (deletion); tests point it at the
+    test DB."""
+    return get_async_engine()
+
+
+def get_image_store() -> ImageStore:
+    return get_images()
 
 
 def get_db_sessions() -> async_sessionmaker[AsyncSession]:

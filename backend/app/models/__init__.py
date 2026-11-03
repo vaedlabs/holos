@@ -31,6 +31,7 @@ from app.models.mental_fitness_log import MentalFitnessLog
 from app.models.conversation_message import ConversationMessage
 from app.models.agent_execution_log import AgentExecutionLog
 from app.models.state import (
+    AccountImport,
     DeletionQueue,
     InflightLease,
     Invite,
@@ -64,6 +65,7 @@ __all__ = [
     "ChatRequest",
     "StreamEventRow",
     "Invite",
+    "AccountImport",
     "DeletionQueue",
     "Trace",
     "GateDecision",

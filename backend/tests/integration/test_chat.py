@@ -6,7 +6,9 @@ the turn, guests store nothing; the request outlives its connection; a repeated
 
 import asyncio
 import json
+import tempfile
 import uuid
+from pathlib import Path
 
 import httpx
 import pytest
@@ -25,7 +27,12 @@ from app.agents.schemas import (
 from app.config.settings import get_settings
 from app.data.state_store import StateStore
 from app.data.stream_store import StreamStore
-from app.dependencies import get_db_sessions, get_state_store, get_stream_store
+from app.dependencies import (
+    get_db_sessions,
+    get_image_store,
+    get_state_store,
+    get_stream_store,
+)
 from app.orchestration import composer as composer_module
 from app.orchestration import worker
 from app.orchestration.budget import spend_keys
@@ -50,6 +57,7 @@ from app.providers import (
 from app.providers.fake import Slow
 from app.routers import chat
 from app.routers.errors import ApiError, api_error_handler
+from app.storage.images import LocalImageStore
 
 from .test_admission import APP, account, guest, seed_spend, settings, sql
 from .test_intake import form
@@ -123,7 +131,10 @@ class Models:
             summary=llm("summary", SUMMARY_OPTIONS), search=None, breaker=breakers["openai"])
 
 
-def _app(store, async_engine, models: Models) -> FastAPI:
+def _app(store, async_engine, models: Models, images=None) -> FastAPI:
+    """`images`: where account photos go; a fresh folder each time unless given, so no
+    test writes into the real uploads folder."""
+    images = images or LocalImageStore(Path(tempfile.mkdtemp(prefix="holos-images-")))
     cfg = settings()
     app = FastAPI()
     app.add_exception_handler(ApiError, api_error_handler)
@@ -132,7 +143,8 @@ def _app(store, async_engine, models: Models) -> FastAPI:
     app.dependency_overrides.update({
         get_settings: lambda: cfg, get_state_store: lambda: store,
         get_stream_store: lambda: StreamStore(async_engine), get_services: lambda: models.services,
-        get_db_sessions: lambda: db})
+        get_db_sessions: lambda: db, get_image_store: lambda: images})
+    app.state.images = images
     return app
 
 
@@ -527,3 +539,61 @@ async def test_a_guests_notes_are_checked_and_bring_no_caveat(store, async_engin
     assert ("step", "block") in [(n, d.get("detail")) for n, d in events]
     end = [d for n, d in events if n == "section_end"][0]
     assert not any("couldn't check" in w for w in end.get("warnings", []))
+
+
+# --- Account photos are kept (C.8, P4.9) ---
+
+
+def _photo_turn():
+    import io
+
+    from PIL import Image
+
+    from app.agents.schemas import FoodItem, NutritionReply
+
+    out = io.BytesIO()
+    Image.new("RGB", (64, 48), (200, 120, 40)).save(out, "JPEG")
+    reply = NutritionReply(kind="plan", summary="Looks like dal.", items=[
+        FoodItem(day=None, name="Dal", ingredients=["lentils"], allergen_tags=[],
+                 diet_tags=[], portion="1 bowl", calories=250, note="")],
+        notes=[], source_ids=[], follow_up=None, risk_flag=False)
+    return Models(nutrition=[_result(reply)]), out.getvalue()
+
+
+async def test_an_accounts_photo_is_kept_under_its_key(store, async_engine, tmp_path):
+    images = LocalImageStore(tmp_path)
+    me = await account(store, async_engine)
+    models, photo = _photo_turn()
+    await _post(_app(store, async_engine, models, images), me, _payload("is this ok?"),
+                image=photo)
+    await _settled()
+    [(key,)] = await sql(async_engine, "SELECT image_path FROM conversation_messages "
+                         "WHERE role = 'user'")
+    assert key.startswith(f"users/{me.user_id}/") and key.endswith(".jpg")
+    stored = await images.get(key)
+    assert stored[:2] == b"\xff\xd8"  # the cleaned JPEG, not the upload
+
+
+async def test_a_guests_photo_is_not_kept(store, async_engine, tmp_path):
+    models, photo = _photo_turn()
+    await _post(_app(store, async_engine, models, LocalImageStore(tmp_path)),
+                await guest(store), _payload("is this ok?"), image=photo)
+    await _settled()
+    assert list(tmp_path.rglob("*.jpg")) == []
+
+
+async def test_a_turn_that_isnt_saved_leaves_no_photo(store, async_engine, tmp_path,
+                                                      monkeypatch):
+    from app.orchestration import coordinator
+
+    async def broken(*args, **kwargs):
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(coordinator, "save_turn", broken)
+    me = await account(store, async_engine)
+    models, photo = _photo_turn()
+    events = _events(await _post(_app(store, async_engine, models, LocalImageStore(tmp_path)),
+                                 me, _payload("is this ok?"), image=photo))
+    await _settled()
+    assert events[-1][0] == "error"
+    assert list(tmp_path.rglob("*.jpg")) == []

@@ -47,17 +47,25 @@ import json
 import logging
 import re
 import warnings
-from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_current_user, get_database
+from app.dependencies import (
+    get_current_user,
+    get_database,
+    get_engine,
+    get_image_store,
+    get_principal,
+)
 from app.models.conversation_message import ConversationMessage
 from app.models.user import User
+from app.orchestration.principal import Principal
+from app.storage.deletion import delete_or_queue
+from app.storage.images import ImageStore, user_prefix
 from app.schemas.conversation import (
     AgentType,
     ConversationHistoryResponse,
@@ -76,11 +84,6 @@ class ImageUploadRequest(BaseModel):
 # Tags: ["conversation"] (for API documentation grouping)
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
-# Create uploads directory if it doesn't exist
-# Images are stored in uploads/images directory
-# Directory is created on module import if it doesn't exist
-UPLOADS_DIR = Path("uploads/images")
-UPLOADS_DIR.mkdir(parents=True, exist_ok=True)  # Create directory structure if needed
 
 # Image limits from Plan C.7: content-detected format, size and pixel caps,
 # resized and re-encoded so nothing but a clean JPEG reaches the disk
@@ -90,6 +93,7 @@ ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
 Image.MAX_IMAGE_PIXELS = 25_000_000
 # Filenames are always "{user_id}_{8 hex}.jpg" (set by upload_image)
 IMAGE_FILENAME = re.compile(r"\d+_[0-9a-f]{8}\.jpg")
+IMAGE_NAME = re.compile(r"[0-9a-f]{32}\.jpg")  # users/{id}/{uuid hex}.jpg (P4.9)
 
 
 def _clean_image(image_data: bytes) -> bytes:
@@ -234,74 +238,40 @@ async def get_conversation_history(
         )
 
 
-@router.get("/images/{filename}")
+@router.get("/images/{name}")
 async def get_image(
-    filename: str,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Serve stored images.
-
-    This endpoint serves images stored in the uploads/images directory.
-    Images are referenced by filename (from image_path in conversation messages).
-    Used to display images in conversation history.
-
-    Args:
-        filename: str - Image filename (e.g., "123_a1b2c3d4.jpg")
-                  Filename format: {user_id}_{uuid}.jpg
-
-    Returns:
-        FileResponse: Image file response with appropriate content type
-
-    Raises:
-        HTTPException 403: If image does not belong to the current user or path is invalid
-        HTTPException 404: If image file not found
-
-    Security:
-        - Requires authentication (get_current_user dependency)
-        - Ownership enforced: filename prefix must match current user's ID
-        - Path traversal prevented via resolve() + is_relative_to() check
-        - Images are user-specific (filename includes user_id)
-
-    Note:
-        - Images are served directly from file system
-        - Content type inferred from file extension
-        - Used to display images in conversation UI
-
-    Example:
-        GET /conversation/images/123_a1b2c3d4.jpg
-
-        Returns image file if exists and belongs to current user, 403/404 otherwise
-    """
-    # Reject anything not shaped like an uploaded filename (also stops null bytes)
-    if not IMAGE_FILENAME.fullmatch(filename):
+    name: str,
+    principal: Principal = Depends(get_principal),
+    images: ImageStore = Depends(get_image_store),
+) -> Response:
+    """One of the signed-in account's images (C.8). The key is built from the session's
+    user, never from the request, so another account's image looks like no image
+    (404, not 403). Names: "{32 hex}.jpg" (users/{id}/…), or "{id}_{8 hex}.jpg" for
+    images saved before P4.9."""
+    key = _image_key(principal.user_id, name)
+    data = await images.get(key) if key else None
+    if data is None:
         raise HTTPException(status_code=404, detail="Image not found")
+    return Response(data, media_type="image/jpeg",
+                    headers={"Cache-Control": "private, max-age=3600"})
 
-    # Ownership check: filename must start with "{current_user.id}_"
-    # Filename format is always "{user_id}_{uuid}.jpg" set during upload
-    parts = filename.split("_", 1)
-    if len(parts) < 2 or parts[0] != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Access denied")
 
-    # Resolve path and verify it stays inside UPLOADS_DIR (prevents directory traversal)
-    # Path.resolve() collapses ".." segments; is_relative_to() confirms containment
-    file_path = (UPLOADS_DIR / filename).resolve()
-    if not file_path.is_relative_to(UPLOADS_DIR.resolve()):
-        raise HTTPException(status_code=403, detail="Invalid image path")
-
-    # Check if image file exists
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Image not found")
-
-    # Return image file response
-    # FastAPI FileResponse handles content type and file serving
-    return FileResponse(file_path)
+def _image_key(user_id: int | None, name: str) -> str | None:
+    if user_id is None:
+        return None
+    if IMAGE_NAME.fullmatch(name):
+        return f"{user_prefix(user_id)}{name}"
+    if IMAGE_FILENAME.fullmatch(name) and name.startswith(f"{user_id}_"):
+        return f"images/{name}"
+    return None
 
 
 @router.delete("/messages", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_conversation_history(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_database)
+    db: Session = Depends(get_database),
+    engine: AsyncEngine = Depends(get_engine),
+    images: ImageStore = Depends(get_image_store),
 ):
     """
     Clear conversation history for the current user.
@@ -338,8 +308,8 @@ async def clear_conversation_history(
         
     Note:
         - This action is irreversible
-        - Image file deletion failures are ignored (continues deletion)
-        - All deletions performed in single transaction (atomicity)
+        - Messages go in one transaction; their images after it, and an image
+          delete that fails is queued for the job (deletion_queue)
         
     Example:
         DELETE /conversation/messages
@@ -347,38 +317,22 @@ async def clear_conversation_history(
         Clears all conversation messages and associated images for current user
     """
     try:
-        # Get all messages to delete associated images
-        # Fetch messages before deletion to access image_path fields
-        messages = db.query(ConversationMessage).filter(
-            ConversationMessage.user_id == current_user.id  # Security: Only current user's messages
-        ).all()
-        
-        # Delete associated image files from file system
-        # Prevents orphaned image files when messages are deleted
-        for msg in messages:
-            if msg.image_path:
-                # Extract filename from image path
-                # Path format: "images/{filename}", extract just filename
-                image_file = UPLOADS_DIR / msg.image_path.split('/')[-1]
-                if image_file.exists():
-                    try:
-                        image_file.unlink()  # Delete image file
-                    except OSError as e:
-                        logger.warning("Failed to delete image file %s: %s", image_file, e)
-        
+        keys = [key for (key,) in db.query(ConversationMessage.image_path).filter(
+            ConversationMessage.user_id == current_user.id,
+            ConversationMessage.image_path.is_not(None)).all()]
         # Delete messages from database
-        # All user's conversation messages are deleted
         db.query(ConversationMessage).filter(
             ConversationMessage.user_id == current_user.id  # Security: Only current user's messages
         ).delete()
         db.commit()  # Commit transaction
-        return None  # 204 No Content response
     except Exception as e:
-        # Rollback transaction on error
-        # Ensures data consistency if deletion fails
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error clearing messages: {str(e)}"
-        )
+            detail="Failed to clear conversation history",
+        ) from e
+    # After the commit, like account deletion (C.18): a failed image delete is queued
+    for key in keys:
+        await delete_or_queue(engine, images, key)
+    return None
 

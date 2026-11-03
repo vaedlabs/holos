@@ -19,7 +19,7 @@ from .conftest import OLD_HEAD, alembic, reset_schema
 NEW_TABLES = {
     "sessions", "inflight_leases", "principal_flags", "rate_counters", "spend",
     "pending_writes", "chat_requests", "stream_events", "invites", "traces",
-    "gate_decisions", "rule_hit_counts", "deletion_queue",
+    "gate_decisions", "rule_hit_counts", "deletion_queue", "account_imports",
 }
 
 

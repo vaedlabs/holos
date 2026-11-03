@@ -8,6 +8,9 @@ psycopg[binary]==3.3.6
 greenlet==3.5.6  # SQLAlchemy async engine
 alembic==1.17.2
 
+# Object storage: account images on S3-compatible storage (C.8)
+boto3==1.43.123
+
 # LangChain (compatible versions - updated for compatibility)
 langchain==1.1.0
 langchain-core==1.1.0

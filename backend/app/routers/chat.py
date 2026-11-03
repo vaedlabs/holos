@@ -35,6 +35,7 @@ from app.data.state_store import StateStore
 from app.data.stream_store import StreamStore
 from app.dependencies import (
     get_db_sessions,
+    get_image_store,
     get_principal,
     get_state_store,
     get_stream_store,
@@ -59,6 +60,7 @@ from app.providers import ImageInput
 from app.routers.errors import ApiError
 from app.routers.intake import clean_image, read_chat_request
 from app.storage.context import Sessions, load_profile
+from app.storage.images import ImageStore
 from app.storage.logs import insert_log
 
 router = APIRouter(prefix="/agents/chat", tags=["chat"])
@@ -75,6 +77,7 @@ async def chat_stream(
     settings: Settings = Depends(get_settings),
     services: Services = Depends(get_services),
     sessions: Sessions = Depends(get_db_sessions),
+    images: ImageStore = Depends(get_image_store),
 ) -> StreamingResponse:
     if worker.draining():
         raise ApiError(503, "server_busy", "Holos is restarting. Please try again in a few "
@@ -107,7 +110,7 @@ async def chat_stream(
     composer = Composer(trace_id, principal.mode, SavedSink(streams, trace_id, live))
     trace = Trace(trace_id, listener=composer.on_trace_step)
     job = ChatJob(principal=principal, payload=payload, admitted=admitted, composer=composer,
-                  trace=trace, store=store, sessions=sessions, image=image)
+                  trace=trace, store=store, sessions=sessions, image=image, images=images)
     worker.spawn(worker.run_job(job, services, streams, payload.contract_version))
     return sse_response(live.events())
 

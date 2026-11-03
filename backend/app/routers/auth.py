@@ -14,35 +14,26 @@ import hashlib
 import logging
 import math
 from datetime import UTC, datetime
-from pathlib import Path
 
 import anyio
 from fastapi import APIRouter, Depends, Request, Response, status
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.config import limits
 from app.config.settings import Settings, get_settings
 from app.data.state_store import StateStore
 from app.dependencies import (
-    get_current_user,
-    get_database,
     get_db_sessions,
+    get_engine,
+    get_image_store,
     get_principal,
     get_state_store,
 )
-from app.models.agent_execution_log import AgentExecutionLog
-from app.models.conversation_message import ConversationMessage
-from app.models.medical_history import MedicalHistory
-from app.models.mental_fitness_log import MentalFitnessLog
-from app.models.nutrition_log import NutritionLog
 from app.models.state import Invite
 from app.models.user import User
-from app.models.user_preferences import UserPreferences
-from app.models.workout_log import WorkoutLog
 from app.orchestration.passwords import (
     get_password_hash,
     password_problem,
@@ -58,6 +49,8 @@ from app.orchestration.principal import (
     login_ip_key,
 )
 from app.orchestration.sessions import clear_session_cookie, set_session_cookie, start_account
+from app.storage.deletion import delete_account as delete_account_data
+from app.storage.images import ImageStore
 
 from .errors import ApiError
 
@@ -222,27 +215,13 @@ async def accept_invite(
 @router.delete("/delete-account", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(
     response: Response,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_database),
+    principal: Principal = Depends(get_principal),
+    engine: AsyncEngine = Depends(get_engine),
+    images: ImageStore = Depends(get_image_store),
     settings: Settings = Depends(get_settings),
 ):
-    """Deletes the user and every row that references them; sessions cascade.
-    P4.9 replaces this with C.18's version (deletion queue, object storage)."""
-    try:
-        user_id = current_user.id
-        for image_file in Path("uploads/images").glob(f"{user_id}_*.jpg"):
-            try:
-                image_file.unlink()
-            except OSError as e:
-                logger.warning("Failed to delete image file %s: %s", image_file, e)
-        for model in (ConversationMessage, WorkoutLog, NutritionLog, MentalFitnessLog,
-                      MedicalHistory, UserPreferences, AgentExecutionLog):
-            db.query(model).filter(model.user_id == user_id).delete()
-        db.query(User).filter(User.id == user_id).delete()
-        db.commit()
-    except Exception:
-        db.rollback()
-        logger.exception("account deletion failed")
-        raise ApiError(500, "delete_failed", "We couldn't delete your account. "
-                       "Please try again.") from None
+    """The user, every row keyed by them and their images (C.18, `storage.deletion`)."""
+    if principal.user_id is None:
+        raise ApiError(401, "account_required", "Please sign in to your account.")
+    await delete_account_data(engine, principal.user_id, images)
     clear_session_cookie(response, settings)

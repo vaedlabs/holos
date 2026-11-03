@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from sqlalchemy import delete, select
 
@@ -18,11 +19,14 @@ class MessageRepository(UserScopedRepository):
         warnings: str | None = None,
         image_path: str | None = None,
         client_request_id: uuid.UUID | None = None,
+        created_at: datetime | None = None,  # an imported turn keeps its time
     ) -> ConversationMessage:
         row = ConversationMessage(
             user_id=self._user_id, role=role, content=content, agent_type=agent_type,
             warnings=warnings, image_path=image_path, client_request_id=client_request_id,
         )
+        if created_at is not None:
+            row.created_at = created_at
         self._session.add(row)
         await self._session.flush()
         return row

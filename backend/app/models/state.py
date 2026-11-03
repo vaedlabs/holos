@@ -171,3 +171,15 @@ class DeletionQueue(Base):
     attempts: Mapped[int] = mapped_column(Integer, server_default="0")
     last_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _now()
+
+
+class AccountImport(Base):
+    """One "save to an account" per (user, import_id): a resend gets the first result
+    (Plan C.18; owner, 3 Nov 2026, Part E #46)."""
+
+    __tablename__ = "account_imports"
+
+    user_id: Mapped[int] = mapped_column(_user_fk(), primary_key=True)
+    import_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = _now()

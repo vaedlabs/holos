@@ -70,14 +70,15 @@ def _turn(row) -> HistoryTurn:
 
 async def save_turn[T](principal: Principal, sessions: Sessions,
                        client_request_id: uuid.UUID, message: str, turn: HistoryTurn,
-                       also: Callable[[AsyncSession], Awaitable[T]] | None = None) -> T | None:
+                       also: Callable[[AsyncSession], Awaitable[T]] | None = None,
+                       image_key: str | None = None) -> T | None:
     """The person's message and what they saw, in one transaction (C.2 stage 13), with
     `also` (the turn's writes) in the same one. The message carries
     `client_request_id`: its unique key is the second lock against a request answered
     twice (C.5)."""
     async with sessions() as session, session.begin():
         messages = MessageRepository(session, principal.user_id)
-        await messages.add("user", message, agent_type="user",
+        await messages.add("user", message, agent_type="user", image_path=image_key,
                            client_request_id=client_request_id)
         await messages.add("assistant", turn.content,
                            agent_type=",".join(turn.agents or []) or "holos")

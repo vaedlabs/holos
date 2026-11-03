@@ -9,6 +9,7 @@ tables; `get_recent_logs` hands them to the coaches as they are.
 """
 
 import json
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,9 +22,13 @@ from app.data.repositories import (
 )
 
 
-async def insert_log(session: AsyncSession, user_id: int, write: StagedWrite) -> int:
+async def insert_log(session: AsyncSession, user_id: int, write: StagedWrite,
+                     at: datetime | None = None) -> int:
+    """`at`: when it happened, for an imported entry; else the database's now."""
     args = write.args
     warnings = [w.model_dump(mode="json") for w in write.warnings] or None
+    when = {"workout": "workout_date", "meal": "meal_date", "practice": "activity_date"}
+    dated = {when[write.kind]: at} if at is not None else {}
     if isinstance(args, LogWorkoutArgs):
         row = await WorkoutLogRepository(session, user_id).add(
             exercise_type=args.catalogue_id,
@@ -31,19 +36,20 @@ async def insert_log(session: AsyncSession, user_id: int, write: StagedWrite) ->
                                    "name": NAMES[args.catalogue_id], "sets": args.sets,
                                    "reps": args.reps, "duration_s": args.duration_s}]),
             duration_minutes=args.duration_s / 60 if args.duration_s else None,
-            notes=args.note or None, warnings=warnings)
+            notes=args.note or None, warnings=warnings, **dated)
     elif isinstance(args, LogMealArgs):
         totals = args.totals()
         row = await NutritionLogRepository(session, user_id).add(
             meal_type=args.meal,
             foods=json.dumps([f.model_dump(mode="json") for f in args.foods],
                              ensure_ascii=False),
-            calories=totals.pop("calories"), macros=json.dumps(totals), warnings=warnings)
+            calories=totals.pop("calories"), macros=json.dumps(totals), warnings=warnings,
+            **dated)
     elif isinstance(args, LogPracticeArgs):
         row = await MentalLogRepository(session, user_id).add(
             activity_type=args.catalogue_id, duration_minutes=args.duration_min,
             mood_before=_mood(args.mood_before), mood_after=_mood(args.mood_after),
-            notes=args.note or None, warnings=warnings)
+            notes=args.note or None, warnings=warnings, **dated)
     else:
         raise TypeError(f"no log table for {write.kind}")
     return row.id

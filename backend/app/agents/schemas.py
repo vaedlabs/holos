@@ -24,6 +24,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
+from app.config.limits import IMPORT_LOG_ENTRIES, IMPORT_TURNS
 from app.guardrails.loader import get_guardrails
 from app.guardrails.types import Allergen, Diet
 
@@ -553,6 +554,29 @@ class ConfirmWrite(_Model):
     `pending_write` event the person didn't have (Part E #45)."""
 
     left_out: list[Annotated[str, Field(max_length=40)]] = Field(default=[], max_length=10)
+
+
+class ImportLog(_Model):
+    """A guest's stored log entry (C.17 `committed` or a confirmed `pending_write`) and
+    when it happened. Parsed one by one at import, so a bad entry is skipped, not fatal."""
+
+    entry: StagedWrite
+    at: datetime
+
+
+class ImportPayload(_Model):
+    """POST /account/import (C.18). Logs are read one by one (ImportLog)."""
+
+    import_id: UUID
+    profile: UserProfile | None = None
+    history: list[HistoryTurn] = Field(default=[], max_length=IMPORT_TURNS)
+    logs: list[dict[str, Any]] = Field(default=[], max_length=IMPORT_LOG_ENTRIES)
+
+
+class ProfileNotes(_Model):
+    """POST /profile/check: a guest's notes, checked and not stored (Part E #42)."""
+
+    notes: str = Field(max_length=1000)
 
 
 class PendingWriteData(_EventData):
