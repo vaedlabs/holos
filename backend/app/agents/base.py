@@ -239,8 +239,9 @@ class BaseAgent:
 
     def _gate(self, reply: BaseModel, run: AgentRun, photo: bool,
               messages: list[Message]) -> _Try:
+        logged = [w.args.model_dump(mode="json") for w in run.tools.staged_writes]
         gated = gate(self.domain, reply.model_dump(mode="json"), run.profile or _NO_PROFILE,
-                     purpose="photo" if photo else "plan")
+                     purpose="photo" if photo else "plan", logged=logged)
         run.trace.step("gate", self.domain, gated.action)
         because, why = None, ""
         if gated.needs_retry:

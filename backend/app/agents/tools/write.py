@@ -2,7 +2,8 @@
 
 A write tool gates the entry, then stages it on the request context. It never
 touches the database: the Composer commits staged writes after the final reply
-passes the gate, or turns them into pending writes after a web search.
+passes the gate, or turns them into pending writes after a web search or when the
+entry conflicts with the profile ("held": the person confirms, Part E #45).
 """
 
 from typing import Any
@@ -27,8 +28,22 @@ def summarise(kind: WriteKind, args: BaseModel) -> str:
     if isinstance(args, LogWorkoutArgs | LogPracticeArgs):
         return item_display(args)
     if isinstance(args, LogMealArgs):
-        return f"{args.meal.capitalize()}: {', '.join(f.name for f in args.foods)}"
+        return f"{args.meal.capitalize()}: {', '.join(f.name for f in args.foods)}" + _amounts(args)
     raise TypeError(f"no summary for {kind}")
+
+
+def _amounts(meal: LogMealArgs) -> str:
+    """ " · 520 kcal · protein 18 g, carbs 70 g, fat 9 g": only totals every food gave,
+    so a sum is never shown short."""
+    t = meal.totals()
+    complete = {n: all(getattr(f, n) is not None for f in meal.foods)
+                for n in ("calories", "protein_g", "carbs_g", "fat_g")}
+    parts = [f"{round(t['calories'])} kcal"] if complete["calories"] else []
+    macros = [f"{label} {round(t[n])} g" for n, label in
+              (("protein_g", "protein"), ("carbs_g", "carbs"), ("fat_g", "fat")) if complete[n]]
+    if macros:
+        parts.append(", ".join(macros))
+    return "".join(f" · {p}" for p in parts)
 
 
 async def _stage(kind: WriteKind, args: BaseModel, ctx: ToolContext) -> dict[str, Any]:
@@ -36,7 +51,12 @@ async def _stage(kind: WriteKind, args: BaseModel, ctx: ToolContext) -> dict[str
     ctx.decisions.extend(gate.decisions)
     if not gate.allowed:
         return {"status": "refused", "reason": gate.reason or "Not allowed for your profile"}
-    ctx.staged_writes.append(StagedWrite(kind=kind, args=args))
+    args = gate.args or args
+    write = StagedWrite(kind=kind, args=args, warnings=list(gate.warnings))
+    ctx.staged_writes.append(write)
+    if write.conflicts:  # something they already had conflicts: they confirm (Part E #45)
+        return {"status": "held", "summary": summarise(kind, args),
+                "warnings": [f"{w.item}: {w.reason}" for w in write.conflicts]}
     return {"status": "staged", "summary": summarise(kind, args)}
 
 

@@ -290,11 +290,26 @@ def test_helpline_domain_stays():
 @pytest.mark.parametrize("claim", [
     "I've logged it.", "I have logged your workout.", "Your meal has been saved.",
     "Saved!", "I've added it to your log.", "Maine log kar diya.",
+    "Aaj ka box breathing log ho gaya.", "Save ho gya!", "मैंने लॉग कर दिया।",
 ])
 def test_write_claims_are_removed(claim):
     result = gate("physical", physical(summary=f"Nice work. {claim} Keep going."), NONE)
     assert result.content["summary"] == "Nice work. Keep going."
     assert [s.kind for s in result.scrubbed] == ["write_claim"]
+
+
+
+def test_a_hindi_reply_loses_only_the_claiming_sentence():
+    summary = "आज अच्छा किया। आपका वर्कआउट लॉग हो गया। ऐसे ही करते रहो।"
+    result = gate("physical", physical(summary=summary), NONE)
+    assert result.content["summary"] == "आज अच्छा किया। ऐसे ही करते रहो।"
+
+
+@pytest.mark.parametrize("text", [
+    "Kai log ho gaye the wahan.", "Dal ka log hona chahiye.", "Logging helps you see trends.",
+])
+def test_words_like_a_write_claim_are_kept(text):
+    assert gate_text(text, NONE).content == text
 
 
 # --- Writes ---
@@ -475,3 +490,34 @@ def test_photo_mode_is_only_for_nutrition_replies():
         gate("physical", physical("glute_bridge"), NONE, purpose="photo")
     with pytest.raises(ValueError, match="photo mode"):
         gate("nutrition", {"meal": "lunch", "foods": [SANDWICH]}, NONE, purpose="photo")
+
+
+# --- Entries the person logged this turn (Part E #45) ---
+
+PANEER = {"name": "Paneer butter masala", "ingredients": ["paneer", "butter"],
+          "allergen_tags": ["milk"], "diet_tags": []}
+
+
+def test_a_logged_food_may_be_named_in_the_reply():
+    vegan = Profile(diet_tags=("vegan",))
+    reply = meal(summary="Your paneer butter masala has dairy, which isn't vegan. "
+                              "Confirm below to log it.")
+    plain = gate("nutrition", reply, vegan)
+    assert plain.content["summary"] == "Confirm below to log it."  # the old loss
+    logged = gate("nutrition", reply, vegan, logged=[{"meal": "dinner", "foods": [PANEER]}])
+    assert logged.content["summary"] == reply["summary"]
+
+
+def test_another_conflicting_food_is_still_removed():
+    vegan = Profile(diet_tags=("vegan",))
+    reply = meal(summary="Logged your paneer butter masala. Next time try ghee rice.")
+    result = gate("nutrition", reply, vegan, logged=[{"meal": "dinner", "foods": [PANEER]}])
+    assert "ghee" not in result.content["summary"]
+
+
+def test_a_logged_exercise_may_be_named_in_the_reply():
+    knee = Profile(condition_ids=("knee_ligament_injury",))
+    reply = physical(summary="Back squats load the knee a lot. Confirm below to keep them.")
+    result = gate("physical", reply, knee, logged=[{"catalogue_id": "back_squat", "sets": 3,
+                                                   "reps": 10, "duration_s": None, "note": ""}])
+    assert result.content["summary"].startswith("Back squats")

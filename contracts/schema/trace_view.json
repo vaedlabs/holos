@@ -147,6 +147,7 @@
             "error",
             "refused",
             "staged",
+            "held",
             "unavailable"
           ],
           "title": "Status",

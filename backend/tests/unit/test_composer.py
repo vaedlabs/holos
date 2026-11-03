@@ -14,6 +14,7 @@ from app.agents.schemas import (
     ExerciseItem,
     FoodItem,
     HistoryTurn,
+    LoggedFood,
     LogMealArgs,
     LogWorkoutArgs,
     MentalReply,
@@ -163,6 +164,7 @@ async def _pending_write(c: Composer, trace: Trace) -> None:
         sources=[Source(id="s1", title="Protein in common Indian breakfasts",
                         url="https://example.org/protein")]))
     poha = _food("Poha with peanuts", ["flattened rice", "peanut", "onion"], "1 plate", 350)
+    poha = LoggedFood(**poha.model_dump(), protein_g=8, carbs_g=55, fat_g=11)
     await c.pending_write(StagedWrite(kind="meal", args=LogMealArgs(meal="breakfast",
                                                                     foods=[poha])),
                           write_id="pw_3c9a",

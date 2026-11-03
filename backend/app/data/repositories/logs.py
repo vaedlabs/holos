@@ -43,17 +43,18 @@ class _LogRepository(UserScopedRepository):
 class WorkoutLogRepository(_LogRepository):
     model = WorkoutLog
     date_column = "workout_date"
-    fields = {"workout_date", "exercise_type", "exercises", "duration_minutes", "notes"}
+    fields = {"workout_date", "exercise_type", "exercises", "duration_minutes", "notes",
+              "warnings"}
 
 
 class NutritionLogRepository(_LogRepository):
     model = NutritionLog
     date_column = "meal_date"
-    fields = {"meal_date", "meal_type", "foods", "calories", "macros", "notes"}
+    fields = {"meal_date", "meal_type", "foods", "calories", "macros", "notes", "warnings"}
 
 
 class MentalLogRepository(_LogRepository):
     model = MentalFitnessLog
     date_column = "activity_date"
     fields = {"activity_date", "activity_type", "duration_minutes", "mood_before", "mood_after",
-              "notes"}
+              "notes", "warnings"}

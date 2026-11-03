@@ -6,8 +6,9 @@ Load the profile and history, route, then either gate the router's own reply or 
 the chosen coaches in parallel, each section sent as soon as its coach ends (the first
 before the slowest). Two or more answers get a summary from the small model, gated.
 Helplines follow the sections when a coach set `risk_flag` or the crisis flag is set.
-Accounts save the message and what the person saw in one transaction; guests get the
-turn in `done` for the browser to keep.
+Accounts save the message, what the person saw and the turn's writes in one
+transaction; guests get the turn and their entries in the events for the browser to
+keep. Every "Logged" comes from what was stored (C.17, `staging`).
 
 The work belongs to the request, not the connection (Part E #34): a dropped connection
 changes nothing here. Every failure ends the stream with one terminal event.
@@ -51,6 +52,14 @@ from app.orchestration.composer import (
 )
 from app.orchestration.principal import Principal
 from app.orchestration.services import Services
+from app.orchestration.staging import (
+    Saved,
+    commit_writes,
+    guest_writes,
+    profile_hash,
+    turn_writes,
+    write_gate,
+)
 from app.providers import CallPlan, ImageInput, ProviderError, Turn
 from app.providers.base import trim
 from app.storage.context import Sessions, load_context, save_turn
@@ -109,12 +118,13 @@ async def run_chat(job: ChatJob, services: Services) -> None:
                      ", ".join(agents) or decision.kind)
         own = summary = None
         results: dict[AgentName, AgentResult] = {}
+        untrusted: dict[AgentName, bool] = {}
         if not agents:
             own = gated(decision.reply or "", profile or NO_PROFILE)
             await c.reply(own)
         else:
-            results = await _coaches(job, services, agents, profile, history, meters,
-                                     unchecked_caveat(context.unchecked))
+            results, untrusted = await _coaches(job, services, agents, profile, history,
+                                                meters, unchecked_caveat(context.unchecked))
             answered = [a for a in agents if results[a].reply is not None]
             if not answered:
                 await _fail(job, results[agents[0]].error or "unavailable", meters)
@@ -129,9 +139,20 @@ async def run_chat(job: ChatJob, services: Services) -> None:
         await _helplines(job, results)
         turn = history_turn(turn_text(own=own, summary=summary,
                                       results=[results[a] for a in agents]), agents)
-        if job.principal.user_id is not None:
-            await save_turn(job.principal, job.sessions, job.payload.client_request_id,
-                            job.payload.message, turn)
+        writes = turn_writes([(results[a], untrusted[a]) for a in results])
+        if job.principal.user_id is None:
+            hash_ = profile_hash(job.payload.guest_profile)
+            saved = guest_writes(writes)
+        else:
+            hash_ = profile_hash(profile)
+
+            async def also(session) -> Saved:
+                return await commit_writes(session, job.principal.user_id, writes, hash_,
+                                           job.admitted.trace_id)
+
+            saved = await save_turn(job.principal, job.sessions, job.payload.client_request_id,
+                                    job.payload.message, turn, also)
+        await _writes(job, saved, hash_)
         decisions = [d for r in results.values() for d in r.decisions]
         decisions += [*(own.decisions if own else ()), *(summary.decisions if summary else ())]
         sources = [s for r in results.values() for s in r.sources]
@@ -158,18 +179,21 @@ async def _fail(job: ChatJob, code: str, meters: "_Meters") -> None:
 
 async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
                    profile: UserProfile | None, history, meters: "_Meters",
-                   caveat: str | None) -> dict[AgentName, AgentResult]:
-    """In parallel; each section goes out as its coach ends (C.2 stage 10)."""
+                   caveat: str | None
+                   ) -> tuple[dict[AgentName, AgentResult], dict[AgentName, bool]]:
+    """In parallel; each section goes out as its coach ends (C.2 stage 10). Also, per
+    coach, whether a web search entered its turn (its writes then wait, C.17)."""
     c = job.composer
     deadline = min(time.monotonic() + AGENT_DEADLINE_S, job.deadline)
+    untrusted: dict[AgentName, bool] = {}
 
     async def one(agent: AgentName) -> tuple[AgentName, AgentResult]:
         await c.step("agent_started", agent)
         photo = agent == "nutrition" and job.image is not None
         tools = ToolContext(mode="account" if job.principal.user_id else "guest",
                             trace_id=job.admitted.trace_id, user_id=job.principal.user_id,
-                            sessions=job.sessions, search=services.search,
-                            search_keys=job.admitted.search_keys)
+                            sessions=job.sessions, gate_write=write_gate(profile),
+                            search=services.search, search_keys=job.admitted.search_keys)
         result = await services.coaches[agent].run(AgentRun(
             message=job.payload.message, profile=profile, history=history, tools=tools,
             deadline=deadline, principal=job.principal.fairness_key,
@@ -178,6 +202,7 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
             trace=job.trace, crisis_recent=job.crisis_recent))
         if caveat and result.reply is not None and result.reply.kind == "plan":
             result.warnings.append(caveat)
+        untrusted[agent] = tools.untrusted
         return agent, result
 
     results: dict[AgentName, AgentResult] = {}
@@ -189,7 +214,21 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
             composing = True
         await c.section(agent, result)
         results[agent] = result
-    return results
+    return results, untrusted
+
+
+async def _writes(job: ChatJob, saved: Saved, hash_: str) -> None:
+    """After the commit (C.2 stage 14): what was logged, then what waits for the
+    person's confirmation."""
+    c = job.composer
+    if saved.committed:
+        await c.committed(saved.committed)
+    for write, pending in saved.pending:
+        if pending is None:  # guest
+            await c.pending_write(write, profile_hash=hash_)
+        else:
+            await c.pending_write(write, write_id=str(pending.write_id),
+                                  expires_at=pending.expires_at)
 
 
 async def _summary(job: ChatJob, services: Services, results: dict[AgentName, AgentResult],

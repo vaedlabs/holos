@@ -47,6 +47,7 @@ from app.data.stream_store import Event
 from app.guardrails.gate import gate_text
 from app.guardrails.loader import get_guardrails
 from app.observability.tracer import Step, Trace
+from app.orchestration.staging import confirm_attributes, warning_text
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ TRACE_VIEW_MAX = 32 * 1024
 TURN_CHARS = 2000  # HistoryTurn.content
 WARNING_CHARS = 400
 AGENTS: frozenset[str] = frozenset({"physical", "nutrition", "mental"})
-TOOL_STATUSES = frozenset({"ok", "error", "refused", "staged", "unavailable"})
+TOOL_STATUSES = frozenset({"ok", "error", "refused", "staged", "held", "unavailable"})
 
 # Statuses the app shows; not conversation (the coaches and the router write that)
 NOTICES = {
@@ -215,7 +216,9 @@ class Composer:
                             expires_at: datetime | None = None,
                             profile_hash: str | None = None) -> None:
         """A write that waits for the person's confirmation (C.17)."""
-        fields: dict[str, Any] = {"summary": summarise(write.kind, write.args)[:300]}
+        fields: dict[str, Any] = {"summary": summarise(write.kind, write.args)[:300],
+                                  "warnings": [warning_text(w) for w in write.conflicts],
+                                  "attributes": confirm_attributes(write)}
         if self.mode == "account":
             fields |= {"write_id": write_id, "expires_at": expires_at}
         else:
@@ -225,14 +228,8 @@ class Composer:
     async def committed(self, writes: list[tuple[StagedWrite, str | None]]) -> None:
         """Confirmations from the commit result (C.17): written here, never by a model.
         Each write with its stored ID (account) or None (guest: the browser stores it)."""
-        rows = [CommittedWrite(
-            kind=w.kind, summary=f"Logged: {summarise(w.kind, w.args)}"[:300],
-            write_id=write_id, entry=w if self.mode == "guest" else None)
-            for w, write_id in writes]
-        # Only the ID or the entry, whichever this mode has; the entry stays whole
         await self._send([("committed", {"writes": [
-            {k: v for k, v in r.model_dump(mode="json").items() if v is not None}
-            for r in rows]})])
+            confirmation(w, write_id, self.mode) for w, write_id in writes]})])
 
     # --- The end ---
 
@@ -286,6 +283,18 @@ class Composer:
             self._seq += len(batch)
             self._last_sent = self.clock()
             self._ended = final
+
+
+def confirmation(write: StagedWrite, write_id: str | None,
+                 mode: Literal["guest", "account"]) -> dict[str, Any]:
+    """A committed write as the app shows it: "Logged: …" from what was stored, with
+    the ID (account) or the whole entry (guest). The stream's `committed` event and the
+    confirm endpoint both send this, so the app reads one shape."""
+    return CommittedWrite(kind=write.kind,
+                          summary=f"Logged: {summarise(write.kind, write.args)}"[:300],
+                          write_id=write_id, entry=write if mode == "guest" else None,
+                          warnings=[warning_text(w) for w in write.conflicts]
+                          ).model_dump(mode="json")
 
 
 # --- The trace as the person may see it (C.5 TraceView) ---

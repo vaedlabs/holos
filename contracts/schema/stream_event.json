@@ -153,6 +153,15 @@
           "title": "Summary",
           "type": "string"
         },
+        "warnings": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
         "write_id": {
           "anyOf": [
             {
@@ -876,7 +885,7 @@
       "properties": {
         "foods": {
           "items": {
-            "$ref": "#/$defs/FoodItem"
+            "$ref": "#/$defs/LoggedFood"
           },
           "maxItems": 5,
           "minItems": 1,
@@ -1017,6 +1026,140 @@
       "title": "LogWorkoutArgs",
       "type": "object"
     },
+    "LoggedFood": {
+      "additionalProperties": false,
+      "description": "A food in a meal log, with its protein, carbs and fat, so the person can track\nthem (owner, 3 Nov 2026, Part E #44). Plans and photo replies keep FoodItem.",
+      "properties": {
+        "allergen_tags": {
+          "items": {
+            "$ref": "#/$defs/Allergen"
+          },
+          "maxItems": 14,
+          "title": "Allergen Tags",
+          "type": "array"
+        },
+        "calories": {
+          "anyOf": [
+            {
+              "maximum": 5000,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Calories"
+        },
+        "carbs_g": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Grams of carbohydrate in this portion, your best estimate; null only if you can't estimate it.",
+          "title": "Carbs G"
+        },
+        "day": {
+          "anyOf": [
+            {
+              "maxLength": 16,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise.",
+          "title": "Day"
+        },
+        "diet_tags": {
+          "items": {
+            "$ref": "#/$defs/Diet"
+          },
+          "maxItems": 8,
+          "title": "Diet Tags",
+          "type": "array"
+        },
+        "fat_g": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Grams of fat in this portion, your best estimate; null only if you can't estimate it.",
+          "title": "Fat G"
+        },
+        "ingredients": {
+          "description": "1 to 8 main ingredients, in English, each at most 30 characters.",
+          "items": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Ingredients",
+          "type": "array"
+        },
+        "name": {
+          "description": "The dish, at most 60 characters.",
+          "maxLength": 60,
+          "title": "Name",
+          "type": "string"
+        },
+        "note": {
+          "description": "At most 120 characters.",
+          "maxLength": 120,
+          "title": "Note",
+          "type": "string"
+        },
+        "portion": {
+          "description": "At most 80 characters, for example '1 bowl (250 g)' or '2 rotis, 1 cup dal'.",
+          "maxLength": 80,
+          "title": "Portion",
+          "type": "string"
+        },
+        "protein_g": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Grams of protein in this portion, your best estimate; null only if you can't estimate it.",
+          "title": "Protein G"
+        }
+      },
+      "required": [
+        "day",
+        "name",
+        "ingredients",
+        "allergen_tags",
+        "diet_tags",
+        "portion",
+        "calories",
+        "note",
+        "protein_g",
+        "carbs_g",
+        "fat_g"
+      ],
+      "title": "LoggedFood",
+      "type": "object"
+    },
     "NoticeData": {
       "additionalProperties": false,
       "properties": {
@@ -1077,6 +1220,15 @@
     "PendingWriteData": {
       "additionalProperties": false,
       "properties": {
+        "attributes": {
+          "default": [],
+          "items": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "title": "Attributes",
+          "type": "array"
+        },
         "entry": {
           "anyOf": [
             {
@@ -1127,6 +1279,15 @@
           "maxLength": 64,
           "title": "Trace Id",
           "type": "string"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
         },
         "write_id": {
           "anyOf": [
@@ -1507,6 +1668,15 @@
           ],
           "title": "Kind",
           "type": "string"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WriteWarning"
+          },
+          "maxItems": 20,
+          "title": "Warnings",
+          "type": "array"
         }
       },
       "required": [
@@ -1745,6 +1915,7 @@
             "error",
             "refused",
             "staged",
+            "held",
             "unavailable"
           ],
           "title": "Status",
@@ -1877,6 +2048,58 @@
         "cost_usd"
       ],
       "title": "Usage",
+      "type": "object"
+    },
+    "WriteWarning": {
+      "additionalProperties": false,
+      "description": "What in a logged entry conflicts with the profile, kept with the log row (owner,\n3 Nov 2026, Part E #45). `conflict`: a rule fired, so the entry waits for the\nperson's confirmation; `unchecked`: ingredients the gate couldn't check, recorded\nonly. `left_out`: the person said at confirm that they didn't have it (the peanuts\npicked out of the poha).",
+      "properties": {
+        "attributes": {
+          "items": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Attributes",
+          "type": "array"
+        },
+        "item": {
+          "maxLength": 60,
+          "title": "Item",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "conflict",
+            "unchecked"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "left_out": {
+          "default": false,
+          "title": "Left Out",
+          "type": "boolean"
+        },
+        "reason": {
+          "maxLength": 200,
+          "title": "Reason",
+          "type": "string"
+        },
+        "rule_id": {
+          "maxLength": 40,
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item",
+        "rule_id",
+        "attributes",
+        "reason"
+      ],
+      "title": "WriteWarning",
       "type": "object"
     }
   },

@@ -4,6 +4,7 @@
     "foods": {
       "items": {
         "additionalProperties": false,
+        "description": "A food in a meal log, with its protein, carbs and fat, so the person can track\nthem (owner, 3 Nov 2026, Part E #44). Plans and photo replies keep FoodItem.",
         "properties": {
           "allergen_tags": {
             "items": {
@@ -40,6 +41,16 @@
               "null"
             ]
           },
+          "carbs_g": {
+            "description": "Grams of carbohydrate in this portion, your best estimate; null only if you can't estimate it.",
+            "maximum": 500,
+            "minimum": 0,
+            "title": "Carbs G",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
           "day": {
             "description": "Only in a plan over several days: the day or meal this item belongs to, for example 'Mon', 'Day 2', 'Daily' or 'Tue lunch'; null otherwise. At most 16 characters.",
             "title": "Day",
@@ -68,6 +79,16 @@
             "title": "Diet Tags",
             "type": "array"
           },
+          "fat_g": {
+            "description": "Grams of fat in this portion, your best estimate; null only if you can't estimate it.",
+            "maximum": 500,
+            "minimum": 0,
+            "title": "Fat G",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
           "ingredients": {
             "description": "1 to 8 main ingredients, in English, each at most 30 characters.",
             "items": {
@@ -93,6 +114,16 @@
             "description": "At most 80 characters, for example '1 bowl (250 g)' or '2 rotis, 1 cup dal'. At most 80 characters.",
             "title": "Portion",
             "type": "string"
+          },
+          "protein_g": {
+            "description": "Grams of protein in this portion, your best estimate; null only if you can't estimate it.",
+            "maximum": 500,
+            "minimum": 0,
+            "title": "Protein G",
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "required": [
@@ -103,9 +134,12 @@
           "diet_tags",
           "portion",
           "calories",
-          "note"
+          "note",
+          "protein_g",
+          "carbs_g",
+          "fat_g"
         ],
-        "title": "FoodItem",
+        "title": "LoggedFood",
         "type": "object"
       },
       "maxItems": 5,

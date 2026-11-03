@@ -107,6 +107,11 @@ def _food(name, ingredients, allergens=()):
                     diet_tags=[], portion="1 plate", calories=400, note="")
 
 
+def _logged(food):
+    """A plan's food as a meal log's: with its macros (Part E #44)."""
+    return {**food.model_dump(), "protein_g": 12, "carbs_g": 60, "fat_g": 8}
+
+
 def _nutrition(*foods, kind=None, summary="Here you go."):
     return NutritionReply(kind=kind or ("plan" if foods else "answer"), summary=summary,
                           items=list(foods), notes=[], source_ids=[], follow_up=None,
@@ -369,7 +374,7 @@ async def test_tool_calls_in_one_round_run_at_the_same_time():
 
 async def test_a_tool_round_and_the_reply_take_one_call_each():
     # Live (Part D): tools and the schema in one call, no separate tool phase
-    log = ("log_meal", {"meal": "lunch", "foods": [_food("Dal", ["lentils"]).model_dump()]})
+    log = ("log_meal", {"meal": "lunch", "foods": [_logged(_food("Dal", ["lentils"]))]})
     agent, fake = _agent(NutritionAgent, _calls(log),
                          _result(_nutrition(kind="log_ack", summary="Lunch noted.")))
     result = await agent.run(_run(message="log my lunch: dal", profile=NONE))
@@ -383,7 +388,7 @@ async def test_a_tool_round_and_the_reply_take_one_call_each():
      {"catalogue_id": "glute_bridge", "sets": 3, "reps": 12, "duration_s": None, "note": ""},
      _physical(kind="log_ack", summary="Nice work.")),
     (NutritionAgent, "log_meal",
-     {"meal": "lunch", "foods": [_food("Dal and rice", ["lentils", "rice"]).model_dump()]},
+     {"meal": "lunch", "foods": [_logged(_food("Dal and rice", ["lentils", "rice"]))]},
      _nutrition(kind="log_ack", summary="Lunch noted.")),
     (MentalAgent, "log_practice",
      {"catalogue_id": "box_breathing", "duration_min": 5, "mood_before": 2, "mood_after": 4,

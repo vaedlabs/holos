@@ -29,7 +29,8 @@ PHOTO_CAVEAT on the reply.
 
 import copy
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from typing import Any
 
 from .loader import Guardrails, Rule, get_guardrails
@@ -67,7 +68,8 @@ ALLERGEN_CONFLICTS = {
     Allergen.MOLLUSC: {DietConflict.ANIMAL_PRODUCT, DietConflict.SHELLFISH},
 }
 
-SENTENCE_SPLIT = re.compile(r"((?<=[.!?…])\s+|\n+)")
+# The danda (।) ends a Hindi sentence: without it one blocked mention took the paragraph
+SENTENCE_SPLIT = re.compile(r"((?<=[.!?…।])\s+|\n+)")
 SPACES = re.compile(r"[ \t]{2,}")
 SPACE_BEFORE_PUNCT = re.compile(r" +([.,;:!?])")
 
@@ -82,9 +84,12 @@ BARE_DOMAIN = re.compile(
     r"|link|site|online|top|club|shop|uk|us)\b(?:/" + _LINK_TAIL + ")?",
     re.IGNORECASE,
 )
+# "ho gaye" is left out: "log" is also "people" ("kai log ho gaye"). Devanagari has no
+# closing \b: a word ending in a vowel sign has no boundary there in `re`
 WRITE_CLAIM = re.compile(
-    r"\b(?:logged|saved|(?:log|save) kar (?:diya|di|dia)"
+    r"\b(?:logged|saved|(?:log|save) (?:kar (?:diya|di|dia)|ho (?:gaya|gya|gayi|gai))"
     r"|(?:added|recorded) (?:it |this |that )?(?:to|in) your (?:log|logs|diary|journal|history))\b"
+    r"|(?<!\w)(?:लॉग|सेव) (?:कर (?:दिया|दी)|हो (?:गया|गयी|गई))"
 )
 
 
@@ -165,6 +170,21 @@ class _Check:
     def entry_hits(self, entry: Entry) -> list[Rule]:
         return self._tag_hits(entry, set(entry.allergens), set(entry.diet_conflicts))
 
+    def _attributes(self, hits: list[Rule], allergens: set[str] = frozenset(),
+                    conflicts: set[str] = frozenset()) -> tuple[tuple[str, tuple[str, ...]], ...]:
+        out = []
+        for rule in hits:
+            found: list[str] = []
+            for key, value in rule.block.items():
+                if key == "allergen":
+                    found += sorted(str(a) for a in allergens & self.allergies)
+                elif key == "diet_conflict":
+                    found += sorted(str(c) for c in conflicts & set(_as_list(value)))
+                else:
+                    found.append(key)
+            out.append((rule.id, tuple(found)))
+        return tuple(out)
+
     # --- Items ---
 
     def catalogue_item(self, index: int, item: Any, kind: str) -> ItemVerdict:
@@ -175,7 +195,8 @@ class _Check:
             label = str(item.get("catalogue_id")) if isinstance(item, Mapping) else "?"
             d = self.decision("block", MALFORMED_RULE, MALFORMED_REASON, [label[:60]])
             return ItemVerdict(index, "block", decisions=(d,))
-        return self._verdict(index, self.entry_hits(entry), entry.name)
+        hits = self.entry_hits(entry)
+        return replace(self._verdict(index, hits, entry.name), attributes=self._attributes(hits))
 
     def food_item(self, index: int, food: Any) -> ItemVerdict:
         if not isinstance(food, Mapping) or not isinstance(food.get("name"), str):
@@ -201,11 +222,13 @@ class _Check:
             verdict = self._photo_verdict(index, hits, name, allergens)
         else:
             verdict = self._verdict(index, hits, name)
+        verdict = replace(verdict, attributes=self._attributes(hits, allergens, conflicts))
         if unknown and self.allergies:
             d = self.decision("warn", UNCHECKED_RULE, UNCHECKED_REASON, unknown)
             caveat = f"{UNCHECKED_REASON}: {', '.join(unknown)}"
             verdict = ItemVerdict(index, max(verdict.action, "warn", key=ACTION_ORDER.get),
-                                  (*verdict.caveats, caveat), (*verdict.decisions, d))
+                                  (*verdict.caveats, caveat), (*verdict.decisions, d),
+                                  (*verdict.attributes, (UNCHECKED_RULE, tuple(unknown))))
         return verdict
 
     def _photo_verdict(self, index: int, hits: list[Rule], name: str,
@@ -331,15 +354,31 @@ def _plate(check: _Check, items: Any) -> set[Entry]:
     return plate
 
 
+def _already_had(check: _Check, logged: Sequence[Mapping[str, Any]]) -> set[Entry]:
+    had: set[Entry] = set()
+    for entry in logged:
+        if "foods" in entry:
+            had |= _plate(check, entry["foods"])
+        cid = entry.get("catalogue_id")
+        for table in (check.matcher.exercises, check.matcher.practices):
+            if cid in table:
+                had.add(table[cid])
+    return had
+
+
 def gate(
     domain: Domain,
     reply_or_write: Mapping[str, Any],
     profile: ProfileLike,
     guardrails: Guardrails | None = None,
     purpose: Purpose = "plan",
+    logged: Sequence[Mapping[str, Any]] = (),
 ) -> GateResult:
     """Check an agent reply or a write (log_workout, log_meal, log_practice arguments).
-    purpose="photo": a nutrition reply about a meal photo (C.14 step 7)."""
+    purpose="photo": a nutrition reply about a meal photo (C.14 step 7).
+    logged: the entries the person logged this turn (write arguments). Like a photo's
+    foods, they are what the person already had, so a sentence naming them stays: live,
+    a vegan's paneer log lost its whole acknowledgement (Part E #45)."""
     if domain not in ITEM_KIND:
         raise ValueError(f"unknown domain '{domain}'")
     if purpose == "photo" and (domain != "nutrition" or "summary" not in reply_or_write):
@@ -350,6 +389,7 @@ def gate(
     if "summary" in content:  # a reply
         if purpose == "photo":
             check.on_plate = _plate(check, content.get("items"))
+        check.on_plate |= _already_had(check, logged)
         items = _items(check, domain, content.get("items", []), "items")
         content["summary"] = check.prose(content["summary"], "summary")
         notes = [check.prose(n, f"notes[{i}]") for i, n in enumerate(content.get("notes") or [])]

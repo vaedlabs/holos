@@ -88,8 +88,10 @@ async def test_spend_never_passes_a_cap_and_settles_exactly(store, async_engine,
     await watcher
 
     assert violations == [], f"seed {seed}: cap passed: {violations[:3]}"
-    # The run must really press on the caps: some reservations refused, many granted
-    assert outcomes[False] > 10 and outcomes[True] > 50, outcomes
+    # The run must really press on the caps: some reservations refused, many granted.
+    # Under CPU load reservations are held longer, so fewer are granted: 45 of 300 was
+    # seen with 6 busy cores (3 Nov 2026), which failed the old bar of 50 with no cap passed
+    assert outcomes[False] > 10 and outcomes[True] > 25, outcomes
     for row in await _rows(async_engine, "SELECT * FROM spend"):
         assert row["reserved_usd"] == 0 and row["reserved_credits"] == 0, row
         assert row["cost_usd"] == settled[row["key"]], row

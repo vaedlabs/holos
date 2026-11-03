@@ -121,6 +121,40 @@ class FoodItem(_LLMModel):
     note: str = Field(max_length=120, description="At most 120 characters.")
 
 
+MACRO_MAX_G = 500  # per food: stops impossible numbers only
+# 4P + 4C + 9F may pass the stated calories by this much (rounding, fibre counted as
+# carbs); the worst of 32 live foods was +10% (Part D, P4.8)
+ENERGY_SLACK = 1.25
+ENERGY_FLOOR_KCAL = 30
+_MACRO = ("Grams of {} in this portion, your best estimate; null only if you can't "
+          "estimate it.")
+
+
+class LoggedFood(FoodItem):
+    """A food in a meal log, with its protein, carbs and fat, so the person can track
+    them (owner, 3 Nov 2026, Part E #44). Plans and photo replies keep FoodItem."""
+
+    protein_g: float | None = Field(ge=0, le=MACRO_MAX_G, description=_MACRO.format("protein"))
+    carbs_g: float | None = Field(ge=0, le=MACRO_MAX_G,
+                                  description=_MACRO.format("carbohydrate"))
+    fat_g: float | None = Field(ge=0, le=MACRO_MAX_G, description=_MACRO.format("fat"))
+
+    @model_validator(mode="after")
+    def _macros_fit_the_calories(self):
+        """Protein, carbs and fat can't hold more energy than the food. Less is fine:
+        alcohol has energy of its own (live, two pints of lager: 430 kcal stated, 160
+        from the macros); 30 of 32 live foods were within 10% (Part D, P4.8)."""
+        amounts = (self.calories, self.protein_g, self.carbs_g, self.fat_g)
+        if any(a is None for a in amounts):
+            return self
+        energy = 4 * self.protein_g + 4 * self.carbs_g + 9 * self.fat_g
+        if energy > self.calories * ENERGY_SLACK + ENERGY_FLOOR_KCAL:
+            raise ValueError(
+                f"{self.name}: protein, carbs and fat give about {round(energy)} kcal, more "
+                f"than the {round(self.calories)} kcal stated; correct the numbers")
+        return self
+
+
 # --- Replies (C.3) ---
 
 # A week plan fits (Part E #38: 30 of 44 live week plans complete, 16 of 44 at 8/5/5;
@@ -262,7 +296,18 @@ class LogWorkoutArgs(_LLMModel):
 
 class LogMealArgs(_LLMModel):
     meal: Literal["breakfast", "lunch", "dinner", "snack"]
-    foods: list[FoodItem] = Field(min_length=1, max_length=5)
+    foods: list[LoggedFood] = Field(min_length=1, max_length=5)
+
+    def totals(self) -> dict[str, float | bool | None]:
+        """The meal's calories and macros: each the sum over the foods that give it
+        (None if none does); `complete` only when every food gives all four."""
+        out: dict[str, float | bool | None] = {}
+        for name in ("calories", "protein_g", "carbs_g", "fat_g"):
+            known = [getattr(f, name) for f in self.foods if getattr(f, name) is not None]
+            out[name] = round(sum(known), 1) if known else None
+        out["complete"] = all(getattr(f, n) is not None for f in self.foods
+                              for n in ("calories", "protein_g", "carbs_g", "fat_g"))
+        return out
 
 
 class LogPracticeArgs(_LLMModel):
@@ -355,9 +400,29 @@ class Source(_Model):
     url: str = Field(max_length=2000, pattern=r"^https?://")
 
 
+class WriteWarning(_Model):
+    """What in a logged entry conflicts with the profile, kept with the log row (owner,
+    3 Nov 2026, Part E #45). `conflict`: a rule fired, so the entry waits for the
+    person's confirmation; `unchecked`: ingredients the gate couldn't check, recorded
+    only. `left_out`: the person said at confirm that they didn't have it (the peanuts
+    picked out of the poha)."""
+
+    kind: Literal["conflict", "unchecked"]
+    item: str = Field(max_length=60)  # the food or exercise
+    rule_id: str = Field(max_length=40)
+    attributes: list[Annotated[str, Field(max_length=40)]] = Field(max_length=10)
+    reason: str = Field(max_length=200)
+    left_out: bool = False
+
+
 class StagedWrite(_Model):
     kind: WriteKind
     args: LogWorkoutArgs | LogMealArgs | LogPracticeArgs
+    warnings: list[WriteWarning] = Field(default=[], max_length=20)
+
+    @property
+    def conflicts(self) -> list[WriteWarning]:
+        return [w for w in self.warnings if w.kind == "conflict"]
 
     @model_validator(mode="after")
     def _args_match_kind(self):
@@ -407,7 +472,7 @@ class TraceTool(_Model):
     name: str = Field(max_length=40)
     args: str = Field(max_length=120)
     duration_ms: int = Field(ge=0)
-    status: Literal["ok", "error", "refused", "staged", "unavailable"]
+    status: Literal["ok", "error", "refused", "staged", "held", "unavailable"]
 
 
 class TraceView(_Model):
@@ -483,8 +548,19 @@ class SectionEndData(_EventData):
     error: AgentError | None = None  # the coach failed: no section_start came before
 
 
+class ConfirmWrite(_Model):
+    """POST /agents/writes/{id}/confirm, body optional: the attributes from the
+    `pending_write` event the person didn't have (Part E #45)."""
+
+    left_out: list[Annotated[str, Field(max_length=40)]] = Field(default=[], max_length=10)
+
+
 class PendingWriteData(_EventData):
     summary: str = Field(max_length=300)
+    # What to confirm: each conflict as text, and the attributes the person may say they
+    # left out (Part E #45); empty when only a web search holds the write
+    warnings: list[Annotated[str, Field(max_length=300)]] = []
+    attributes: list[Annotated[str, Field(max_length=40)]] = []
     # Account mode
     write_id: str | None = None
     expires_at: datetime | None = None
@@ -508,6 +584,7 @@ class CommittedWrite(_Model):
     summary: str = Field(max_length=300)
     write_id: str | None = None  # account
     entry: StagedWrite | None = None  # guest: for the browser to store
+    warnings: list[Annotated[str, Field(max_length=300)]] = []  # as logged, left-outs too
 
 
 class CommittedData(_EventData):

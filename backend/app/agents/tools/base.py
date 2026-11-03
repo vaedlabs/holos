@@ -12,7 +12,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agents.schemas import Decision, Source, StagedWrite, WriteKind
+from app.agents.schemas import Decision, Source, StagedWrite, WriteKind, WriteWarning
 from app.data.state_store import SpendKey
 
 
@@ -21,14 +21,16 @@ class GateResult:
     allowed: bool
     reason: str | None = None
     decisions: tuple[Decision, ...] = ()
+    args: BaseModel | None = None  # the entry as the gate cleaned it (links, claims)
+    warnings: tuple[WriteWarning, ...] = ()  # conflicts: the entry waits for confirmation
 
 
-# Gates a write before it is staged. P4.8 wires the real gate (Plan C.14, C.17).
+# Gates a write before it is staged: `orchestration.staging.write_gate` (Plan C.14, C.17).
 GateHook = Callable[[WriteKind, BaseModel, "ToolContext"], Awaitable[GateResult]]
 
 
 async def allow_all(kind: WriteKind, args: BaseModel, ctx: "ToolContext") -> GateResult:
-    """Placeholder gate until P4.8."""
+    """For tests of the tools alone; a chat turn always sets the real gate."""
     return GateResult(allowed=True)
 
 

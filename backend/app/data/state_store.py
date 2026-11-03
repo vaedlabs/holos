@@ -541,19 +541,9 @@ class StateStore:
     async def stage_write(
         self, user_id: int, kind: str, payload: dict[str, Any], profile_hash: str, trace_id: str
     ) -> uuid.UUID:
-        write_id = uuid.uuid4()
         async with self._engine.begin() as conn:
-            await conn.execute(
-                text(
-                    "INSERT INTO pending_writes (id, user_id, kind, payload, profile_hash, "
-                    "trace_id, expires_at) VALUES (:id, :uid, :kind, CAST(:payload AS json), "
-                    ":hash, :trace, now() + :ttl)"
-                ),
-                {"id": write_id, "uid": user_id, "kind": kind,
-                 "payload": _json(payload), "hash": profile_hash, "trace": trace_id,
-                 "ttl": limits.PENDING_WRITE_TTL},
-            )
-        return write_id
+            pending = await stage_pending(conn, user_id, kind, payload, profile_hash, trace_id)
+        return pending.write_id
 
     async def confirm_write(
         self, write_id: uuid.UUID, user_id: int, regate: Regate, commit: CommitWrite
@@ -570,16 +560,19 @@ class StateStore:
                 {"id": write_id, "uid": user_id},
             )).mappings().one_or_none()
             if row is None:
-                return ConfirmResult(404, {"error": "not_found"})
+                return ConfirmResult(404, {"code": "not_found",
+                                           "message": "There is no such entry to confirm."})
             if row["status"] in ("committed", "discarded"):
                 return ConfirmResult(row["result"]["status_code"], row["result"]["body"])
             if row["expired"]:
-                return ConfirmResult(410, {"error": "expired"})
+                return ConfirmResult(410, {"code": "expired", "message": "This entry waited "
+                                           "too long to be confirmed. Please log it again."})
 
             payload = {"kind": row["kind"], **row["payload"]}
             reason = await regate(payload)
             if reason is not None:
-                result = {"status_code": 409, "body": {"error": "blocked", "reason": reason}}
+                result = {"status_code": 409, "body": {"code": "blocked",
+                                                       "message": f"Not logged: {reason}"}}
                 await self._finish_write(conn, write_id, "discarded", result)
                 return ConfirmResult(409, result["body"])
 
@@ -627,6 +620,30 @@ class StateStore:
             {"key": principal_key, "rid": client_request_id, "uid": user_id, "trace": trace_id},
         )
         return claimed.one_or_none() is not None
+
+
+@dataclass(frozen=True)
+class Pending:
+    write_id: uuid.UUID
+    expires_at: datetime
+
+
+async def stage_pending(
+    conn: AsyncConnection, user_id: int, kind: str, payload: dict[str, Any], profile_hash: str,
+    trace_id: str,
+) -> Pending:
+    """A write that waits for confirmation (C.17), inside the caller's transaction: a
+    chat turn stages it with the turn's messages."""
+    row = (await conn.execute(
+        text(
+            "INSERT INTO pending_writes (id, user_id, kind, payload, profile_hash, "
+            "trace_id, expires_at) VALUES (:id, :uid, :kind, CAST(:payload AS json), "
+            ":hash, :trace, now() + :ttl) RETURNING id, expires_at"
+        ),
+        {"id": uuid.uuid4(), "uid": user_id, "kind": kind, "payload": _json(payload),
+         "hash": profile_hash, "trace": trace_id, "ttl": limits.PENDING_WRITE_TTL},
+    )).one()
+    return Pending(row.id, row.expires_at)
 
 
 def _json(value: Any) -> str:

@@ -299,7 +299,8 @@ async def test_regate_block_discards_and_repeats_409(store, user_id):
         return "Contains an allergen in your profile"
 
     first = await store.confirm_write(write_id, user_id, block, _committer([]))
-    assert first.status_code == 409 and first.body["reason"].startswith("Contains")
+    assert first.status_code == 409 and first.body == {
+        "code": "blocked", "message": "Not logged: Contains an allergen in your profile"}
     again = await store.confirm_write(write_id, user_id, _allow, _committer([]))
     assert again == first  # stored result, original status code
 

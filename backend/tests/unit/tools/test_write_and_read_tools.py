@@ -14,8 +14,9 @@ WRITES = {
                                 "duration_s": None, "note": ""}, "Push-up: 3 x 10"),
     "log_meal": ("meal", {"meal": "lunch", "foods": [{
         "day": None, "name": "Dal rice", "ingredients": ["lentils", "rice"], "allergen_tags": [],
-        "diet_tags": ["vegan"], "portion": "1 plate", "calories": 520, "note": ""}]},
-        "Lunch: Dal rice"),
+        "diet_tags": ["vegan"], "portion": "1 plate", "calories": 520, "note": "",
+        "protein_g": 18, "carbs_g": 85, "fat_g": 10}]},
+        "Lunch: Dal rice · 520 kcal · protein 18 g, carbs 85 g, fat 10 g"),
     "log_practice": ("practice", {"catalogue_id": "box_breathing", "duration_min": 5,
                                   "mood_before": None, "mood_after": 4, "note": ""},
                      "Box breathing: 5 min"),

@@ -13,7 +13,7 @@ Key Features:
 - Notes for additional workout information
 """
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float, Index
+from sqlalchemy import JSON, Column, Integer, String, Text, ForeignKey, DateTime, Float, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -129,6 +129,10 @@ class WorkoutLog(Base):
     # Used by agents to understand workout context and user feedback
     # Nullable to allow workouts without notes
     notes = Column(Text, nullable=True)
+
+    # What in the entry conflicted with the profile when it was logged, and whether the
+    # person left it out: a list of WriteWarning (Plan C.17, Part E #45). Null: none
+    warnings = Column(JSON, nullable=True)
     
     # Log entry creation timestamp
     # Automatically set to current time when log entry is created

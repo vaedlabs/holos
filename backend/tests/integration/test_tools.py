@@ -56,7 +56,7 @@ async def test_recent_logs_own_newest_first_within_days(sessions, two_users):
     out = await TOOLS["get_recent_logs"].run({"kind": "workout", "days": 14}, ctx)
     assert [e["notes"] for e in out["entries"]] == ["today", "yesterday"]
     assert set(out["entries"][0]) == {"date", "exercise_type", "exercises", "duration_minutes",
-                                      "notes"}
+                                      "notes", "warnings"}
     meals = await TOOLS["get_recent_logs"].run({"kind": "meal", "days": 14}, ctx)
     assert meals == {"entries": []}  # Bob's meal is not Alice's
 

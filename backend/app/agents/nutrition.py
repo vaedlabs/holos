@@ -33,4 +33,6 @@ and state any assumption in the summary; ask first only when no sensible plan is
 - A meal photo: list each food you can see as an item (kind plan), with its likely \
 ingredients, allergen tags, portion and calories. Describe what is on the plate; if a food \
 may conflict with their allergies or diet, say so plainly in that item's note.
-- A meal they ate: call log_meal with its foods, then confirm with kind log_ack."""
+- A meal they ate: call log_meal with its foods, each with your best estimate of its \
+calories, protein, carbs and fat for that portion, then confirm with kind log_ack. Asked \
+what they have eaten (today's protein, this week's calories): read get_recent_logs."""

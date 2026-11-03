@@ -147,6 +147,10 @@ class ItemVerdict:
     action: Action
     caveats: tuple[str, ...] = ()
     decisions: tuple[Decision, ...] = ()
+    # Per rule that fired, what in the item set it off: allergens ("peanut"), diet
+    # conflicts ("animal_product"), item tags ("knee_load"), unchecked ingredients.
+    # A logged entry keeps them (Part E #45)
+    attributes: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
 @dataclass(frozen=True)
