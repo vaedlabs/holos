@@ -13,7 +13,7 @@ Key Features:
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, true
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -78,7 +78,7 @@ class User(Base):
     # Defaults to True (active) when account is created
     # Set to False to disable account without deleting data
     # Used by authentication dependency to prevent inactive users from logging in
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, server_default=true(), nullable=False)
     
     # Account creation timestamp
     # Automatically set to current time when user record is created

@@ -100,6 +100,18 @@ def test_up_down_up_keeps_existing_data(fresh):
         assert conn.execute(text("SELECT conditions FROM medical_history")).scalar() == "torn ACL"
 
 
+def test_accounts_without_a_status_become_active(fresh):
+    """Before 0718293a4b52 a row inserted without is_active had NULL, which locked the
+    account out of the profile routes."""
+    alembic("upgrade", "f60718293a41")
+    with fresh.begin() as conn:
+        conn.execute(text("INSERT INTO users (id, email, username, password_hash, is_active) "
+                          "VALUES (1, 'a@x.io', 'a', 'h', NULL), (2, 'b@x.io', 'b', 'h', false)"))
+    alembic("upgrade", "head")
+    with fresh.connect() as conn:
+        assert conn.execute(text("SELECT id, is_active FROM users ORDER BY id")).all() == [
+            (1, True), (2, False)]
+
 def test_schema_matches_models(migrated):
     with migrated.connect() as conn:
         diff = compare_metadata(

@@ -187,14 +187,16 @@ class StateStore:
 
     async def touch_session(self, raw_id: str) -> SessionInfo | None:
         """Mark a live session as used. Accounts slide the 7-day idle timeout, capped
-        at 30 days from creation; guests keep their absolute 240 minutes."""
+        at 30 days from creation; guests keep their absolute 240 minutes. An inactive
+        account's session is no session, however it was switched off."""
         async with self._engine.begin() as conn:
             row = (await conn.execute(
                 text(
                     "UPDATE sessions SET last_seen_at = now(), expires_at = CASE "
                     "WHEN mode = 'account' THEN LEAST(created_at + :max, now() + :idle) "
                     "ELSE expires_at END "
-                    "WHERE id_hash = :h AND expires_at > now() "
+                    "WHERE id_hash = :h AND expires_at > now() AND (user_id IS NULL OR "
+                    "EXISTS (SELECT 1 FROM users WHERE id = sessions.user_id AND is_active)) "
                     f"RETURNING {_SESSION_COLUMNS}"
                 ),
                 {"h": hash_session_id(raw_id), "max": limits.ACCOUNT_SESSION_MAX,
@@ -216,6 +218,20 @@ class StateStore:
                 text("DELETE FROM sessions WHERE user_id = :uid"), {"uid": user_id}
             )
         return result.rowcount
+
+    async def set_active(self, user_id: int, active: bool) -> bool:
+        """Deactivate an account, ending all its sessions in the same transaction, or
+        activate it again. Who may do this, and why, is decided elsewhere (Part E #48).
+        A request already running finishes; nothing new is accepted. False: no such
+        account."""
+        async with self._engine.begin() as conn:
+            found = (await conn.execute(
+                text("UPDATE users SET is_active = :a WHERE id = :uid"),
+                {"a": active, "uid": user_id})).rowcount == 1
+            if found and not active:
+                await conn.execute(text("DELETE FROM sessions WHERE user_id = :uid"),
+                                   {"uid": user_id})
+        return found
 
     async def purge_expired_sessions(self) -> int:
         async with self._engine.begin() as conn:

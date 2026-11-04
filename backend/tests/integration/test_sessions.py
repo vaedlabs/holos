@@ -677,8 +677,11 @@ async def test_a_user_deactivated_mid_session_is_refused(world):
         signed_in = await login(client)
         await sql(world, "UPDATE users SET is_active = false WHERE id = :id", id=user_id)
         response = await client.post("/preferences", json=PREFERENCES, headers=csrf(signed_in))
-        assert response.status_code == 403
-        assert (await client.get("/preferences")).status_code == 403
+        # The session ends with the account (Part E #48); signing in again says why
+        assert (response.status_code, response.json()["code"]) == (401, "no_session")
+        assert (await client.get("/preferences")).status_code == 401
+        response = await login(client)
+        assert (response.status_code, response.json()["code"]) == (403, "inactive")
 
 
 async def test_an_unknown_email_takes_as_long_as_a_wrong_password(world):
