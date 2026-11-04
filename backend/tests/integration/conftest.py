@@ -1,5 +1,6 @@
 """Integration tests run against TEST_DATABASE_URL, never the dev database (Plan A.3)."""
 
+import asyncio
 import os
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from sqlalchemy.engine import make_url
 from alembic import command
 from app.data.engine import make_async_engine, psycopg_url
 from app.observability import background
+from app.orchestration import worker
 
 load_dotenv()
 
@@ -76,6 +78,9 @@ def clean(migrated):
             "SELECT string_agg(quote_ident(tablename), ', ') FROM pg_tables "
             "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
         )).scalar()
+        # Another run on this database, or a leaked transaction, fails here instead of
+        # hanging the run
+        conn.execute(text("SET LOCAL lock_timeout = '60s'"))
         conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 
 
@@ -83,7 +88,18 @@ def clean(migrated):
 async def async_engine(clean):
     eng = make_async_engine(TEST_URL)
     yield eng
-    # A trace write still running when the test's loop closes would hold its transaction
-    # open, and `clean`'s TRUNCATE would wait for it forever
-    await background.settled()
+    await _finish_background_work()
     await eng.dispose()
+
+
+async def _finish_background_work() -> None:
+    """A chat request or trace write still running when the test's loop closes would hold
+    its transaction open, and `clean`'s TRUNCATE (which blocks the loop) would wait for it
+    forever. Requests first: they record their traces as they end."""
+    loop = asyncio.get_running_loop()
+    for tasks in (worker._running, background._pending):
+        if mine := {t for t in tasks if t.get_loop() is loop}:
+            _, late = await asyncio.wait(mine, timeout=30)
+            for task in late:  # cancelled: its connection rolls back and is returned
+                task.cancel()
+            await asyncio.gather(*late, return_exceptions=True)

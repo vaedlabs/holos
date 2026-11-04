@@ -14,8 +14,8 @@ from app.data.state_store import StateStore
 from app.observability import background
 from app.observability.tracer import Trace
 from app.orchestration import worker
-from app.providers.fake import Slow
 from app.providers import BadRequest
+from app.providers.fake import Slow
 
 from .test_admission import account, guest, sql
 from .test_chat import (

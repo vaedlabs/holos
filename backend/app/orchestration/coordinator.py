@@ -237,13 +237,19 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
 
     results: dict[AgentName, AgentResult] = {}
     composing = False
-    for done in asyncio.as_completed([one(a) for a in agents]):
-        agent, result = await done
-        if not composing:
-            await c.step("composing")
-            composing = True
-        await c.section(agent, result)
-        results[agent] = result
+    tasks = [asyncio.create_task(one(a)) for a in agents]
+    try:
+        for done in asyncio.as_completed(tasks):
+            agent, result = await done
+            if not composing:
+                await c.step("composing")
+                composing = True
+            await c.section(agent, result)
+            results[agent] = result
+    finally:  # a request cut off (hard limit, ended elsewhere) stops its coaches too
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
     return results, untrusted
 
 

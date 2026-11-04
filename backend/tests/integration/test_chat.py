@@ -597,3 +597,23 @@ async def test_a_turn_that_isnt_saved_leaves_no_photo(store, async_engine, tmp_p
     await _settled()
     assert events[-1][0] == "error"
     assert list(tmp_path.rglob("*.jpg")) == []
+
+
+async def test_a_request_past_its_hard_limit_stops_its_coaches(store, async_engine,
+                                                               monkeypatch):
+    """No model call goes on, and is paid for, after the person got the error."""
+    monkeypatch.setattr(worker, "HARD_LIMIT_S", 0.3)
+    answered = []
+
+    def late(call):
+        answered.append(call)
+        return _physical("glute_bridge")
+
+    models = Models(router=[_route("physical", "mental")], physical=[Slow(1, late)],
+                    mental=[Slow(1, _mental())])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("a workout and help with stress")))
+    await _settled()
+    assert events[-1][0] == "error"
+    await asyncio.sleep(1.2)
+    assert answered == []

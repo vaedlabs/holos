@@ -93,7 +93,8 @@ class WebSearch:
                 return None  # a cap is reached: no call
         try:
             raw = await asyncio.wait_for(
-                self._client.search(query, search_depth="basic", max_results=MAX_RESULTS),
+                self._client.search(query, search_depth="basic", max_results=MAX_RESULTS,
+                                    timeout=TIMEOUT_SECONDS),
                 timeout=TIMEOUT_SECONDS,
             )
         except Exception:  # timeout or provider error: the credit is used (C.13)
@@ -147,8 +148,7 @@ def get_web_search(store: StateStore | None) -> WebSearch:
     if _shared is None:
         from tavily import AsyncTavilyClient
 
-        client = AsyncTavilyClient(api_key=os.environ["TAVILY_API_KEY"],
-                                   timeout=int(TIMEOUT_SECONDS))
+        client = AsyncTavilyClient(api_key=os.environ["TAVILY_API_KEY"])
         _shared = WebSearch(client, store)
     return _shared
 

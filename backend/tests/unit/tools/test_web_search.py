@@ -29,7 +29,7 @@ async def test_client_called_with_basic_depth_and_five_results(ctx):
     client = FakeSearchClient()
     ctx.search = _service(client)
     await TOOL.run({"query": "q"}, ctx)
-    assert client.calls == [("q", {"search_depth": "basic", "max_results": 5})]
+    assert client.calls == [("q", {"search_depth": "basic", "max_results": 5, "timeout": 5.0})]
 
 
 async def test_cache_hit_makes_no_call_and_uses_no_credit(ctx):
@@ -152,3 +152,11 @@ async def test_malformed_items_are_skipped(ctx, item, kept):
     assert len(titles) == (2 if kept else 1)
     for r in out["results"]:
         assert isinstance(r["snippet"], str)
+
+
+def test_the_real_client_is_built_as_its_library_allows(monkeypatch):
+    """The other tests use a fake client, so a constructor argument the installed
+    tavily-python doesn't take only showed up in CI (TypeError on the first search)."""
+    monkeypatch.setenv("TAVILY_API_KEY", "tvly-not-a-real-key")
+    monkeypatch.setattr(ws, "_shared", None)
+    assert isinstance(ws.get_web_search(None), WebSearch)
