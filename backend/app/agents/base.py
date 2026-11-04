@@ -120,6 +120,9 @@ class AgentRun:
     others: tuple[AgentName, ...] = ()  # the other coaches answering this message
     trace: Trace | None = None  # the request's trace; None: a trace of this run alone
     crisis_recent: bool = False  # the crisis check matched in the last 30 minutes (C.16)
+    # Every gate decision of the run, retries included: the trace stores them all (C.14
+    # step 6). The result's `decisions` are the final reply's, which the person sees
+    decided: list[schemas.Decision] = field(default_factory=list)
 
 
 @dataclass
@@ -169,6 +172,8 @@ class BaseAgent:
             result = self._failed(run, "unavailable", "bug")
         run.trace.step("coach", self.domain, "error" if result.error else "ok",
                        began_ms=began)
+        # Write gate decisions (tools.decisions) persist across a retry; reply ones don't
+        result.decided = [*run.decided, *run.tools.decisions]
         return result
 
     async def _run(self, run: AgentRun) -> AgentResult:
@@ -243,6 +248,7 @@ class BaseAgent:
         gated = gate(self.domain, reply.model_dump(mode="json"), run.profile or _NO_PROFILE,
                      purpose="photo" if photo else "plan", logged=logged)
         run.trace.step("gate", self.domain, gated.action)
+        run.decided += decisions_of(gated)
         because, why = None, ""
         if gated.needs_retry:
             # The whole reply: live, a week plan's retry came back with only the swaps
@@ -314,6 +320,7 @@ class BaseAgent:
             content = {**reply.model_dump(mode="json"), "kind": "answer", "items": [],
                        "source_ids": []}
             told = gate(self.domain, content, run.profile or _NO_PROFILE)
+            run.decided += decisions_of(told)
             if told.content.get("summary"):
                 run.trace.step("explain", self.domain, began_ms=began)
                 return AgentResult(

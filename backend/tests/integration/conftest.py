@@ -12,6 +12,7 @@ from sqlalchemy.engine import make_url
 
 from alembic import command
 from app.data.engine import make_async_engine, psycopg_url
+from app.observability import background
 
 load_dotenv()
 
@@ -82,4 +83,7 @@ def clean(migrated):
 async def async_engine(clean):
     eng = make_async_engine(TEST_URL)
     yield eng
+    # A trace write still running when the test's loop closes would hold its transaction
+    # open, and `clean`'s TRUNCATE would wait for it forever
+    await background.settled()
     await eng.dispose()

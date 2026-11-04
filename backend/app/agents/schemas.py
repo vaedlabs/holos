@@ -443,6 +443,9 @@ class AgentResult(_Model):
     decisions: list[Decision] = []
     sources: list[Source] = []
     staged_writes: list[StagedWrite] = []
+    # Every gate decision of the coach's run, retries and writes included, for the trace
+    # (C.14 step 6); `decisions` are only the final reply's
+    decided: list[Decision] = []
     # Set when there is no reply: the stream's notice or error (C.5)
     error: AgentError | None = None
 

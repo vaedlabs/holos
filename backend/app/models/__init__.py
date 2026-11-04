@@ -33,6 +33,7 @@ from app.models.agent_execution_log import AgentExecutionLog
 from app.models.state import (
     AccountImport,
     DeletionQueue,
+    UnresolvedTerm,
     InflightLease,
     Invite,
     PendingWrite,
@@ -67,6 +68,7 @@ __all__ = [
     "Invite",
     "AccountImport",
     "DeletionQueue",
+    "UnresolvedTerm",
     "Trace",
     "GateDecision",
     "RuleHitCount",

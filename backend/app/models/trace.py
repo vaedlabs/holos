@@ -31,7 +31,8 @@ class Trace(Base):
     session_id_hash: Mapped[str | None] = mapped_column(String(64))
     user_id: Mapped[int | None] = mapped_column(_user_fk(), index=True)
     route: Mapped[str] = mapped_column(String(16))
-    steps: Mapped[list[Any]] = mapped_column(JSON)
+    # {"steps": [...], "attempts": [...]} (observability.tracer.Trace.as_dict)
+    steps: Mapped[dict[str, Any]] = mapped_column(JSON)
     usage: Mapped[dict[str, Any]] = mapped_column(JSON)
     success: Mapped[bool] = mapped_column(Boolean)
     created_at: Mapped[datetime] = mapped_column(

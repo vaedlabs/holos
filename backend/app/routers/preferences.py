@@ -30,10 +30,13 @@ Cache Integration:
 - Ensures agents receive up-to-date preference data
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.dependencies import get_database, get_current_user
 from app.models.user import User
+from app.observability.terms import count_saved
 from app.services.user_service import get_user_preferences, update_user_preferences
 from app.schemas.preferences import UserPreferencesCreate, UserPreferencesResponse
 
@@ -170,11 +173,19 @@ async def create_or_update_user_preferences(
     try:
         # Update user preferences using user service
         # Service handles create/update logic and cache invalidation
+        old = get_user_preferences(current_user.id, db)
+        before = getattr(old, "dietary_restrictions", None)
         preferences = update_user_preferences(
             user_id=current_user.id,  # User ID for user-specific preferences
             data=preferences_data.dict(exclude_none=True),  # Only include provided fields (partial update)
             db=db  # Database session
         )
+        try:  # new unresolved phrases, for the catalogue review (P4.10); never fails the save
+            count_saved(db, "dietary_restrictions", before, preferences.dietary_restrictions)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logging.getLogger(__name__).warning("unresolved terms not counted", exc_info=True)
         return preferences  # Return updated preferences
     except Exception as e:
         # Handle update errors

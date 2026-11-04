@@ -4,7 +4,7 @@ Columns that reference users.id cascade on user delete (marked † in C.11).
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -12,6 +12,7 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -183,3 +184,15 @@ class AccountImport(Base):
     import_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
     result: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = _now()
+
+
+class UnresolvedTerm(Base):
+    """A health phrase that names nothing in the catalogue, counted per day for the
+    owner's review; no user link (Plan P4.10, Part E #42, #47). Kept 90 days."""
+
+    __tablename__ = "unresolved_terms"
+
+    term: Mapped[str] = mapped_column(String(40), primary_key=True)
+    field: Mapped[str] = mapped_column(String(24), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    count: Mapped[int] = mapped_column(Integer)

@@ -61,11 +61,13 @@ app = FastAPI(
 async def finish_running_requests():
     """A planned restart takes no new chat requests and lets running ones end (Plan C.5,
     Part E #34); uvicorn waits for this before the process exits."""
+    from app.observability import background
     from app.orchestration import worker
 
     left = await worker.drain()
     if left:
         logger.error("shutdown: %d chat requests still running at the hard limit", left)
+    await background.settled()  # their traces too
 
 
 # Validate environment variables at startup

@@ -36,10 +36,13 @@ Cache Integration:
 - Ensures agents receive up-to-date medical data for safety checks
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.dependencies import get_database, get_current_user
 from app.models.user import User
+from app.observability.terms import count_saved
 from app.services.medical_service import get_medical_history, update_medical_history
 from app.schemas.medical import MedicalHistoryCreate, MedicalHistoryResponse
 
@@ -183,11 +186,14 @@ async def create_or_update_medical_history(
     try:
         # Update medical history using medical service
         # Service handles create/update logic and cache invalidation
+        old = get_medical_history(current_user.id, db)
+        before = {f: getattr(old, f, None) for f in ("conditions", "limitations")}
         medical_history = update_medical_history(
             user_id=current_user.id,  # User ID for user-specific medical history
             data=medical_data.dict(exclude_none=True),  # Only include provided fields (partial update)
             db=db  # Database session
         )
+        _count_unresolved(db, before, medical_history)
         return medical_history  # Return updated medical history
     except Exception as e:
         # Handle update errors
@@ -197,3 +203,15 @@ async def create_or_update_medical_history(
             detail=f"Failed to update medical history: {str(e)}"
         )
 
+
+
+def _count_unresolved(db: Session, before: dict, saved) -> None:
+    """New phrases that name nothing, for the owner's catalogue review (P4.10). A
+    counting failure never fails the save."""
+    try:
+        for field, old in before.items():
+            count_saved(db, field, old, getattr(saved, field, None))
+        db.commit()
+    except Exception:
+        db.rollback()
+        logging.getLogger(__name__).warning("unresolved terms not counted", exc_info=True)

@@ -17,6 +17,7 @@ import uuid
 
 from app.config.limits import REQUEST_DEADLINE_S
 from app.data.stream_store import HEARTBEAT_S, RequestEnded, StreamStore
+from app.observability.background import record
 from app.orchestration.coordinator import ChatJob, run_chat
 from app.orchestration.services import Services
 
@@ -90,6 +91,7 @@ async def run_job(job: ChatJob, services: Services, streams: StreamStore,
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
         await job.admitted.release()
+        record(job.store.engine, job.outcome)  # after the response; never delays it
 
 
 async def _heartbeat(job: ChatJob, streams: StreamStore) -> None:

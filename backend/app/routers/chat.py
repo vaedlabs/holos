@@ -41,6 +41,7 @@ from app.dependencies import (
     get_stream_store,
 )
 from app.guardrails.crisis import CrisisMatch, crisis_check
+from app.observability.background import Outcome, record
 from app.observability.tracer import Trace
 from app.orchestration import worker
 from app.orchestration.admission import admit
@@ -220,4 +221,7 @@ async def _crisis_stream(request: Request, store: StateStore, settings: Settings
     await composer.accepted(CONTRACT_VERSION)
     await composer.crisis()
     await composer.done(trace_view(trace, "crisis", [], [], [], NO_USAGE), NO_USAGE)
+    record(store.engine, Outcome(trace, principal.session.id_hash if principal else None,
+                                 principal.user_id if principal else None, route="crisis",
+                                 usage=NO_USAGE.model_dump(mode="json"), success=True))
     return sse_response(live.events())

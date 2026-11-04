@@ -145,6 +145,12 @@ def with_note_terms(profile: UserProfile | None) -> UserProfile | None:
                                       "diet_tags": sorted(tags["diet"])})
 
 
+def unresolved_phrases(text: str | None) -> list[str]:
+    """The phrases of a conditions, limitations or diet text that name nothing the
+    catalogue knows, folded as the matcher folds them (for the review counts, P4.10)."""
+    return [fold_for_matching(p) for p in phrases(text) if not _found(p)]
+
+
 def unchecked_caveat(unchecked) -> str | None:
     """Every plan's caveat while health text couldn't be checked (C.8, Part E #42)."""
     if not unchecked:

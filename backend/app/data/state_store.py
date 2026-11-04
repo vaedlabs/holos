@@ -156,6 +156,10 @@ def _window_seconds(window: timedelta) -> int:
 
 
 class StateStore:
+    @property
+    def engine(self) -> AsyncEngine:
+        return self._engine
+
     def __init__(self, engine: AsyncEngine):
         self._engine = engine
 

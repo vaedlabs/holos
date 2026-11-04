@@ -39,6 +39,7 @@ from app.config.limits import (
 from app.config.speeds import ROUTER, SUMMARY
 from app.data.state_store import StateStore
 from app.data.stream_store import RequestEnded
+from app.observability.background import Outcome
 from app.observability.tracer import Trace
 from app.orchestration.admission import Admitted
 from app.orchestration.budget import Budget, CallMeter
@@ -91,6 +92,12 @@ class ChatJob:
     images: ImageStore | None = None  # where an account's photo is kept (C.8)
     started: float = field(default_factory=time.monotonic)
     crisis_recent: bool = False  # read once, at the start (C.16)
+    outcome: Outcome | None = None  # for the background writer (C.2 stage 15)
+
+    def __post_init__(self) -> None:
+        if self.outcome is None:
+            self.outcome = Outcome(self.trace, self.principal.session.id_hash,
+                                   self.principal.user_id)
 
     @property
     def deadline(self) -> float:
@@ -99,8 +106,15 @@ class ChatJob:
 
 async def run_chat(job: ChatJob, services: Services) -> None:
     """Stages 9–14. Never raises (except RequestEnded): every end is an event."""
-    c = job.composer
     meters = _Meters(job)
+    try:
+        await _run(job, services, meters)
+    finally:
+        job.outcome.usage = meters.usage().model_dump(mode="json")
+
+
+async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
+    c = job.composer
     try:
         await c.step("admitted")
         job.crisis_recent = await job.store.crisis_active(job.principal.principal_key)
@@ -116,6 +130,7 @@ async def run_chat(job: ChatJob, services: Services) -> None:
             await _fail(job, error_code(exc), meters)
             return
         agents = list(decision.agents)
+        job.outcome.route = decision.kind
         await c.step("routed", agents[0] if len(agents) == 1 else None,
                      ", ".join(agents) or decision.kind)
         own = summary = None
@@ -165,8 +180,14 @@ async def run_chat(job: ChatJob, services: Services) -> None:
         decisions = [d for r in results.values() for d in r.decisions]
         decisions += [*(own.decisions if own else ()), *(summary.decisions if summary else ())]
         sources = [s for r in results.values() for s in r.sources]
+        # Every decision, retries included (C.14 step 6), not only what the person saw
+        job.outcome.decisions = [*(d for r in results.values() for d in r.decided),
+                                 *(own.decisions if own else ()),
+                                 *(summary.decisions if summary else ())]
         await c.done(trace_view(job.trace, decision.kind, agents, decisions, sources,
                                 meters.usage()), meters.usage(), turn)
+        # Honest (C.5): only when every coach it chose answered, or Holos answered itself
+        job.outcome.success = all(results[a].reply is not None for a in agents)
     except RequestEnded:
         raise  # someone ended this request as interrupted: stop quietly
     except Exception:
