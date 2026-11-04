@@ -78,6 +78,7 @@ async def follow(store: StreamStore, trace_id: str, after: int,
                  poll_s: float = POLL_S) -> AsyncIterator[Event]:
     """A reconnect: the saved events after `after`, then new ones as they are saved,
     until the terminal event. A request whose worker is gone ends as `interrupted`."""
+    last_read = False
     while True:
         events = await store.after(trace_id, after)
         for event in events:
@@ -86,12 +87,16 @@ async def follow(store: StreamStore, trace_id: str, after: int,
             if event[1] in ("done", "error"):
                 return
         if not events:
+            if last_read:
+                return  # its events have expired (10 minutes)
             ended = await store.interrupt(trace_id, {"trace_id": trace_id, **INTERRUPTED})
             if ended is not None:
                 yield ended
                 return
             if await store.finished(trace_id):
-                return  # its events have expired (10 minutes)
+                # It may have saved its last events since the read above: read once more
+                last_read = True
+                continue
             await asyncio.sleep(poll_s)
 
 

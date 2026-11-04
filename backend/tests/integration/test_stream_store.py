@@ -123,6 +123,26 @@ async def test_follow_replays_then_waits_for_live_events(streams, request_id):
     assert seen == [1, 2, 3]
 
 
+
+async def test_follow_keeps_the_events_saved_as_the_request_ends():
+    """The read finds nothing, then the request saves its last events and finishes
+    before `follow` asks whether it has: those events still reach the person."""
+
+    class Ending:
+        reads = 0
+
+        async def after(self, trace_id, seq):
+            self.reads += 1
+            return [] if self.reads == 1 else [_ev(2), _ev(3, "done")]
+
+        async def interrupt(self, trace_id, data):
+            return None
+
+        async def finished(self, trace_id):
+            return True
+
+    assert [e[0] async for e in follow(Ending(), "t1", 1, poll_s=0.01)] == [2, 3]
+
 async def test_follow_ends_a_dead_request_as_interrupted(streams, request_id, async_engine):
     await streams.append("t1", [_ev(0)])
     await _stale(async_engine)
