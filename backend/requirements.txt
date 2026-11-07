@@ -11,22 +11,9 @@ alembic==1.17.2
 # Object storage: account images on S3-compatible storage (C.8)
 boto3==1.43.123
 
-# LangChain (compatible versions - updated for compatibility)
-langchain==1.1.0
-langchain-core==1.1.0
-langchain-openai==1.1.0
-
-# LangGraph
-langgraph==1.0.4
-langgraph-checkpoint==3.0.1
-langgraph-prebuilt==1.0.5
-langgraph-sdk==0.2.10
-
-# LangSmith
-langsmith==0.4.49
-
-# OpenAI SDK (updated for langchain-openai compatibility)
-openai==2.54.0  # 3.x blocked by langchain-openai<3 until P4.12
+# OpenAI SDK (Responses API, Plan C.9). 3.x is no longer blocked (LangChain is gone);
+# moving to it is its own step: its httpx2 default client changes our test fixtures
+openai==2.54.0
 
 # Authentication
 bcrypt==5.0.0
@@ -51,9 +38,8 @@ requests==2.32.5
 # Web Search
 tavily-python==0.7.13
 
-# Google Gemini (using direct SDK, not LangChain wrapper)
-google-generativeai==0.8.5  # Direct SDK for both text and image analysis
-google-genai==2.33.0  # New Gemini provider (Interactions API); the line above goes in P4.12
+# Google Gemini provider (Interactions API), kept as a possible fallback (Part E #29)
+google-genai==2.33.0
 
 # Image Processing
 Pillow==12.0.0

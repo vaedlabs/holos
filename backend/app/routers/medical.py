@@ -9,7 +9,6 @@ Key Features:
 - Medical history management (conditions, medications, limitations, notes)
 - Partial updates supported (only provided fields are updated)
 - Critical for agent safety checks (exercise conflict detection, dietary restrictions)
-- Cache integration for efficient agent access
 
 Medical History Includes:
 - Medical conditions (e.g., heart disease, diabetes, back injury, knee pain)
@@ -29,11 +28,6 @@ Security:
 - Users can only access and modify their own medical history
 - Medical history is user-specific (filtered by user_id)
 - Sensitive medical information requires proper authentication
-
-Cache Integration:
-- Medical history is cached via ContextManager
-- Cache invalidation occurs on updates (via medical_service)
-- Ensures agents receive up-to-date medical data for safety checks
 """
 
 import logging
@@ -90,11 +84,6 @@ async def get_medical_history_endpoint(
         - Users can only access their own medical history
         - Sensitive medical information requires proper authentication
         
-    Cache Integration:
-        - Medical history is cached via ContextManager
-        - Cache is checked first before database query
-        - Reduces database load for frequently accessed medical data
-        
     Example:
         GET /medical/history
         
@@ -139,12 +128,6 @@ async def create_or_update_medical_history(
         - Medical history updates immediately affect agent safety checks
         - Exercise conflict detection uses updated conditions and limitations
         - Dietary restriction checks use updated medications and conditions
-        - Cache invalidation ensures agents see updated medical data immediately
-    
-    Cache Integration:
-        - Cache is invalidated on update (via medical_service)
-        - Ensures agents receive up-to-date medical data for safety checks
-        - ContextManager cache refreshed on next access
     
     Args:
         medical_data: MedicalHistoryCreate schema containing:
@@ -169,7 +152,6 @@ async def create_or_update_medical_history(
         
     Note:
         - exclude_none=True ensures only provided fields are updated
-        - Cache invalidation ensures agents see updated medical data immediately
         - Partial updates allow flexible medical history management
         - Medical history is critical for safety - updates affect agent recommendations
         
@@ -185,7 +167,7 @@ async def create_or_update_medical_history(
     """
     try:
         # Update medical history using medical service
-        # Service handles create/update logic and cache invalidation
+        # Service handles the create/update logic
         old = get_medical_history(current_user.id, db)
         before = {f: getattr(old, f, None) for f in ("conditions", "limitations")}
         medical_history = update_medical_history(

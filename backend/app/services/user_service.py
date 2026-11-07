@@ -9,7 +9,6 @@ Key Features:
 - User preferences retrieval
 - User preferences creation and updates
 - Partial update support (only update provided fields)
-- Integration with context manager for caching
 
 Preference Fields:
 - goals: User fitness/health goals
@@ -23,8 +22,6 @@ Preference Fields:
 
 Usage:
 - Used by agents to personalize recommendations
-- Cached by ContextManager to avoid redundant queries
-- Should invalidate context cache after updates
 """
 
 from typing import Optional
@@ -59,7 +56,6 @@ def get_user_preferences(user_id: int, db: Session) -> Optional[UserPreferences]
     Note:
         - Returns None if user has no preferences
         - Used by agents to personalize recommendations
-        - Cached by ContextManager to avoid redundant queries
     """
     return db.query(UserPreferences).filter(UserPreferences.user_id == user_id).first()
 
@@ -96,15 +92,9 @@ def update_user_preferences(user_id: int, data: dict, db: Session) -> UserPrefer
         - Fields not in data dictionary remain unchanged
         - Allows updating individual fields without affecting others
         
-    Cache Invalidation:
-        - Should invalidate context cache after update
-        - Call context_manager.invalidate_cache(user_id) after update
-        - Ensures agents get fresh preferences on next request
-        
     Note:
         - Supports partial updates (only update fields in data)
         - Commits changes to database
-        - Should invalidate context cache after update
         - Used by API endpoints for preference management
     """
     # Get existing preferences (if any)

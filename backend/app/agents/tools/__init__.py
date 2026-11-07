@@ -1,4 +1,4 @@
-"""Agent tools (Plan C.10). The old LangChain tools live in tools/legacy until P4.12."""
+"""Agent tools (Plan C.10)."""
 
 from app.agents.schemas import AgentName
 

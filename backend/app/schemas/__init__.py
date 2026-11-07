@@ -15,13 +15,9 @@ Exported Schemas:
     User Preferences:
         - UserPreferencesCreate: Create/update preferences request
         - UserPreferencesResponse: User preferences response
-    
-    Agent Interactions:
-        - AgentChatRequest: Agent chat request (query, agent_type, etc.)
-        - AgentChatResponse: Agent chat response (message, warnings, etc.)
 
 Usage:
-    from app.schemas import UserResponse, AgentChatRequest
+    from app.schemas import UserResponse, MedicalHistoryResponse
     
     # Schemas are used by FastAPI for request validation and response serialization
     # Pydantic automatically validates types, formats, and constraints
@@ -30,10 +26,9 @@ Usage:
 from app.schemas.user import UserResponse
 from app.schemas.medical import MedicalHistoryCreate, MedicalHistoryResponse
 from app.schemas.preferences import UserPreferencesCreate, UserPreferencesResponse
-from app.schemas.agents import AgentChatRequest, AgentChatResponse
 
 # Export all schemas for convenient importing
-# Makes schemas available via: from app.schemas import UserResponse, AgentChatRequest
+# Makes schemas available via: from app.schemas import UserResponse, MedicalHistoryResponse
 __all__ = [
     # Authentication schemas
     "UserResponse",  # User data response
@@ -43,7 +38,4 @@ __all__ = [
     # User preferences schemas
     "UserPreferencesCreate",  # Create/update preferences request
     "UserPreferencesResponse",  # User preferences response
-    # Agent interaction schemas
-    "AgentChatRequest",  # Agent chat request (query, agent_type, etc.)
-    "AgentChatResponse"  # Agent chat response (message, warnings, etc.)
 ]

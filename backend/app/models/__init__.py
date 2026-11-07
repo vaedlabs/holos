@@ -12,7 +12,6 @@ Exported Models:
     - NutritionLog: Meal tracking and nutrition history
     - MentalFitnessLog: Wellness activity tracking (meditation, stress management)
     - ConversationMessage: Chat history between users and AI agents
-    - AgentExecutionLog: Agent execution traces (observability, debugging)
 
 Usage:
     from app.models import User, WorkoutLog
@@ -29,7 +28,6 @@ from app.models.workout_log import WorkoutLog
 from app.models.nutrition_log import NutritionLog
 from app.models.mental_fitness_log import MentalFitnessLog
 from app.models.conversation_message import ConversationMessage
-from app.models.agent_execution_log import AgentExecutionLog
 from app.models.state import (
     AccountImport,
     DeletionQueue,
@@ -56,7 +54,6 @@ __all__ = [
     "NutritionLog",  # Meal tracking
     "MentalFitnessLog",  # Wellness activity tracking
     "ConversationMessage",  # Chat history
-    "AgentExecutionLog",  # Agent execution traces
     "Session",
     "InflightLease",
     "PrincipalFlag",

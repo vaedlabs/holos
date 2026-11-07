@@ -70,8 +70,9 @@ def _seed_old_schema(engine) -> None:
 
 
 def _counts(engine) -> dict[str, int]:
+    # agent_execution_logs isn't kept: 293a4b5c6d74 drops it, its downgrade recreates it empty
     tables = ("users", "medical_history", "user_preferences", "workout_logs", "nutrition_logs",
-              "mental_fitness_logs", "conversation_messages", "agent_execution_logs")
+              "mental_fitness_logs", "conversation_messages")
     with engine.connect() as conn:
         return {t: conn.execute(text(f"SELECT count(*) FROM {t}")).scalar() for t in tables}
 
@@ -131,6 +132,39 @@ def test_held_entries_lose_their_time_limit(fresh):
         assert conn.execute(text("SELECT profile_hash, expires_at IS NULL FROM pending_writes "
                                  "ORDER BY profile_hash")).all() == [("done", False),
                                                                      ("live", True)]
+
+
+def _shape(engine, table: str) -> tuple:
+    insp = inspect(engine)
+    columns = [(c["name"], str(c["type"]), c["nullable"], c.get("default"))
+               for c in insp.get_columns(table)]
+    indexes = sorted((i["name"], tuple(i["column_names"]), i["unique"])
+                     for i in insp.get_indexes(table))
+    keys = [(k["constrained_columns"], k["referred_table"], k["options"].get("ondelete"))
+            for k in insp.get_foreign_keys(table)]
+    return columns, indexes, keys
+
+
+def test_the_old_agent_log_is_dropped_and_comes_back_as_it_was(fresh):
+    """293a4b5c6d74 (P4.12): the old agents' log goes with them; its rows held people's
+    messages. The downgrade recreates the table as it was, empty."""
+    alembic("upgrade", "18293a4b5c63")
+    before = _shape(fresh, "agent_execution_logs")
+    with fresh.begin() as conn:
+        conn.execute(text("INSERT INTO users (id, email, username, password_hash) "
+                          "VALUES (1, 'a@x.io', 'a', 'h')"))
+        conn.execute(text("INSERT INTO agent_execution_logs (trace_id, agent_type, user_id, "
+                          "query) VALUES ('t1', 'physical', 1, 'my knee hurts')"))
+    alembic("upgrade", "head")
+    assert "agent_execution_logs" not in _tables(fresh)
+    alembic("downgrade", "18293a4b5c63")
+    assert _shape(fresh, "agent_execution_logs") == before
+    with fresh.begin() as conn:
+        assert conn.execute(text("SELECT count(*) FROM agent_execution_logs")).scalar() == 0
+        conn.execute(text("INSERT INTO agent_execution_logs (trace_id, agent_type, user_id) "
+                          "VALUES ('t2', 'physical', 1)"))
+        conn.execute(text("DELETE FROM users WHERE id = 1"))  # still cascades
+        assert conn.execute(text("SELECT count(*) FROM agent_execution_logs")).scalar() == 0
 
 
 def test_schema_matches_models(migrated):

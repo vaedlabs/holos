@@ -5,18 +5,19 @@ This module contains FastAPI route handlers (routers) that define API endpoints.
 Routers are organized by domain and handle HTTP requests/responses.
 
 Router Modules:
-    - auth.py: User authentication (register, login, delete account)
-    - agents.py: AI agent interactions (chat endpoints for all agents)
+    - auth.py: Login, logout, invites, delete account
+    - session.py: Guest sessions and the CSRF token
+    - chat.py: The chat stream, reconnect and write confirmation
+    - account.py: Import a guest's data, profile check
     - preferences.py: User preferences management (GET, POST/PUT)
     - medical.py: Medical history management (GET, POST/PUT)
     - logs.py: Log management (workouts, nutrition, mental fitness)
     - conversation.py: Conversation history and image handling
-    - cache.py: Cache management and monitoring endpoints
 
 Routers are registered in app.main:app using app.include_router().
 
 Usage:
     Routers are imported and included in main.py:
-        from app.routers import auth, agents, preferences
+        from app.routers import auth, chat, preferences
         app.include_router(auth.router, prefix="/auth", tags=["auth"])
 """

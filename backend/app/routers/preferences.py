@@ -8,7 +8,6 @@ This module provides FastAPI router endpoints for user preferences management:
 Key Features:
 - User preferences management (goals, activity level, dietary restrictions, etc.)
 - Partial updates supported (only provided fields are updated)
-- Cache invalidation integrated with user service
 - Authentication required for all endpoints
 
 User Preferences Include:
@@ -23,11 +22,6 @@ Security:
 - All endpoints require authentication (get_current_user dependency)
 - Users can only access and modify their own preferences
 - Preferences are user-specific (filtered by user_id)
-
-Cache Integration:
-- User preferences are cached via ContextManager
-- Cache invalidation occurs on updates (via user_service)
-- Ensures agents receive up-to-date preference data
 """
 
 import logging
@@ -81,11 +75,6 @@ async def get_user_preferences_endpoint(
         - Requires authentication (get_current_user dependency)
         - Users can only access their own preferences
         
-    Cache Integration:
-        - Preferences are cached via ContextManager
-        - Cache is checked first before database query
-        - Reduces database load for frequently accessed preferences
-        
     Example:
         GET /preferences
         
@@ -126,11 +115,6 @@ async def create_or_update_user_preferences(
         - Partial updates: Only provided fields are updated (exclude_none=True)
         - Existing fields: Preserved if not provided in request
     
-    Cache Integration:
-        - Cache is invalidated on update (via user_service)
-        - Ensures agents receive up-to-date preference data
-        - ContextManager cache refreshed on next access
-    
     Args:
         preferences_data: UserPreferencesCreate schema containing:
             - goals: Optional[str] (fitness goals)
@@ -157,7 +141,6 @@ async def create_or_update_user_preferences(
         
     Note:
         - exclude_none=True ensures only provided fields are updated
-        - Cache invalidation ensures agents see updated preferences immediately
         - Partial updates allow flexible preference management
         
     Example:
@@ -172,7 +155,7 @@ async def create_or_update_user_preferences(
     """
     try:
         # Update user preferences using user service
-        # Service handles create/update logic and cache invalidation
+        # Service handles the create/update logic
         old = get_user_preferences(current_user.id, db)
         before = getattr(old, "dietary_restrictions", None)
         preferences = update_user_preferences(

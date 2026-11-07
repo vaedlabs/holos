@@ -14,12 +14,13 @@ Key Components:
 
 The application uses a modular architecture with separate routers for:
 - Authentication (auth)
+- Guest sessions (session)
 - Medical history (medical)
-- AI Agents (agents)
+- Chat stream, reconnect and write confirmation (chat)
+- Account import and profile check (account)
 - User preferences (preferences)
 - Conversations (conversation)
 - Logs (logs)
-- Cache management (cache)
 """
 
 import logging
@@ -98,8 +99,7 @@ async def validate_environment():
     Required (application fails to start if missing):
     - SESSION_SECRET, IP_SALT_SECRET, origins, Turnstile keys: checked by get_settings()
     - DATABASE_URL: PostgreSQL connection string
-    - OPENAI_API_KEY: Required for Physical Fitness, Mental Fitness, and Coordinator agents
-    - GOOGLE_GEMINI_API_KEY: Required for Nutrition Agent (image analysis and meal planning)
+    - OPENAI_API_KEY: every model call (the router, the three coaches, the summary)
     
     Optional (application continues but feature is disabled if missing):
     - TAVILY_API_KEY: Enables web search functionality for all agents
@@ -124,11 +124,7 @@ async def validate_environment():
         },
         "OPENAI_API_KEY": {
             "required": True,
-            "description": "OpenAI API key for Physical Fitness, Mental Fitness, and Coordinator agents"
-        },
-        "GOOGLE_GEMINI_API_KEY": {
-            "required": True,
-            "description": "Google Gemini API key for Nutrition Agent (required for image analysis and meal planning)"
+            "description": "OpenAI API key for every model call"
         }
     }
     
@@ -258,7 +254,7 @@ async def health():
 
 # Include routers
 # Import all router modules - each router handles a specific domain of endpoints
-from app.routers import account, auth, medical, agents, chat, preferences, conversation, logs, cache, session
+from app.routers import account, auth, medical, chat, preferences, conversation, logs, session
 
 # Register routers with the FastAPI application
 # Order matters: more specific routes should be registered before more general ones
@@ -271,11 +267,9 @@ app.include_router(medical.router)       # Medical history endpoints (/medical/*
 app.include_router(chat.router)          # Chat stream and reconnect (/agents/chat/*)
 app.include_router(chat.writes_router)   # Confirming pending writes (/agents/writes/*)
 app.include_router(account.router)       # Save to an account, profile check
-app.include_router(agents.router)        # AI agent endpoints (/agents/*)
 app.include_router(preferences.router)    # User preferences endpoints (/preferences/*)
 app.include_router(conversation.router)   # Conversation endpoints (/conversation/*)
 app.include_router(logs.router)         # Log endpoints (/logs/*)
-app.include_router(cache.router)        # Cache management endpoints (/cache/*)
 
 # Ensure the uploads directory exists at startup
 # Images are served via the authenticated /conversation/images/{filename} endpoint,

@@ -24,7 +24,7 @@ class User(Base):
     
     This model stores user authentication information and provides relationships
     to all user-related data including medical history, preferences, workout logs,
-    nutrition logs, mental fitness logs, conversation messages, and agent execution logs.
+    nutrition logs, mental fitness logs and conversation messages.
     
     Attributes:
         id: Primary key, auto-incrementing integer
@@ -42,7 +42,6 @@ class User(Base):
         nutrition_logs: One-to-many relationship with NutritionLog
         mental_fitness_logs: One-to-many relationship with MentalFitnessLog
         conversation_messages: One-to-many relationship with ConversationMessage
-        agent_execution_logs: One-to-many relationship with AgentExecutionLog
     
     Note:
         - Password is never stored in plain text, only the bcrypt hash
@@ -128,9 +127,5 @@ class User(Base):
     # Each user can have multiple conversation messages with AI agents
     # Access via: user.conversation_messages (returns list of ConversationMessage objects)
     conversation_messages = relationship("ConversationMessage", back_populates="user", passive_deletes=True)
-    
-    # One-to-many relationship with AgentExecutionLog
-    # Each user can have multiple agent execution log entries (for observability)
-    # Access via: user.agent_execution_logs (returns list of AgentExecutionLog objects)
-    agent_execution_logs = relationship("AgentExecutionLog", back_populates="user", passive_deletes=True)
+
 

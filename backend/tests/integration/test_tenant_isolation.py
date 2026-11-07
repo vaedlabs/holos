@@ -51,9 +51,6 @@ NO_USER_DATA = {
     ("GET", "/session/csrf"): "the caller's own token, from the caller's own cookie",
     ("POST", "/auth/login"): "checks a password; a wrong one reads nothing",
     ("POST", "/invites/accept"): "creates a new account from an invite",
-    ("GET", "/cache/stats"): "the old process-wide tool cache (removed in P4.12)",
-    ("POST", "/cache/clear"): "the old process-wide tool cache (removed in P4.12)",
-    ("POST", "/cache/invalidate/{tool_name}"): "the old tool cache (removed in P4.12)",
 }
 
 
@@ -76,8 +73,6 @@ async def world(async_engine, clean, tmp_path):
     await images.put(key, b"B-image")
     await sql(async_engine, "INSERT INTO conversation_messages (user_id, role, content, "
               "image_path) VALUES (:u, 'user', 'B-message', :k)", u=u, k=key)
-    await sql(async_engine, "INSERT INTO agent_execution_logs (trace_id, user_id, "
-              "agent_type, query) VALUES ('B-trace', :u, 'physical', 'B-input')", u=u)
     write_id = await store.stage_write(u, "workout", {"args": BRIDGES, "warnings": []},
                                        "hash", "tb")
     rid = uuid.uuid4()
@@ -159,7 +154,6 @@ CHECKS = {
                                                          "/conversation/messages"),
     ("GET", "/conversation/images/{name}"): lambda w: _get(
         w, f"/conversation/images/{w.key.rsplit('/', 1)[1]}"),
-    ("GET", "/agents/execution-logs"): lambda w: _get(w, "/agents/execution-logs"),
     ("POST", "/agents/chat/stream"): lambda w: _chat_naming_b(w),
     ("GET", "/agents/chat/stream/{client_request_id}"): lambda w: _get(
         w, f"/agents/chat/stream/{w.rid}"),
