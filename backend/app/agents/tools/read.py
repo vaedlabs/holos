@@ -1,6 +1,10 @@
 """get_recent_logs (Plan C.10). Profile and history are already in the prompt (C.8)."""
 
+import logging
 from typing import Any
+
+from sqlalchemy.exc import InterfaceError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 
 from app.agents.schemas import GetRecentLogsArgs
 from app.data.repositories import (
@@ -10,6 +14,8 @@ from app.data.repositories import (
 )
 
 from .base import Tool, ToolContext
+
+log = logging.getLogger(__name__)
 
 _REPOS = {
     "workout": WorkoutLogRepository,
@@ -26,12 +32,17 @@ _FIELDS = {
 
 
 async def get_recent_logs(args: GetRecentLogsArgs, ctx: ToolContext) -> dict[str, Any]:
-    """Up to 20 entries, newest first. Guests have no server-side logs."""
+    """Up to 20 entries, newest first. Guests have no server-side logs. If the database
+    can't answer, the coach is told so and answers without them (failure library)."""
     if ctx.mode == "guest" or ctx.sessions is None or ctx.user_id is None:
         return {"entries": []}
     date_field, fields = _FIELDS[args.kind]
-    async with ctx.sessions() as session:
-        rows = await _REPOS[args.kind](session, ctx.user_id).recent(days=args.days)
+    try:
+        async with ctx.sessions() as session:
+            rows = await _REPOS[args.kind](session, ctx.user_id).recent(days=args.days)
+    except (OperationalError, InterfaceError, PoolTimeout):
+        log.warning("recent logs unavailable: trace=%s", ctx.trace_id)
+        return {"status": "unavailable"}
     return {
         "entries": [
             {"date": getattr(r, date_field).isoformat(), **{f: getattr(r, f) for f in fields}}

@@ -19,6 +19,8 @@ breaker per provider (Plan C.9). Every time rule reads the call's measured Speed
   good nor bad (for a non-streaming call, only before its p99). Opens
   when 5 calls within 60 s were bad and they were at least half; after 30 s one
   trial call goes through (half-open); good closes it, bad reopens it.
+* An account failure (key rejected, out of credit) opens the breaker at once, for 5
+  minutes, and logs one alert line; it isn't retried, but a fallback route may run.
 * Bad requests and malformed replies are not retried here: they say nothing about
   provider health. The agent's own retry (C.10 step 6) handles malformed replies.
 * Every attempt, also one that never went out, is recorded on the plan's trace with
@@ -26,6 +28,7 @@ breaker per provider (Plan C.9). Every time rule reads the call's measured Speed
 """
 
 import asyncio
+import logging
 import random
 import time
 from collections import deque
@@ -39,6 +42,7 @@ from app.config.speeds import TIMEOUT_OVERSHOOT_S, Speed
 from app.observability.tracer import Attempt, Role, Trace
 
 from .base import (
+    AccountFailure,
     BadRequest,
     GenerateOptions,
     LLMProvider,
@@ -55,6 +59,8 @@ from .base import (
 from .base import ProviderUnavailable as Unavailable
 from .scheduler import FairScheduler
 
+log = logging.getLogger(__name__)
+
 MAX_RETRIES = 2
 BASE_DELAY_S = 0.5
 MAX_DELAY_S = 4.0  # the longest backoff of our own; a Retry-After is honoured in full
@@ -62,6 +68,8 @@ BREAKER_BAD_CALLS = 5
 BREAKER_BAD_SHARE = 0.5
 BREAKER_WINDOW_S = 60.0
 BREAKER_COOLDOWN_S = 30.0
+# A fixed key or a top-up is picked up within this; each trial is one failed request
+ACCOUNT_COOLDOWN_S = 300.0
 SPEED_WINDOW = 200  # the live p90 is taken over this many recent calls of a kind
 SPEED_MIN_SAMPLES = 50  # below this, the measured table's p90 is used
 BACKUP_SHARE = 0.1  # at most this share of the last minute's calls get a backup
@@ -79,12 +87,13 @@ class CircuitBreaker:
     clock: Callable[[], float] = time.monotonic
     state: str = "closed"  # closed, open, half_open
     opened_at: float = 0.0
+    account: bool = False  # opened because the provider refused our account
     trial_in_flight: bool = False
     calls: deque = field(default_factory=deque)  # (time, bad) within the window
 
     def allow(self) -> bool:
         now = self.clock()
-        if self.state == "open" and now - self.opened_at >= BREAKER_COOLDOWN_S:
+        if self.state == "open" and now - self.opened_at >= self._cooldown():
             self.state, self.trial_in_flight = "half_open", False
         if self.state == "closed":
             return True
@@ -97,8 +106,20 @@ class CircuitBreaker:
         """Seconds until the trial call, while open; None if calls may go through."""
         if self.state != "open":
             return None
-        left = self.opened_at + BREAKER_COOLDOWN_S - self.clock()
+        left = self.opened_at + self._cooldown() - self.clock()
         return left if left > 0 else None
+
+    def _cooldown(self) -> float:
+        return ACCOUNT_COOLDOWN_S if self.account else BREAKER_COOLDOWN_S
+
+    def trip_account(self, provider: str) -> None:
+        """The provider refused our account: open now, whatever the recent calls."""
+        if self.state != "open":
+            log.error("ALERT provider_account: %s refused our account (key or credit); "
+                      "calls to it stop for %d s", provider, ACCOUNT_COOLDOWN_S)
+        self.state, self.opened_at, self.account = "open", self.clock(), True
+        self.trial_in_flight = False
+        self.calls.clear()
 
     def end_trial(self) -> None:
         """The trial call was never made (no slot or no budget): another may try."""
@@ -116,7 +137,7 @@ class CircuitBreaker:
             if bad:
                 self.state, self.opened_at, self.trial_in_flight = "open", now, False
             else:
-                self.state, self.trial_in_flight = "closed", False
+                self.state, self.trial_in_flight, self.account = "closed", False, False
                 self.calls.clear()
             return
         if self.state == "open":
@@ -274,7 +295,7 @@ class ResilientProvider:
             try:
                 return await self._route(route, plan, call, fallback=n > 0)
             except ProviderError as exc:
-                if not exc.retryable:
+                if not (exc.retryable or isinstance(exc, AccountFailure)):
                     raise
                 last = exc
         assert last is not None
@@ -289,7 +310,9 @@ class ResilientProvider:
         for attempt in range(MAX_RETRIES + 1):
             role: Role = "retry" if attempt else "fallback" if fallback else "first"
             if not breaker.allow():
-                exc = Unavailable("circuit open", route.provider.name, cause="circuit_open")
+                # Left open by an account failure: the person is told the service is down
+                kind = AccountFailure if breaker.account else Unavailable
+                exc = kind("circuit open", route.provider.name, cause="circuit_open")
                 plan.trace.end(self._record(plan, route, role), exc)
                 raise exc
             try:
@@ -330,6 +353,8 @@ class ResilientProvider:
                 # Cut short by our own deadline: says nothing about the provider. A
                 # streaming call that went silent raised ProviderStalled instead
                 breaker.end_trial()
+            elif isinstance(exc, AccountFailure):
+                breaker.trip_account(name)
             elif exc.retryable:
                 breaker.record_failure()
             elif breaker.state == "half_open":

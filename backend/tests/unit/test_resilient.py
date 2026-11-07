@@ -10,6 +10,7 @@ import pytest
 from app.agents.schemas import MentalReply
 from app.config.speeds import Speed
 from app.providers import (
+    AccountFailure,
     Backups,
     BadRequest,
     Breakers,
@@ -617,3 +618,51 @@ async def test_the_streaming_threshold_falls_back_to_the_p90():
     assert Backups().threshold("x", Speed(1, 2, 3, 4), streaming=True) == 2
     assert Backups().threshold("x", Speed(1, 2, 3, 4, first_p90=0.5), streaming=True) == 0.5
     assert Backups().threshold("x", Speed(1, 2, 3, 4, first_p90=0.5)) == 2
+
+
+# --- Account failures (failure library, Part E #55) ---
+
+
+async def test_an_account_failure_opens_the_breaker_at_once_and_alerts(caplog):
+    clock = Clock()
+    breakers = Breakers(clock)
+    rp, primary, _, sleeps, _ = _make([AccountFailure("no credit", "openai", status=429), OK],
+                                      clock=clock, breakers=breakers)
+    with caplog.at_level("ERROR"), pytest.raises(AccountFailure):
+        await rp.generate(MSG, plan=_plan(clock))
+    assert len(primary.calls) == 1 and sleeps == []  # not retried
+    breaker = breakers["openai"]
+    assert (breaker.state, breaker.account) == ("open", True)
+    assert breaker.retry_after() == pytest.approx(rs.ACCOUNT_COOLDOWN_S)
+    assert [r.message for r in caplog.records if "ALERT" in r.message] == [
+        "ALERT provider_account: openai refused our account (key or credit); calls to it "
+        "stop for 300 s"]
+    # While open, a call fails fast as an account failure, so the person is told so
+    rp2, primary2, _, _, _ = _make([OK], clock=clock, breakers=breakers)
+    with pytest.raises(AccountFailure) as caught:
+        await rp2.generate(MSG, plan=_plan(clock))
+    assert caught.value.cause == "circuit_open" and primary2.calls == []
+
+
+async def test_an_account_failure_still_tries_the_fallback():
+    rp, primary, fallback, _, clock = _make([AccountFailure("bad key", "openai", status=401)],
+                                            [OK])
+    assert (await rp.generate(MSG, plan=_plan(clock))).parsed == OK.parsed
+    assert len(primary.calls) == 1 and len(fallback.calls) == 1
+
+
+async def test_after_its_cooldown_a_good_trial_closes_an_account_breaker(caplog):
+    clock = Clock()
+    breakers = Breakers(clock)
+    breaker = breakers["openai"]
+    with caplog.at_level("ERROR"):
+        breaker.trip_account("openai")
+        breaker.trip_account("openai")  # already open: one alert, not two
+    assert sum("ALERT" in r.message for r in caplog.records) == 1
+    clock.now += rs.BREAKER_COOLDOWN_S
+    assert breaker.allow() is False  # not after the usual 30 s
+    clock.now += rs.ACCOUNT_COOLDOWN_S
+    assert breaker.allow() is True
+    breaker.record_success()
+    assert (breaker.state, breaker.account) == ("closed", False)
+    assert breaker.retry_after() is None

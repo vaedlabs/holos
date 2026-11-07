@@ -71,6 +71,8 @@ ERRORS = {
     "unavailable": "The coach is unavailable right now. Please try again.",
     "malformed": "The coach's answer didn't come through. Please try again.",
     "interrupted": "Your answer was interrupted. Tap to try again.",
+    # The provider refused our account (key or credit): not the person's doing (Part E #55)
+    "service_unavailable": "Holos can't reach its AI service right now. Please try again later.",
 }
 
 

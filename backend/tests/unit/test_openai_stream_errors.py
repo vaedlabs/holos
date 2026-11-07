@@ -9,7 +9,14 @@ import httpx
 import pytest
 
 from app.agents.schemas import MentalReply
-from app.providers import BadRequest, GenerateOptions, ProviderUnavailable, Turn
+from app.providers import (
+    AccountFailure,
+    BadRequest,
+    GenerateOptions,
+    ProviderUnavailable,
+    RateLimited,
+    Turn,
+)
 from app.providers.openai import OpenAIProvider
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
@@ -74,3 +81,29 @@ async def test_a_refused_call_carries_its_request_id_and_status():
         await _generate(_provider(body, status=400))
     assert caught.value.request_id == "req_abc" and caught.value.status == 400
     assert caught.value.cause == "bad_request"
+
+
+# --- The account, not the request (failure library, Part E #55) ---
+
+
+def _error(code: str, message: str, kind: str) -> bytes:
+    return json.dumps({"error": {"message": message, "type": kind, "code": code}}).encode()
+
+
+@pytest.mark.parametrize(("status", "body"), [
+    (401, _error("invalid_api_key", "Incorrect API key provided", "invalid_request_error")),
+    (403, _error("unsupported_country_region_territory", "Not supported", "request_forbidden")),
+    (429, _error("insufficient_quota", "You exceeded your current quota", "insufficient_quota")),
+])
+async def test_a_rejected_key_or_no_credit_is_an_account_failure(status, body):
+    with pytest.raises(AccountFailure) as caught:
+        await _generate(_provider(body, status))
+    assert (caught.value.status, caught.value.retryable, caught.value.cause) == (
+        status, False, "account")
+
+
+async def test_a_plain_rate_limit_is_still_retried():
+    body = _error("rate_limit_exceeded", "Rate limit reached", "requests")
+    with pytest.raises(RateLimited) as caught:
+        await _generate(_provider(body, 429))
+    assert caught.value.retryable

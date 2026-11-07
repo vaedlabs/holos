@@ -1,6 +1,7 @@
 """Model providers behind one interface (Plan C.9)."""
 
 from .base import (
+    AccountFailure,
     BadRequest,
     GenerateOptions,
     ImageInput,
@@ -29,7 +30,8 @@ from .resilient import Backups, Breakers, CallPlan, Meter, ResilientProvider, Ro
 from .scheduler import FairScheduler
 
 __all__ = [
-    "Backups", "BadRequest", "Breakers", "CallPlan", "FairScheduler", "FakeProvider",
+    "AccountFailure", "Backups", "BadRequest", "Breakers", "CallPlan", "FairScheduler",
+    "FakeProvider",
     "GenerateOptions", "ImageInput", "LLMProvider", "LLMResult", "MalformedOutput", "Message",
     "Meter", "ModelTurn", "NoCapacity", "Opened", "OverBudget", "Progress", "ProviderError",
     "ProviderStalled", "ProviderTimeout", "ProviderUnavailable", "RateLimited",

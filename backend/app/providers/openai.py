@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from app.agents.schemas import llm_json_schema
 
 from .base import (
+    AccountFailure,
     BadRequest,
     GenerateOptions,
     LLMResult,
@@ -104,7 +105,13 @@ class OpenAIProvider:
             return _to_result(response, options.model, schema, ids[0])
         except openai.APITimeoutError as exc:
             raise ProviderTimeout(str(exc), self.name, request_id=ids[0]) from exc
+        except (openai.AuthenticationError, openai.PermissionDeniedError) as exc:
+            raise AccountFailure(str(exc), self.name, request_id=exc.request_id,
+                                 status=exc.status_code) from exc
         except openai.RateLimitError as exc:
+            if exc.code == "insufficient_quota":  # out of credit: waiting won't help
+                raise AccountFailure(str(exc), self.name, request_id=exc.request_id,
+                                     status=exc.status_code) from exc
             raise RateLimited(str(exc), self.name, _retry_after(exc.response),
                               request_id=exc.request_id, status=exc.status_code) from exc
         except openai.APIStatusError as exc:

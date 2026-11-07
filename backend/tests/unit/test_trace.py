@@ -11,6 +11,7 @@ from app.agents.schemas import MentalReply
 from app.config.speeds import Speed
 from app.observability import CAUSES, Trace, cause_of
 from app.providers import (
+    AccountFailure,
     BadRequest,
     Breakers,
     CallPlan,
@@ -98,6 +99,7 @@ CASES = {
     "rate_limited": lambda: dict(script=[RateLimited("429"), OK]),
     "unavailable": lambda: dict(script=[ProviderUnavailable("503"), OK]),
     "bad_request": lambda: dict(script=[BadRequest("400")]),
+    "account": lambda: dict(script=[AccountFailure("401", "openai")]),
     "provider_timeout": lambda: dict(script=[ProviderTimeout("read timeout"), OK]),
     "malformed": lambda: dict(script=[MalformedOutput("not json")]),
     "truncated": lambda: dict(script=[MalformedOutput("cut off", cause="truncated")]),
@@ -126,7 +128,7 @@ def test_a_cause_must_be_on_the_list():
     defaults = {RateLimited: "rate_limited", ProviderUnavailable: "unavailable",
                 ProviderTimeout: "provider_timeout", ProviderStalled: "no_first_output",
                 BadRequest: "bad_request", NoCapacity: "queue_full", OverBudget: "over_budget",
-                MalformedOutput: "malformed"}
+                MalformedOutput: "malformed", AccountFailure: "account"}
     assert {cls: cls("x").cause for cls in defaults} == defaults
     assert cause_of(KeyError()) == "bug" and cause_of(asyncio.CancelledError()) == "cancelled"
 

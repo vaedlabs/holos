@@ -42,11 +42,14 @@ from fastapi import Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import InterfaceError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Logger for error handling
 # Logs all errors with context (method, path, details)
 logger = logging.getLogger(__name__)
+DATABASE_RETRY_AFTER_S = 5
 
 
 def register_error_handlers(app):
@@ -179,6 +182,21 @@ def register_error_handlers(app):
             }
         )
     
+    async def database_unavailable(request: Request, exc: Exception):
+        """The database refused, timed out or has no free connection (failure library,
+        Part E #55): a moment's wait, not a bug. Handled inside the middleware, so CORS
+        and the security headers are on the response."""
+        logger.error("database unavailable on %s %s: %s", request.method, request.url.path,
+                     type(exc).__name__)
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"code": "server_busy", "message": "Holos is busy right now. "
+                     "Please try again in a few seconds."},
+            headers={"Retry-After": str(DATABASE_RETRY_AFTER_S)})
+
+    for error in (OperationalError, InterfaceError, PoolTimeout):
+        app.add_exception_handler(error, database_unavailable)
+
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
         """

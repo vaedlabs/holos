@@ -440,7 +440,7 @@ class StagedWrite(_Model):
         return self
 
 
-AgentError = Literal["busy", "cap_reached", "unavailable", "malformed"]
+AgentError = Literal["busy", "cap_reached", "unavailable", "malformed", "service_unavailable"]
 
 
 class AgentResult(_Model):

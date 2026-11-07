@@ -46,6 +46,7 @@ from app.orchestration.services import (
     get_services,
 )
 from app.providers import (
+    AccountFailure,
     BadRequest,
     Breakers,
     FakeProvider,
@@ -262,6 +263,26 @@ async def test_every_coach_failing_ends_with_an_error(store, async_engine):
     events = _events(await _post(_app(store, async_engine, models), await guest(store),
                                  _payload()))
     assert events[-1] == ("error", {**events[-1][1], "code": "unavailable"})
+
+
+async def test_an_account_failure_says_the_service_is_unreachable(store, async_engine):
+    """Failure library (Part E #55): out of credit or a rejected key, at the router."""
+    models = Models(router=[AccountFailure("no credit", "openai", status=429)])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload()))
+    assert events[-1][0] == "error"
+    assert (events[-1][1]["code"], events[-1][1]["message"]) == (
+        "service_unavailable",
+        "Holos can't reach its AI service right now. Please try again later.")
+
+
+async def test_an_account_failure_at_a_coach_says_the_same(store, async_engine):
+    models = Models(router=[_route("physical")],
+                    physical=[AccountFailure("bad key", "openai", status=401)])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload()))
+    assert (events[-1][0], events[-1][1]["code"]) == ("error", "service_unavailable")
+    assert len(models.fakes["physical"].calls) == 1  # not retried
 
 
 async def test_coaches_chosen_in_the_app_skip_routing(store, async_engine):
@@ -572,6 +593,23 @@ async def test_an_accounts_photo_is_kept_under_its_key(store, async_engine, tmp_
     assert key.startswith(f"users/{me.user_id}/") and key.endswith(".jpg")
     stored = await images.get(key)
     assert stored[:2] == b"\xff\xd8"  # the cleaned JPEG, not the upload
+
+
+async def test_a_photo_storage_failure_keeps_the_turn(store, async_engine, tmp_path, caplog):
+    """Failure library (Part E #55): storage down, the answer and the turn still saved."""
+    class Down(LocalImageStore):
+        async def put(self, key, data):
+            raise OSError("storage unreachable")
+
+    me = await account(store, async_engine)
+    models, photo = _photo_turn()
+    events = _events(await _post(_app(store, async_engine, models, Down(tmp_path)), me,
+                                 _payload("is this ok?"), image=photo))
+    await _settled()
+    assert events[-1][0] == "done"
+    assert await sql(async_engine, "SELECT role, image_path FROM conversation_messages "
+                     "ORDER BY id") == [("user", None), ("assistant", None)]
+    assert any("image not stored" in r.getMessage() for r in caplog.records)
 
 
 async def test_a_guests_photo_is_not_kept(store, async_engine, tmp_path):

@@ -5,6 +5,7 @@ Every lifetime is on the database clock, so rows are placed either side of their
 boundary by their timestamps; the loop's own clock is its `sleep`."""
 
 import asyncio
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -309,3 +310,51 @@ async def test_rule_hits_are_counted_once_and_outlive_guest_rows(async_engine, j
     assert await sql(async_engine, "SELECT rule_id, count FROM rule_hit_counts "
                      "WHERE day = current_date ORDER BY rule_id") == [
         ("DI-NUT-01", 4), ("EX-KNEE-01", 2)]
+
+
+# --- The failure-rate alert (failure library, Part E #55) ---
+
+
+async def _traces(engine, n, success, outcome="ok", age="1 minute"):
+    steps = json.dumps({"steps": [], "attempts": [{"call": "physical", "outcome": outcome}]})
+    for _ in range(n):
+        await sql(engine, "INSERT INTO traces (trace_id, route, steps, usage, success, "
+                  "created_at) VALUES (:t, 'coaching', CAST(:s AS json), '{}', :ok, "
+                  "now() - CAST(:a AS interval))",
+                  t=uuid.uuid4().hex, s=steps, ok=success, a=age)
+
+
+def _alerts(caplog) -> list[str]:
+    return [r.getMessage() for r in caplog.records if "ALERT failure_rate" in r.getMessage()]
+
+
+async def test_a_failure_rate_over_ten_percent_alerts_with_its_causes(jobs, async_engine,
+                                                                      caplog):
+    await _traces(async_engine, 17, True)
+    await _traces(async_engine, 2, False, "deadline_waiting")
+    await _traces(async_engine, 1, False, "unavailable")
+    with caplog.at_level("ERROR"):
+        assert (await jobs.run_once())["failure_alert"] == 1
+    assert _alerts(caplog) == ["ALERT failure_rate: 3 of 20 requests failed in the last 5 "
+                               "minutes (15%); causes: deadline_waiting 2, unavailable 1"]
+
+
+@pytest.mark.parametrize(("good", "bad", "why"), [
+    (18, 2, "exactly 10% is not over it"),
+    (0, 9, "fewer than 10 requests: not a trend"),
+])
+async def test_no_alert_at_or_below_the_line(jobs, async_engine, caplog, good, bad, why):
+    await _traces(async_engine, good, True)
+    await _traces(async_engine, bad, False, "unavailable")
+    with caplog.at_level("ERROR"):
+        assert (await jobs.run_once())["failure_alert"] == 0, why
+    assert _alerts(caplog) == []
+
+
+async def test_spend_caps_and_old_requests_are_not_failures(jobs, async_engine, caplog):
+    await _traces(async_engine, 10, True)
+    await _traces(async_engine, 5, False, "over_budget")  # a cap: a notice, not a fault
+    await _traces(async_engine, 5, False, "unavailable", age="6 minutes")  # outside the window
+    with caplog.at_level("ERROR"):
+        assert (await jobs.run_once())["failure_alert"] == 0
+    assert _alerts(caplog) == []

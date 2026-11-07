@@ -161,6 +161,16 @@ class BadRequest(ProviderError):
     cause = "bad_request"
 
 
+class AccountFailure(ProviderError):
+    """The provider refused our account, not this request: the API key was rejected
+    (401/403) or the account is out of credit (OpenAI's 429 `insufficient_quota`).
+    Every call will fail the same way until someone fixes it, so it isn't retried; it
+    opens the provider's breaker at once and logs an alert (failure library, Part E #55).
+    Another provider may still be tried."""
+
+    cause = "account"
+
+
 class NoCapacity(ProviderError):
     """No slot would free in time for this call (load shedding, C.9). Not retried:
     retrying adds load. Says nothing about the provider's health."""

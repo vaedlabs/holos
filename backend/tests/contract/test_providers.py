@@ -14,6 +14,7 @@ from app.agents.schemas import (
     PhysicalReply,
 )
 from app.providers import (
+    AccountFailure,
     BadRequest,
     MalformedOutput,
     ModelTurn,
@@ -160,6 +161,16 @@ async def test_http_errors_map(provider_name, scenario, error):
     if error is RateLimited:
         assert exc.value.retry_after == 7.0
     assert exc.value.retryable
+
+
+@pytest.mark.parametrize("provider_name", PROVIDERS)
+async def test_a_rejected_key_is_an_account_failure(provider_name):
+    """Failure library (Part E #55): not retried; the breaker opens at once."""
+    provider, _ = _replay(provider_name, "rejected_key")
+    with pytest.raises(AccountFailure) as exc:
+        await provider.generate([Turn("user", "hi")], options=options(provider_name))
+    assert (exc.value.provider, exc.value.status, exc.value.retryable) == (
+        provider_name, 401, False)
 
 
 async def test_openai_bad_request_maps():

@@ -1441,7 +1441,8 @@
                 "busy",
                 "cap_reached",
                 "unavailable",
-                "malformed"
+                "malformed",
+                "service_unavailable"
               ],
               "type": "string"
             },

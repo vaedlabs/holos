@@ -1,0 +1,660 @@
+# The failure library (Plan Part E #55): every way a request can fail that we know of,
+# how it is handled, what the person sees, and the tests that make it happen.
+#
+# Rules (tests/unit/test_failure_library.py):
+# - every Cause in observability/tracer.py has an entry, and every `cause` here is a Cause
+#   (or `none`: no model call is involved);
+# - every test named exists; an entry without tests must say `gap: <why>`;
+# - every error and notice code the app can send (composer ERRORS and NOTICES) is the
+#   `code` of some entry.
+# A failure seen live that matches no entry gets an entry and a test before it is fixed.
+#
+# layer: provider, stream, tools, data, process, storage, external, safety, jobs
+
+version: 1
+failures:
+
+  # --- Provider calls (the model) ---
+
+  - id: provider.rate_limited
+    layer: provider
+    what: The provider answers 429 with a short Retry-After.
+    cause: rate_limited
+    handling: Retried after the wait, at most twice, while the call's p95 still fits; bad for the breaker.
+    person_sees: Their answer, a little later.
+    code: null
+    tests:
+      - tests/unit/test_resilient.py::test_retries_retryable_errors
+      - tests/unit/test_resilient.py::test_backoff_doubles_and_retry_after_is_honoured_in_full
+      - tests/contract/test_providers.py::test_http_errors_map
+      - tests/unit/test_openai_stream_errors.py::test_a_plain_rate_limit_is_still_retried
+    seen_live: null
+
+  - id: provider.rate_limited.long_wait
+    layer: provider
+    what: A Retry-After longer than the time left.
+    cause: rate_limited
+    handling: The route is given up at once; the fallback route runs if there is one.
+    person_sees: The fallback's answer, or the coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_a_retry_after_longer_than_the_time_left_gives_the_route_up_at_once
+    seen_live: null
+
+  - id: provider.account
+    layer: provider
+    what: The provider refuses our account, not the request - the API key is rejected (401/403) or the account is out of credit (OpenAI 429 insufficient_quota).
+    cause: account
+    handling: Not retried; the breaker opens at once for 5 minutes and one ALERT line is logged; a fallback route may still run; new messages are refused at admission until a trial call succeeds.
+    person_sees: Holos can't reach its AI service right now. Please try again later.
+    code: service_unavailable
+    tests:
+      - tests/unit/test_openai_stream_errors.py::test_a_rejected_key_or_no_credit_is_an_account_failure
+      - tests/contract/test_providers.py::test_a_rejected_key_is_an_account_failure
+      - tests/unit/test_resilient.py::test_an_account_failure_opens_the_breaker_at_once_and_alerts
+      - tests/unit/test_resilient.py::test_an_account_failure_still_tries_the_fallback
+      - tests/unit/test_resilient.py::test_after_its_cooldown_a_good_trial_closes_an_account_breaker
+      - tests/integration/test_admission.py::test_an_account_failure_refuses_with_its_own_message
+      - tests/integration/test_chat.py::test_an_account_failure_says_the_service_is_unreachable
+      - tests/integration/test_chat.py::test_an_account_failure_at_a_coach_says_the_same
+    seen_live: null
+
+  - id: provider.server_error
+    layer: provider
+    what: A 5xx from the provider.
+    cause: unavailable
+    handling: Retried, then the fallback route; bad for the breaker.
+    person_sees: Their answer, or the coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_retries_retryable_errors
+      - tests/unit/test_resilient.py::test_at_most_two_retries_then_fallback
+      - tests/contract/test_providers.py::test_http_errors_map
+    seen_live: null
+
+  - id: provider.connection
+    layer: provider
+    what: The connection is refused or drops.
+    cause: unavailable
+    handling: Retried like a 5xx.
+    person_sees: Their answer, or the coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/contract/test_providers.py::test_transport_errors_map
+    seen_live: null
+
+  - id: provider.hung
+    layer: provider
+    what: The provider never answers (an unreachable host, a hung call).
+    cause: deadline_waiting
+    handling: Ended at our own deadline, never the OS's 75 s connect timeout or the SDK's timeout.
+    person_sees: The coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_a_hung_call_ends_at_its_deadline_not_the_sdk_timeout
+    seen_live: "2026-11-07: the router missed its 5 s deadline twice within one minute (Part D)"
+
+  - id: provider.client_timeout
+    layer: provider
+    what: The HTTP client's own timeout.
+    cause: provider_timeout
+    handling: Retried if time is left.
+    person_sees: Their answer, or the coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_retries_retryable_errors
+    seen_live: null
+
+  - id: provider.no_time_left
+    layer: provider
+    what: The deadline comes before the call can be sent.
+    cause: no_time_left
+    handling: No call is made.
+    person_sees: The coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_no_time_left_means_no_call
+    seen_live: null
+
+  - id: provider.stream_error_event
+    layer: provider
+    what: An error event in the middle of a streamed reply.
+    cause: unavailable
+    handling: Retryable, like a 5xx.
+    person_sees: Their answer, or the coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_openai_stream_errors.py::test_an_error_event_mid_stream_is_retryable
+    seen_live: "2026-10-29: OpenAI 'An error occurred while processing your request' mid-stream"
+
+  - id: provider.stream_ended
+    layer: provider
+    what: The stream ends without a reply.
+    cause: unavailable
+    handling: Retryable.
+    person_sees: Their answer, or the coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_openai_stream_errors.py::test_a_stream_that_ends_without_a_reply_is_retryable
+    seen_live: null
+
+  - id: provider.no_first_output
+    layer: provider
+    what: A streaming call writes nothing within 20 s.
+    cause: no_first_output
+    handling: A stall - retried; a backup call may already be running; bad for the breaker.
+    person_sees: Their answer, or the coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_no_first_output_is_a_stall_and_is_retried
+      - tests/unit/test_resilient.py::test_a_stall_is_bad_for_the_breaker
+    seen_live: null
+
+  - id: provider.output_stopped
+    layer: provider
+    what: A streaming reply stops writing for 5 s.
+    cause: output_stopped
+    handling: A stall - retried.
+    person_sees: Their answer, or the coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_output_that_stops_is_a_stall
+    seen_live: null
+
+  - id: provider.deadline_writing
+    layer: provider
+    what: Our deadline arrives while the reply is still being written.
+    cause: deadline_writing
+    handling: Cut at the deadline; not blamed on the provider.
+    person_sees: The coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_the_deadline_cuts_a_writing_call_without_blaming_the_provider
+    seen_live: "2026-11-07: router, first output at 4.9 s of 5 s (Part D)"
+
+  - id: provider.slow_backup
+    layer: provider
+    what: A call is slower than its kind's live p90; a backup call is sent and one of the two wins.
+    cause: cancelled
+    handling: The loser is cancelled and charged at the winner's usage; at most 10% of calls get a backup.
+    person_sees: Their answer.
+    code: null
+    tests:
+      - tests/unit/test_resilient.py::test_a_slow_call_gets_a_backup_and_the_first_reply_wins
+      - tests/unit/test_resilient.py::test_backups_are_capped_at_a_tenth_of_the_last_minutes_calls
+      - tests/unit/test_resilient.py::test_cancelling_the_request_cancels_both_calls_and_frees_their_slots
+    seen_live: "2026-11-07: 6 backups in 100 router calls, 1 won (Part D)"
+
+  - id: provider.breaker_open
+    layer: provider
+    what: The provider's breaker is open after repeated failures.
+    cause: circuit_open
+    handling: Calls fail fast and go to the fallback; admission refuses new messages until the trial call.
+    person_sees: Holos is busy right now. Please try again in a few seconds.
+    code: server_busy
+    tests:
+      - tests/unit/test_resilient.py::test_breaker_opens_after_five_bad_calls_in_sixty_seconds
+      - tests/unit/test_resilient.py::test_half_open_after_thirty_seconds_then_close_or_reopen
+      - tests/integration/test_admission.py::test_an_open_provider_breaker_is_503_until_its_trial_call
+    seen_live: null
+
+  - id: provider.queue_full
+    layer: provider
+    what: No scheduler slot will free in time for the call (load shedding).
+    cause: queue_full
+    handling: Not retried - retrying adds load.
+    person_sees: Holos is busy right now. Please try again in a moment.
+    code: busy
+    tests:
+      - tests/unit/test_scheduler.py::test_a_call_that_cant_start_in_time_is_shed_at_once
+      - tests/unit/test_resilient.py::test_a_shed_call_releases_its_reservation
+    seen_live: null
+
+  - id: provider.over_budget
+    layer: provider
+    what: A spend cap has no room for the call's reservation.
+    cause: over_budget
+    handling: The call doesn't run; the turn ends with a notice, not an error.
+    person_sees: You've reached today's limit. Try again tomorrow.
+    code: cap_reached
+    tests:
+      - tests/unit/test_resilient.py::test_a_call_over_budget_doesnt_run
+      - tests/integration/test_chat.py::test_running_out_of_budget_mid_request_is_a_notice
+    seen_live: null
+
+  - id: provider.month_budget
+    layer: provider
+    what: The month's global budget is used up.
+    cause: none
+    handling: Refused at admission.
+    person_sees: Holos has used this month's budget. Please try again next month.
+    code: month_budget_used
+    tests:
+      - tests/integration/test_admission.py::test_the_monthly_budget_says_so
+    seen_live: null
+
+  - id: provider.bad_request
+    layer: provider
+    what: The provider refuses our request (4xx other than 401/403/429).
+    cause: bad_request
+    handling: Not retried; logged with the provider's request ID.
+    person_sees: The coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_resilient.py::test_non_retryable_errors_are_raised_at_once
+      - tests/contract/test_providers.py::test_openai_bad_request_maps
+      - tests/unit/test_openai_stream_errors.py::test_a_refused_call_carries_its_request_id_and_status
+    seen_live: null
+
+  - id: provider.malformed
+    layer: provider
+    what: The reply is empty, isn't valid JSON, doesn't fit the schema, or names an unknown catalogue ID.
+    cause: malformed
+    handling: The coach retries once with the reason; twice means no answer from that coach.
+    person_sees: Their answer, or "The coach's answer didn't come through".
+    code: malformed
+    tests:
+      - tests/unit/agents/test_base.py::test_a_cut_off_or_unparsed_reply_is_malformed_and_retried
+      - tests/unit/agents/test_base.py::test_malformed_twice_gives_no_reply_and_its_cause
+      - tests/unit/agents/test_base.py::test_an_unknown_catalogue_id_is_malformed_and_retried
+      - tests/unit/test_parse_reply.py::test_other_errors_still_fail
+    seen_live: null
+
+  - id: provider.truncated
+    layer: provider
+    what: The reply is cut off at its output-token limit.
+    cause: truncated
+    handling: Malformed, even if it parsed; the coach retries.
+    person_sees: Their answer, or "The coach's answer didn't come through".
+    code: malformed
+    tests:
+      - tests/contract/test_providers.py::test_truncated_reply_with_schema_is_malformed
+      - tests/unit/agents/test_base.py::test_a_cut_off_reply_is_malformed_even_if_it_parsed
+      - tests/unit/test_router.py::test_a_truncated_reply_is_an_error_even_when_it_parsed
+    seen_live: null
+
+  - id: provider.unknown_tool
+    layer: provider
+    what: The model calls a tool the coach doesn't have.
+    cause: none
+    handling: The tool result says unknown_tool and the coach goes on.
+    person_sees: Their answer.
+    code: null
+    tests:
+      - tests/unit/agents/test_base.py::test_a_tool_the_coach_doesnt_have_is_answered_and_the_coach_goes_on
+    seen_live: null
+
+  - id: provider.tool_loop
+    layer: provider
+    what: The model keeps calling tools.
+    cause: none
+    handling: After 3 rounds the last call offers no tools, so it can only reply; rounds are skipped when time is short.
+    person_sees: Their answer.
+    code: null
+    tests:
+      - tests/unit/agents/test_base.py::test_a_coach_that_keeps_calling_tools_must_reply_after_its_rounds
+      - tests/unit/agents/test_base.py::test_the_deadline_reserve_skips_tool_rounds_when_time_is_short
+    seen_live: null
+
+  - id: provider.wrong_language
+    layer: provider
+    what: The router calls Hindi another language twice in a row.
+    cause: wrong_language
+    handling: An error, never a refusal to speak Hindi.
+    person_sees: The coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/test_router.py::test_hindi_called_another_language_twice_is_an_error
+    seen_live: "2026-10-28: Hindi in Devanagari called another language once in 645 calls (Part D)"
+
+  - id: provider.one_coach_fails
+    layer: provider
+    what: One of several coaches fails.
+    cause: none
+    handling: The others' answers are sent with a notice.
+    person_sees: One coach took too long to answer; here is what is ready.
+    code: partial_result
+    tests:
+      - tests/integration/test_chat.py::test_one_coach_failing_leaves_the_others_answer_and_a_notice
+      - tests/integration/test_traces.py::test_a_partial_answer_is_not_a_success
+    seen_live: null
+
+  - id: provider.every_coach_fails
+    layer: provider
+    what: Every chosen coach fails.
+    cause: none
+    handling: The request ends with the first coach's error.
+    person_sees: The coach is unavailable right now. Please try again.
+    code: unavailable
+    tests:
+      - tests/integration/test_chat.py::test_every_coach_failing_ends_with_an_error
+    seen_live: null
+
+  - id: provider.hard_limit
+    layer: provider
+    what: A request passes its hard limit (90 s).
+    cause: none
+    handling: Its coaches are cancelled; the trace isn't a success.
+    person_sees: What is ready, or an error.
+    code: null
+    tests:
+      - tests/integration/test_chat.py::test_a_request_past_its_hard_limit_stops_its_coaches
+      - tests/integration/test_traces.py::test_a_request_past_its_hard_limit_is_not_a_success
+    seen_live: null
+
+  - id: provider.bug
+    layer: provider
+    what: An unexpected exception in our own code.
+    cause: bug
+    handling: Logged with its stack; ends only that coach, or the request with an error.
+    person_sees: The coach is unavailable.
+    code: unavailable
+    tests:
+      - tests/unit/agents/test_base.py::test_a_bug_is_logged_and_ends_only_this_coach
+    seen_live: null
+
+  # --- Stream and process ---
+
+  - id: stream.dropped_connection
+    layer: stream
+    what: The phone loses its connection mid-answer.
+    cause: none
+    handling: The request keeps running; a reconnect replays the saved events, then follows live ones.
+    person_sees: The rest of the answer.
+    code: null
+    tests:
+      - tests/integration/test_chat.py::test_a_dropped_connection_does_not_stop_the_request
+      - tests/integration/test_reconnect.py::test_a_reconnect_gets_the_events_after_its_last_seq
+      - tests/integration/test_stream_store.py::test_follow_keeps_the_events_saved_as_the_request_ends
+    seen_live: null
+
+  - id: stream.worker_died
+    layer: process
+    what: The process running a request dies.
+    cause: none
+    handling: Its heartbeat stops; the next reconnect ends it as interrupted, once.
+    person_sees: Your answer was interrupted. Tap to try again.
+    code: interrupted
+    tests:
+      - tests/integration/test_reconnect.py::test_a_request_whose_worker_died_ends_as_interrupted
+      - tests/integration/test_stream_store.py::test_a_worker_and_an_interrupt_racing_leave_one_end
+    seen_live: null
+
+  - id: stream.restart
+    layer: process
+    what: A planned restart.
+    cause: none
+    handling: No new requests; running ones finish; their traces are written; the jobs loop stops.
+    person_sees: Their answer.
+    code: null
+    tests:
+      - tests/integration/test_chat.py::test_a_planned_restart_lets_running_requests_finish
+      - tests/integration/test_traces.py::test_a_restart_waits_for_trace_writes
+      - tests/integration/test_jobs.py::test_stop_ends_a_run_in_progress
+    seen_live: null
+
+  - id: stream.event_not_saved
+    layer: stream
+    what: Saving a stream event fails.
+    cause: none
+    handling: It is sent live anyway; the request is no longer resumable (logged).
+    person_sees: Their answer; a reconnect can't resume it.
+    code: null
+    tests:
+      - tests/integration/test_reconnect.py::test_an_unsaved_event_still_goes_out_live
+    seen_live: null
+
+  - id: stream.after_the_end
+    layer: stream
+    what: A worker presumed dead sends after its request was ended.
+    cause: none
+    handling: The append is refused; the worker stops.
+    person_sees: Nothing extra.
+    code: null
+    tests:
+      - tests/integration/test_reconnect.py::test_a_worker_told_its_request_ended_stops
+      - tests/integration/test_stream_store.py::test_the_terminal_event_ends_the_request_and_nothing_follows_it
+    seen_live: null
+
+  - id: stream.duplicate_request
+    layer: stream
+    what: The same client_request_id is sent twice.
+    cause: none
+    handling: The second attaches to the first.
+    person_sees: One answer.
+    code: null
+    tests:
+      - tests/integration/test_chat.py::test_a_repeated_request_id_attaches_to_the_request
+    seen_live: null
+
+  - id: stream.expired
+    layer: stream
+    what: A reconnect after the saved events expired (10 minutes).
+    cause: none
+    handling: 410.
+    person_sees: This answer is no longer available. Please ask again.
+    code: expired
+    tests:
+      - tests/integration/test_reconnect.py::test_expired_events_are_410
+    seen_live: null
+
+  # --- Tools ---
+
+  - id: tools.search_down
+    layer: tools
+    what: Web search times out or errors.
+    cause: none
+    handling: The tool answers unavailable and the credit counts; the coach answers without sources.
+    person_sees: Web search is off for now, so this answer has no sources.
+    code: search_off
+    tests:
+      - tests/unit/tools/test_web_search.py::test_timeout_returns_unavailable_and_counts_the_credit
+      - tests/unit/tools/test_web_search.py::test_provider_error_returns_unavailable_and_counts_the_credit
+      - tests/unit/tools/test_web_search.py::test_unexpected_response_shape_is_unavailable_not_a_crash
+    seen_live: null
+
+  - id: tools.search_cap
+    layer: tools
+    what: The search credit cap is reached, or there is no search key.
+    cause: none
+    handling: No call; the tool answers unavailable.
+    person_sees: Web search is off for now, so this answer has no sources.
+    code: search_off
+    tests:
+      - tests/unit/tools/test_web_search.py::test_cap_returns_unavailable_without_a_call
+      - tests/unit/tools/test_web_search.py::test_no_search_service_means_unavailable
+    seen_live: null
+
+  - id: tools.not_in_catalogue
+    layer: tools
+    what: A log names an exercise or practice that isn't in the catalogue.
+    cause: none
+    handling: Refused, nothing staged; the coach is told to log nothing in its place.
+    person_sees: The coach says it can't log that one.
+    code: null
+    tests:
+      - tests/unit/tools/test_write_and_read_tools.py::test_unknown_catalogue_id_is_invalid_and_not_staged
+    seen_live: "2026-11-07: pickleball logged as circuit training (Part E #53)"
+
+  - id: tools.recent_logs_down
+    layer: tools
+    what: The database can't answer the recent-logs tool.
+    cause: none
+    handling: The tool answers unavailable; the coach answers without the history.
+    person_sees: Their answer.
+    code: null
+    tests:
+      - tests/unit/tools/test_write_and_read_tools.py::test_recent_logs_when_the_database_cant_answer
+    seen_live: null
+
+  # --- Data ---
+
+  - id: data.down_at_flood_check
+    layer: data
+    what: The database is down or unreachable at the flood check.
+    cause: none
+    handling: Let through after at most 0.5 s, then skipped for 5 s; the crisis stream needs no database.
+    person_sees: Depends on the next step.
+    code: null
+    tests:
+      - tests/integration/test_admission.py::test_a_database_outage_lets_requests_through
+      - tests/integration/test_admission.py::test_an_unreachable_database_costs_one_request_half_a_second_at_most
+    seen_live: null
+
+  - id: data.down
+    layer: data
+    what: The database refuses connections, times out, or has no free connection in the pool.
+    cause: none
+    handling: 503 with Retry-After 5, with CORS and the security headers; logged at ERROR.
+    person_sees: Holos is busy right now. Please try again in a few seconds.
+    code: server_busy
+    tests:
+      - tests/integration/test_database_down.py::test_a_database_that_refuses_connections
+      - tests/integration/test_database_down.py::test_a_full_connection_pool
+    seen_live: null
+
+  - id: data.confirm_race
+    layer: data
+    what: Two confirms of one entry at once, or its save fails.
+    cause: none
+    handling: A row lock logs it once; a failed save rolls back and the entry still waits.
+    person_sees: The same answer twice; after a failure, they can confirm again.
+    code: null
+    tests:
+      - tests/integration/test_state_store.py::test_two_concurrent_confirms_commit_once
+      - tests/integration/test_writes.py::test_a_failed_commit_leaves_the_write_pending_and_confirmable
+    seen_live: null
+
+  - id: data.trace_not_written
+    layer: data
+    what: Writing a request's trace fails.
+    cause: none
+    handling: Logged and dropped; the request isn't affected.
+    person_sees: Nothing.
+    code: null
+    tests:
+      - tests/integration/test_traces.py::test_a_failed_write_never_fails_the_request
+    seen_live: "2026-11-07: a probe deleted its accounts before their traces were written"
+
+  - id: data.left_behind
+    layer: data
+    what: A crashed request leaves its lease or slots behind.
+    cause: none
+    handling: They expire after 60 s and are taken over.
+    person_sees: Your last message is still being answered, until then.
+    code: busy
+    tests:
+      - tests/integration/test_admission.py::test_a_crashed_request_frees_its_lease_after_60_seconds
+      - tests/integration/test_admission.py::test_slots_left_by_crashed_requests_are_taken_over
+    seen_live: null
+
+  # --- Storage and outside services ---
+
+  - id: storage.photo_not_stored
+    layer: storage
+    what: Storing an account's chat photo fails.
+    cause: none
+    handling: The turn is saved without the photo (logged).
+    person_sees: Their answer.
+    code: null
+    tests:
+      - tests/integration/test_chat.py::test_a_photo_storage_failure_keeps_the_turn
+    seen_live: null
+
+  - id: storage.delete_fails
+    layer: storage
+    what: Deleting an account's images fails.
+    cause: none
+    handling: The account is gone at once; the prefix is queued and the 2-minute job retries it.
+    person_sees: Their account is deleted.
+    code: null
+    tests:
+      - tests/integration/test_delete_account.py::test_a_failed_image_delete_is_queued_and_the_job_clears_it
+      - tests/integration/test_jobs.py::test_streams_terms_and_queued_image_deletions
+    seen_live: null
+
+  - id: external.turnstile_down
+    layer: external
+    what: Cloudflare Turnstile (the bot check for new guest sessions) can't be reached or rejects our secret.
+    cause: none
+    handling: Fails closed - no session starts - so bots can't start free sessions while it is down.
+    person_sees: We couldn't check that you're human. Please try again.
+    code: turnstile_unavailable
+    tests:
+      - tests/integration/test_sessions.py::test_turnstile_unavailable_fails_closed_with_503
+    seen_live: null
+
+  # --- Safety ---
+
+  - id: safety.blocked_after_retry
+    layer: safety
+    what: A reply still has blocked items after its retry.
+    cause: none
+    handling: The items are removed and the coach explains; if every item goes, a safe fallback text.
+    person_sees: A safe answer with a note.
+    code: null
+    tests:
+      - tests/unit/agents/test_base.py::test_a_retry_that_is_still_blocked_drops_the_items
+      - tests/unit/agents/test_base.py::test_all_items_dropped_the_coach_explains_in_its_own_words
+      - tests/unit/agents/test_base.py::test_a_failed_explanation_gives_the_fixed_reply
+    seen_live: null
+
+  - id: safety.bad_rules_file
+    layer: safety
+    what: rules.yaml or catalogue.yaml is invalid.
+    cause: none
+    handling: The app refuses to start, with every problem listed.
+    person_sees: Nothing - the deploy fails.
+    code: null
+    tests:
+      - tests/unit/guardrails/test_loader.py::test_invalid_yaml
+      - tests/unit/guardrails/test_loader.py::test_all_problems_reported_together
+    seen_live: null
+
+  - id: safety.crisis
+    layer: safety
+    what: A message matches a crisis phrase.
+    cause: none
+    handling: The crisis stream at once - no session, no model call.
+    person_sees: The helplines.
+    code: null
+    tests:
+      - tests/integration/test_chat.py::test_a_crisis_gets_helplines_without_a_session_and_without_a_model
+    seen_live: null
+
+  # --- Jobs ---
+
+  - id: jobs.task_fails
+    layer: jobs
+    what: A job task fails or hangs.
+    cause: none
+    handling: Logged; each task has a 60 s limit; the others still run.
+    person_sees: Nothing.
+    code: null
+    tests:
+      - tests/integration/test_jobs.py::test_a_failing_or_hanging_task_doesnt_stop_the_others
+    seen_live: null
+
+  - id: jobs.two_processes
+    layer: jobs
+    what: Two processes run the job at the same moment.
+    cause: none
+    handling: The advisory lock lets one run; the other skips.
+    person_sees: Nothing.
+    code: null
+    tests:
+      - tests/integration/test_jobs.py::test_two_schedulers_at_once_run_the_tasks_once
+    seen_live: "2026-11-05: two workers on the dev DB, one ran it (Part D)"
+
+  - id: jobs.failure_rate
+    layer: jobs
+    what: Over 10% of at least 10 requests failed in the last 5 minutes.
+    cause: none
+    handling: The job logs one ERROR line starting "ALERT failure_rate" with the commonest causes; a spend cap isn't a failure.
+    person_sees: Nothing - it is for the owner's monitoring.
+    code: null
+    tests:
+      - tests/integration/test_jobs.py::test_a_failure_rate_over_ten_percent_alerts_with_its_causes
+      - tests/integration/test_jobs.py::test_no_alert_at_or_below_the_line
+      - tests/integration/test_jobs.py::test_spend_caps_and_old_requests_are_not_failures
+    seen_live: null

@@ -201,6 +201,20 @@ async def test_over_the_global_in_flight_cap_is_503(store, async_engine):
     await held.release()
 
 
+async def test_an_account_failure_refuses_with_its_own_message(store, async_engine):
+    """Failure library (Part E #55): a rejected key or no credit isn't 'busy'."""
+    clock = [0.0]
+    breaker = Breakers(lambda: clock[0])["openai"]
+    breaker.trip_account("openai")
+    with pytest.raises(ApiError) as caught:
+        await admit(await guest(store), uuid.uuid4(), store, breaker=breaker)
+    error = caught.value
+    assert (error.status, error.code, error.retry_after) == (503, "service_unavailable", 300)
+    assert error.message == ("Holos can't reach its AI service right now. "
+                             "Please try again later.")
+    assert await leases(async_engine) == set()
+
+
 async def test_an_open_provider_breaker_is_503_until_its_trial_call(store, async_engine):
     clock = [0.0]
     breaker = Breakers(lambda: clock[0])["openai"]

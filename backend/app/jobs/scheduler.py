@@ -17,6 +17,11 @@ on. The job only deletes what has outlived its lifetime (C.11): guest rows after
 minutes, account rate counters after a day, expired sessions, leases, crisis flags,
 decided pending writes and invites, saved streams, old unresolved terms; and retries image
 deletions. Account and global spend, account traces and rule hit counts are kept.
+
+It also watches the failure rate (failure library, Part E #55): over 10% of at least 10
+requests in the last 5 minutes ended in an error or a partial answer (a spend cap isn't
+a failure) → one ERROR line starting "ALERT failure_rate", with the commonest causes,
+for monitoring to pick up (Phase 7). The same rows can feed a dashboard later.
 """
 
 import asyncio
@@ -40,6 +45,9 @@ log = logging.getLogger(__name__)
 INTERVAL_S = 120
 TASK_LIMIT_S = 60
 LOCK_KEY = 0x486F6C6F73  # "Holos": the job's advisory lock
+FAILURE_WINDOW = timedelta(minutes=5)
+FAILURE_SHARE = 0.10
+FAILURE_MIN_REQUESTS = 10  # below this, one or two failures are not a trend
 ACCOUNT_COUNTERS_KEPT = timedelta(days=1)  # the longest account window (C.12)
 
 _GUEST = "(starts_with(key, 'session:') OR starts_with(key, 'ip:'))"
@@ -60,6 +68,18 @@ _DELETES = {
 }
 
 
+# A request failed: not a success, and not stopped by a spend cap (a notice, not a fault)
+_FAILURES = text(
+    "SELECT count(*), count(*) FILTER (WHERE NOT success AND NOT EXISTS ("
+    "SELECT 1 FROM json_array_elements(steps->'attempts') a "
+    "WHERE a->>'outcome' = 'over_budget')) FROM traces WHERE created_at > now() - :window")
+_CAUSES = text(
+    "SELECT a->>'outcome' AS cause, count(*) AS n FROM traces, "
+    "json_array_elements(steps->'attempts') a WHERE traces.created_at > now() - :window "
+    "AND a->>'outcome' NOT IN ('ok', 'running', 'cancelled') "
+    "GROUP BY 1 ORDER BY n DESC, cause LIMIT 3")
+
+
 @dataclass
 class Jobs:
     engine: AsyncEngine
@@ -76,7 +96,8 @@ class Jobs:
                  "crisis_flags": self.state.purge_expired_flags}
         tasks |= {name: (lambda sql=sql: self._delete(sql)) for name, sql in _DELETES.items()}
         return tasks | {"streams": self._streams, "unresolved_terms": self._terms,
-                        "image_deletions": lambda: retry_deletions(self.engine, self.images)}
+                        "image_deletions": lambda: retry_deletions(self.engine, self.images),
+                        "failure_alert": self._failure_rate}
 
     async def run_once(self) -> dict[str, int] | None:
         """Each task once; how many rows each removed (None for one that failed)."""
@@ -103,6 +124,19 @@ class Jobs:
 
     async def _streams(self) -> int:
         return sum(await self.streams.purge())
+
+    async def _failure_rate(self) -> int:
+        """1 if it logged an alert. Read before this run deletes old guest traces."""
+        async with self.engine.connect() as conn:
+            total, failed = (await conn.execute(_FAILURES, {"window": FAILURE_WINDOW})).one()
+            if total < FAILURE_MIN_REQUESTS or failed <= FAILURE_SHARE * total:
+                return 0
+            causes = (await conn.execute(_CAUSES, {"window": FAILURE_WINDOW})).all()
+        log.error("ALERT failure_rate: %d of %d requests failed in the last %d minutes "
+                  "(%d%%); causes: %s", failed, total, FAILURE_WINDOW.seconds // 60,
+                  round(100 * failed / total),
+                  ", ".join(f"{c} {n}" for c, n in causes) or "none recorded")
+        return 1
 
     async def _terms(self) -> int:
         async with self.engine.begin() as conn:

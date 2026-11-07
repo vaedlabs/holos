@@ -1,6 +1,7 @@
 """Write tools gate then stage and never touch the DB; read tools in guest mode (Plan P2.2)."""
 
 import pytest
+from sqlalchemy.exc import OperationalError
 
 from app.agents.schemas import Decision, WriteWarning
 from app.agents.tools import AGENT_TOOLS, GateResult, ToolContext
@@ -134,3 +135,13 @@ def test_agents_get_the_c10_tools():
     shared = {"get_recent_logs", "web_search"}
     assert names == {"physical": shared | {"log_workout"}, "nutrition": shared | {"log_meal"},
                      "mental": shared | {"log_practice"}}
+
+
+async def test_recent_logs_when_the_database_cant_answer():
+    """Failure library (Part E #55): the coach answers without them, it doesn't fail."""
+    def down():
+        raise OperationalError("SELECT", {}, ConnectionRefusedError("refused"))
+
+    ctx = ToolContext(mode="account", trace_id="t1", user_id=7, sessions=down)
+    out = await TOOLS["get_recent_logs"].run({"kind": "meal", "days": 7}, ctx)
+    assert out == {"status": "unavailable"}

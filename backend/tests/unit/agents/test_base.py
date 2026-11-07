@@ -28,6 +28,7 @@ from app.agents.schemas import (
     WebSearchArgs,
 )
 from app.agents.tools import Tool, ToolContext
+from app.config.limits import TOOL_ROUNDS
 from app.guardrails.gate import PHOTO_CAVEAT
 from app.observability import Trace
 from app.providers import (
@@ -41,6 +42,7 @@ from app.providers import (
     ResilientProvider,
     Route,
     ToolCall,
+    ToolResult,
     Usage,
 )
 
@@ -552,3 +554,29 @@ async def test_a_lone_coach_gets_no_other_coaches_note():
         risk_flag=False)))
     await agent.run(_run(message="can't sleep", profile=NONE))
     assert "answering the rest" not in fake.calls[0].messages[-1].text
+
+
+# --- Failure library (Part E #55) ---
+
+_ANSWER = MentalReply(kind="answer", summary="ok", items=[], notes=[], source_ids=[],
+                      follow_up=None, risk_flag=False)
+
+
+async def test_a_tool_the_coach_doesnt_have_is_answered_and_the_coach_goes_on():
+    trace = Trace("t")
+    agent, fake = _agent(MentalAgent, _calls(("delete_everything", {})), _result(_ANSWER))
+    result = await agent.run(_run(profile=NONE, trace=trace))
+    assert result.reply is not None
+    assert ("tool_call", "unknown_tool", "delete_everything") in _steps(trace)
+    sent = [m for m in fake.calls[1].messages if isinstance(m, ToolResult)]
+    assert [(r.name, r.output) for r in sent] == [("delete_everything",
+                                                   {"status": "unknown_tool"})]
+
+
+async def test_a_coach_that_keeps_calling_tools_must_reply_after_its_rounds():
+    search = ("web_search", {"query": "box breathing"})
+    agent, fake = _agent(MentalAgent, *[_calls(search)] * TOOL_ROUNDS, _result(_ANSWER))
+    result = await agent.run(_run(profile=NONE))
+    assert result.reply is not None and len(fake.calls) == TOOL_ROUNDS + 1
+    assert all(c.tools for c in fake.calls[:TOOL_ROUNDS])
+    assert fake.calls[TOOL_ROUNDS].tools is None  # the last call can only reply

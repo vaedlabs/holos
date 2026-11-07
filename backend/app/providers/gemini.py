@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from app.agents.schemas import llm_json_schema
 
 from .base import (
+    AccountFailure,
     BadRequest,
     GenerateOptions,
     LLMResult,
@@ -198,6 +199,8 @@ def _to_result(interaction: Any, model: str, schema: type[BaseModel] | None) -> 
 def _status_error(status: int, message: str, retry_after: float | None,
                   request_id: str | None = None):
     ids = {"request_id": request_id, "status": status or None}
+    if status in (401, 403):
+        return AccountFailure(message, "gemini", **ids)
     if status == 429:
         return RateLimited(message, "gemini", retry_after, **ids)
     if status >= 500:

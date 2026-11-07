@@ -31,6 +31,7 @@ Cause = Literal[
     "rate_limited",  # the provider said 429
     "unavailable",  # 5xx, a connection error, or an error event mid-stream
     "bad_request",  # the provider refused our request (4xx)
+    "account",  # the provider refused our account: key rejected (401/403) or out of credit
     "provider_timeout",  # the HTTP client's own timeout
     "no_first_output",  # streaming: nothing written within the first-output limit
     "output_stopped",  # streaming: writing stopped for the gap limit

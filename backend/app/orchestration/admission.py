@@ -39,6 +39,8 @@ _REFUSALS = {
                 "now. Please try again in a moment."),
     "global_slot": (503, "server_busy", "Holos is busy right now. "
                     "Please try again in a few seconds."),
+    "provider_account": (503, "service_unavailable", "Holos can't reach its AI service right now. "
+                "Please try again later."),
     "minute": (429, "too_fast", "You're sending messages quickly. "
                "Please wait a moment and try again."),
     "session": (429, "cap_reached", "You've used this session's allowance. "
@@ -123,7 +125,8 @@ async def admit(
     # The provider is failing: refuse at once rather than start a doomed request (C.13)
     down_for = breaker.retry_after() if breaker is not None else None
     if down_for is not None:
-        raise _refused("global_slot", math.ceil(down_for))
+        raise _refused("provider_account" if breaker.account else "global_slot",
+                      math.ceil(down_for))
     now = datetime.now(UTC)
     trace_id = trace_id or uuid.uuid4().hex
     keys = spend_keys(principal, now)

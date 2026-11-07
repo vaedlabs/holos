@@ -49,6 +49,7 @@ from app.guardrails.gate import gate
 from app.guardrails.types import GateResult
 from app.observability.tracer import Trace, cause_of
 from app.providers import (
+    AccountFailure,
     CallPlan,
     GenerateOptions,
     ImageInput,
@@ -403,6 +404,8 @@ def decisions_of(gated: GateResult) -> list[schemas.Decision]:
 
 
 def error_code(exc: ProviderError) -> AgentError:
+    if isinstance(exc, AccountFailure):  # also a breaker it left open
+        return "service_unavailable"
     if isinstance(exc, MalformedOutput):
         return "malformed"
     if isinstance(exc, OverBudget):
