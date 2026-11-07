@@ -305,6 +305,20 @@ async def test_confirm_commits_once_and_a_repeat_gets_the_same_answer(store, asy
     assert (await sql(async_engine, "SELECT status FROM pending_writes")) == [("committed",)]
 
 
+async def test_a_held_entry_is_never_called_refused_or_saved(store, async_engine):
+    """Part E #52: live, the coach said "I couldn't save this snack" over a Confirm card."""
+    me = await account(store, async_engine)
+    models = _with_search(Models(router=[_route("physical")], physical=[
+        _calls(("web_search", {"query": "glute bridge benefits"}), ("log_workout", BRIDGES)),
+        _ack("Glute bridges build your hips. I couldn't save it yet. Confirm it below.")]))
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("did 3x12 glute bridges, are they good?")))
+    await _settled()
+    text = "".join(d["chunk"] for n, d in events if n == "text")
+    assert "couldn't save" not in text and "Confirm it below." in text
+    assert [n for n, _ in events].count("pending_write") == 1
+
+
 # --- Waiting, replaced, dated and discarded (Part E #50) ---
 
 

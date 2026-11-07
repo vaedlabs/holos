@@ -7,7 +7,8 @@ on the normalised query, and a search credit reserved before each real call.
 * Cap reached (per request, session, IP, account or global): `search_unavailable`
   without a call. The turn is not marked untrusted (C.13).
 * Timeout or error: `search_unavailable`, and the credit counts as used (C.13).
-* Any result: the turn becomes untrusted, so writes need confirmation (C.17).
+* Any result: the turn becomes untrusted, so writes need confirmation (C.17); entries
+  logged before the search are said to be held (Part E #52).
 """
 
 import asyncio
@@ -26,6 +27,7 @@ from app.data.state_store import StateStore
 from app.guardrails.normalise import normalise_text
 
 from .base import Tool, ToolContext
+from .write import HELD
 
 CACHE_TTL_SECONDS = 3600
 CACHE_MAX_ENTRIES = 500
@@ -134,8 +136,12 @@ def _answer(results: list[dict[str, str]], ctx: ToolContext) -> dict[str, Any]:
         except ValidationError:
             continue
         out.append({"id": source_id, **r})
-    if out:
-        ctx.untrusted = True
+    if not out:
+        return {"status": "ok", "results": out}
+    ctx.untrusted = True
+    if ctx.staged_writes:  # logged before this search: they wait for confirmation too
+        return {"status": "ok", "results": out,
+                "logged_this_turn": f"The entries you logged this turn are now held. {HELD}"}
     return {"status": "ok", "results": out}
 
 

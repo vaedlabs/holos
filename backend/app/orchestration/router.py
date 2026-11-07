@@ -49,7 +49,9 @@ help, not because that coach could also say something useful. A feeling or a sec
 mentioned in passing is not a request: "stressed, what should I eat?" needs nutrition; "no \
 motivation to work out" needs mental. A follow-up ("make it easier", "and for dinner?", \
 "why?") goes to the coaches it follows. A request across areas ("workouts and snacks for my \
-hike") needs each coach it names.
+hike") needs each coach it names. Breathing practices and pranayama (kapalbhati, bhastrika, \
+box breathing), meditation and relaxation are the mental wellbeing coach's, also when the \
+person logs them; yoga postures and flows are exercise.
 
 Anything else you answer yourself, in one to three warm, natural sentences, like a personal \
 assistant who knows this person: use their profile and the conversation when it fits, and \

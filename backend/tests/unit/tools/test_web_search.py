@@ -2,8 +2,10 @@
 
 import pytest
 
+from app.agents.schemas import LogWorkoutArgs, StagedWrite
 from app.agents.tools import AGENT_TOOLS, WebSearch
 from app.agents.tools import web_search as ws
+from app.agents.tools.write import HELD
 
 from .conftest import Clock, FakeSearchClient, FakeStore
 
@@ -23,6 +25,15 @@ async def test_result_sets_untrusted_and_records_sources(ctx):
     assert [r["id"] for r in out["results"]] == ["s1"]  # the ftp link was dropped
     assert ctx.untrusted is True
     assert [(s.id, s.url) for s in ctx.sources] == [("s1", "https://example.org/dal")]
+
+
+async def test_a_search_after_a_log_says_the_entry_is_now_held(ctx):
+    ctx.search = _service()
+    assert "logged_this_turn" not in await TOOL.run({"query": "protein in dal"}, ctx)
+    ctx.staged_writes.append(StagedWrite(kind="workout", args=LogWorkoutArgs(
+        catalogue_id="push_up", sets=3, reps=10, duration_s=None, note="")))
+    out = await TOOL.run({"query": "push up form"}, ctx)
+    assert out["logged_this_turn"] == "The entries you logged this turn are now held. " + HELD
 
 
 async def test_client_called_with_basic_depth_and_five_results(ctx):

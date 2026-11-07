@@ -521,3 +521,43 @@ def test_a_logged_exercise_may_be_named_in_the_reply():
     result = gate("physical", reply, knee, logged=[{"catalogue_id": "back_squat", "sets": 3,
                                                    "reps": 10, "duration_s": None, "note": ""}])
     assert result.content["summary"].startswith("Back squats")
+
+
+# --- A held entry (Part E #52) ---
+
+
+@pytest.mark.parametrize("claim", [
+    "So I couldn't save this snack.", "I could not log it.", "I can't log this meal.",
+    "I wasn't able to save it.", "It has not been recorded.", "I didn't add it.",
+    "Ise log nahi kar sakta.", "यह लॉग नहीं हो सकता।",
+])
+def test_a_couldnt_save_claim_goes_while_an_entry_waits(claim):
+    summary = f"Peanut chikki has peanuts. {claim} Confirm it below if you ate it."
+    held = gate("physical", physical(summary=summary), NONE, held=True)
+    assert held.content["summary"] == "Peanut chikki has peanuts. Confirm it below if you ate it."
+    assert [s.kind for s in held.scrubbed] == ["write_claim"]
+    # Nothing waits: the sentence may be true, so it stays
+    assert gate("physical", physical(summary=summary), NONE).content["summary"] == summary
+
+
+@pytest.mark.parametrize("text", [
+    "You can confirm it on the card below.", "Tap Confirm if you ate it, or Don't log.",
+    "It waits for your confirmation.", "Try adding a short walk after dinner.",
+])
+def test_what_a_held_reply_should_say_is_kept(text):
+    assert gate("physical", physical(summary=text), NONE, held=True).content["summary"] == text
+
+
+@pytest.mark.parametrize("text", [
+    "You can confirm it on the card below.", "It's waiting for your confirmation.",
+    "Neeche card par confirm kar sakte ho.", "नीचे कार्ड पर कन्फर्म कर सकते हैं।",
+])
+def test_a_confirm_card_is_only_mentioned_while_an_entry_waits(text):
+    summary = f"Good game. {text}"
+    walk = [{"catalogue_id": "brisk_walking", "sets": None, "reps": None,
+             "duration_s": 1800, "note": ""}]
+    logged = gate("physical", physical(summary=summary), NONE, logged=walk)
+    assert logged.content["summary"] == "Good game."  # it was logged: there's no card
+    assert gate("physical", physical(summary=summary), NONE, logged=walk,
+                held=True).content["summary"] == summary
+    assert gate("physical", physical(summary=summary), NONE).content["summary"] == summary

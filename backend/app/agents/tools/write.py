@@ -3,7 +3,8 @@
 A write tool gates the entry, then stages it on the request context. It never
 touches the database: the Composer commits staged writes after the final reply
 passes the gate, or turns them into pending writes after a web search or when the
-entry conflicts with the profile ("held": the person confirms, Part E #45).
+entry conflicts with the profile ("held": the person confirms, Part E #45). The tool
+says "held" for both, so the coach never tells the person it was logged (Part E #52).
 """
 
 from typing import Any
@@ -46,6 +47,14 @@ def _amounts(meal: LogMealArgs) -> str:
     return "".join(f" · {p}" for p in parts)
 
 
+# What the coach says about a held entry (Part E #52): live, it said "I couldn't save
+# this snack" in 2 of 4 turns while the card below offered Confirm
+HELD = ("Not refused and not saved yet: it waits for the person to confirm it on the card "
+        "below your reply, where they can also choose Don't log. Say what conflicts, if "
+        "anything, and that they can confirm it there. Don't say it was refused, couldn't "
+        "be saved, or was logged.")
+
+
 async def _stage(kind: WriteKind, args: BaseModel, ctx: ToolContext) -> dict[str, Any]:
     gate = await ctx.gate_write(kind, args, ctx)
     ctx.decisions.extend(gate.decisions)
@@ -56,7 +65,9 @@ async def _stage(kind: WriteKind, args: BaseModel, ctx: ToolContext) -> dict[str
     ctx.staged_writes.append(write)
     if write.conflicts:  # something they already had conflicts: they confirm (Part E #45)
         return {"status": "held", "summary": summarise(kind, args),
-                "warnings": [f"{w.item}: {w.reason}" for w in write.conflicts]}
+                "warnings": [f"{w.item}: {w.reason}" for w in write.conflicts], "next": HELD}
+    if ctx.untrusted:  # a web search came first: the person confirms it (C.17)
+        return {"status": "held", "summary": summarise(kind, args), "next": HELD}
     return {"status": "staged", "summary": summarise(kind, args)}
 
 

@@ -13,7 +13,9 @@ import the app's schemas. A reply is told from a write by its `summary` field.
    catalogue doesn't know gets a "not checked" caveat.
 2. Prose: each sentence that recommends a blocked item is removed. Negated
    mentions ("avoid squats") don't count. Self-harm phrases are removed too.
-3. Links and "logged"/"saved" claims are removed from all prose.
+3. Links and "logged"/"saved" claims are removed from all prose. While an entry waits
+   for the person's confirmation, so are claims it couldn't be saved; when the turn's
+   entries were all logged, so is sending the person to a confirm card (Part E #52).
 
 Items are judged, not removed: BaseAgent retries first, then drops blocked items
 (Plan C.10). Every decision carries a rule ID and the rules version.
@@ -91,6 +93,18 @@ WRITE_CLAIM = re.compile(
     r"|(?:added|recorded) (?:it |this |that )?(?:to|in) your (?:log|logs|diary|journal|history))\b"
     r"|(?<!\w)(?:लॉग|सेव) (?:कर (?:दिया|दी)|हो (?:गया|गयी|गई))"
 )
+# "Couldn't save it": false while the entry waits for confirmation (Part E #52)
+REFUSAL_CLAIM = re.compile(
+    r"\b(?:(?:couldn't|could not|can't|cannot|can not|wasn't able to|was not able to"
+    r"|unable to|didn't|did not|won't|will not|not able to) (?:\w+ ){0,2}"
+    r"(?:save|log|record|add)\b"
+    r"|not (?:been )?(?:saved|logged|recorded|added)\b"
+    r"|(?:log|save) (?:nahi|nahin|nhi) (?:kar|ho))"
+    r"|(?<!\w)(?:लॉग|सेव) नहीं (?:कर|हो)"
+)
+# "Confirm it on the card below": false when nothing waits (Part E #52)
+CARD_CLAIM = re.compile(
+    r"^(?=.*(?:\bconfirm|कन्फर्म|पुष्टि))(?=.*(?:\bcards?\b|\bwait|कार्ड|इंतज़ार|इंतजार))")
 
 
 def _as_list(value: Any) -> list:
@@ -117,6 +131,8 @@ class _Check:
                  purpose: Purpose = "plan"):
         rules = guardrails.rules
         self.purpose = purpose
+        self.held = False  # an entry this turn waits for confirmation
+        self.logged = False  # the turn logged entries, and none of them waits
         self.version = rules.version
         self.matcher = matcher
         self.profile = profile
@@ -291,7 +307,8 @@ class _Check:
 
     def _sentence_ok(self, sentence: str, where: str) -> bool:
         folded = fold_for_matching(sentence)
-        if WRITE_CLAIM.search(folded):
+        if (WRITE_CLAIM.search(folded) or (self.held and REFUSAL_CLAIM.search(folded))
+                or (self.logged and CARD_CLAIM.search(folded))):
             self.scrubbed.append(Scrub("write_claim", where, sentence.strip()[:200]))
             return False
         ok = True
@@ -373,17 +390,20 @@ def gate(
     guardrails: Guardrails | None = None,
     purpose: Purpose = "plan",
     logged: Sequence[Mapping[str, Any]] = (),
+    held: bool = False,
 ) -> GateResult:
     """Check an agent reply or a write (log_workout, log_meal, log_practice arguments).
     purpose="photo": a nutrition reply about a meal photo (C.14 step 7).
     logged: the entries the person logged this turn (write arguments). Like a photo's
     foods, they are what the person already had, so a sentence naming them stays: live,
-    a vegan's paneer log lost its whole acknowledgement (Part E #45)."""
+    a vegan's paneer log lost its whole acknowledgement (Part E #45).
+    held: one of them waits for the person's confirmation (Part E #52)."""
     if domain not in ITEM_KIND:
         raise ValueError(f"unknown domain '{domain}'")
     if purpose == "photo" and (domain != "nutrition" or "summary" not in reply_or_write):
         raise ValueError("photo mode is for nutrition replies")
     check = _new_check(guardrails, profile, purpose)
+    check.held, check.logged = held, bool(logged) and not held
     content = copy.deepcopy(dict(reply_or_write))
 
     if "summary" in content:  # a reply

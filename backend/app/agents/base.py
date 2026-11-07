@@ -244,9 +244,11 @@ class BaseAgent:
 
     def _gate(self, reply: BaseModel, run: AgentRun, photo: bool,
               messages: list[Message]) -> _Try:
-        logged = [w.args.model_dump(mode="json") for w in run.tools.staged_writes]
+        staged = run.tools.staged_writes
+        logged = [w.args.model_dump(mode="json") for w in staged]
+        held = bool(staged) and (run.tools.untrusted or any(w.conflicts for w in staged))
         gated = gate(self.domain, reply.model_dump(mode="json"), run.profile or _NO_PROFILE,
-                     purpose="photo" if photo else "plan", logged=logged)
+                     purpose="photo" if photo else "plan", logged=logged, held=held)
         run.trace.step("gate", self.domain, gated.action)
         run.decided += decisions_of(gated)
         because, why = None, ""

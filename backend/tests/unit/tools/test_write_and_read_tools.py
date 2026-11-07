@@ -2,8 +2,9 @@
 
 import pytest
 
-from app.agents.schemas import Decision
+from app.agents.schemas import Decision, WriteWarning
 from app.agents.tools import AGENT_TOOLS, GateResult, ToolContext
+from app.agents.tools import write as write_tools
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
@@ -40,6 +41,29 @@ async def test_write_stages_and_never_opens_the_db(account_ctx, name):
     assert out == {"status": "staged", "summary": summary}
     [staged] = account_ctx.staged_writes
     assert staged.kind == kind
+
+
+@pytest.mark.parametrize("name", list(WRITES))
+async def test_after_a_web_search_a_write_is_held_not_staged(account_ctx, name):
+    kind, args, summary = WRITES[name]
+    account_ctx.untrusted = True
+    out = await TOOLS[name].run(args, account_ctx)
+    assert out == {"status": "held", "summary": summary, "next": write_tools.HELD}
+    assert [w.kind for w in account_ctx.staged_writes] == [kind]
+
+
+async def test_a_conflict_is_held_and_says_what_to_tell_the_person(account_ctx):
+    peanut = WriteWarning(kind="conflict", item="Dal rice", rule_id="DI-ALG-01",
+                          attributes=["peanut"], reason="contains peanut")
+
+    async def warn(kind, args, ctx):
+        return GateResult(allowed=True, warnings=(peanut,))
+
+    account_ctx.gate_write = warn
+    out = await TOOLS["log_meal"].run(WRITES["log_meal"][1], account_ctx)
+    assert out["status"] == "held" and out["next"] == write_tools.HELD
+    assert out["warnings"] == ["Dal rice: contains peanut"]
+    assert "waits for the person to confirm it" in out["next"]
 
 
 @pytest.mark.parametrize("name", list(WRITES))
