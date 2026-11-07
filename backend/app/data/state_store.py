@@ -439,14 +439,6 @@ class StateStore:
             )).scalar_one_or_none()
         return count or 0
 
-    async def purge_rate_counters(self, older_than: timedelta) -> int:
-        async with self._engine.begin() as conn:
-            result = await conn.execute(
-                text("DELETE FROM rate_counters WHERE window_start < now() - :age"),
-                {"age": older_than},
-            )
-        return result.rowcount
-
     # --- Spend and search credits (C.13) ---
 
     async def reserve(

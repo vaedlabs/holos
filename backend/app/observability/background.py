@@ -6,13 +6,15 @@ database in a task of their own, so `done` never waits on them.
 
 `traces`: the route, every step and model attempt (no prompts, no person's text: the
 Trace never holds them), usage and an honest success flag (an error reply is never a
-success). `gate_decisions`: one row per decision and offending item. A failed write is
+success). `gate_decisions`: one row per decision and offending item. `rule_hit_counts`:
+each decision counted once per rule and day, with no user or trace. A failed write is
 logged and dropped: losing a trace must never fail a request.
 """
 
 import asyncio
 import json
 import logging
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -24,6 +26,9 @@ from app.observability.tracer import Trace
 log = logging.getLogger(__name__)
 
 ITEM_MAX = 200
+# Each decision once, outliving the guest rows the job deletes (C.19)
+_HIT = text("INSERT INTO rule_hit_counts (rule_id, day, count) VALUES (:rule, current_date, :n) "
+            "ON CONFLICT (rule_id, day) DO UPDATE SET count = rule_hit_counts.count + :n")
 _pending: set[asyncio.Task] = set()
 
 
@@ -81,3 +86,5 @@ async def write(engine: AsyncEngine, outcome: Outcome) -> None:
             await conn.execute(text(
                 "INSERT INTO gate_decisions (trace_id, user_id, rule_id, rules_version, "
                 "action, item, reason) VALUES (:t, :u, :rule, :v, :a, :item, :reason)"), rows)
+            await conn.execute(_HIT, [{"rule": rule, "n": n} for rule, n in sorted(
+                Counter(d.rule_id for d in outcome.decisions).items())])

@@ -57,13 +57,26 @@ app = FastAPI(
     version="0.1.0"
 )
 
+@app.on_event("startup")
+async def start_jobs():
+    """The 2-minute cleanup (Plan C.19); every process runs it, one at a time does the work."""
+    from app.data.engine import get_async_engine
+    from app.jobs import scheduler
+    from app.storage.images import get_image_store
+
+    app.state.jobs = scheduler.start(scheduler.Jobs(get_async_engine(), get_image_store()))
+
+
 @app.on_event("shutdown")
 async def finish_running_requests():
     """A planned restart takes no new chat requests and lets running ones end (Plan C.5,
     Part E #34); uvicorn waits for this before the process exits."""
+    from app.jobs import scheduler
     from app.observability import background
     from app.orchestration import worker
 
+    if jobs := getattr(app.state, "jobs", None):
+        await scheduler.stop(jobs)
     left = await worker.drain()
     if left:
         logger.error("shutdown: %d chat requests still running at the hard limit", left)
