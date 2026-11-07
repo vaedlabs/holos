@@ -6,6 +6,7 @@ for the person's confirmation; confirm commits once, and checks the profile agai
 import asyncio
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -18,11 +19,13 @@ from app.agents.schemas import (
     MentalReply,
     NutritionReply,
     PhysicalReply,
+    StagedWrite,
     UserProfile,
 )
 from app.agents.tools import WebSearch
 from app.config.settings import get_settings
 from app.data.state_store import StateStore
+from app.jobs.scheduler import Jobs
 from app.orchestration import staging
 from app.orchestration.principal import csrf_token
 from app.providers import LLMResult, ToolCall, Usage
@@ -302,13 +305,166 @@ async def test_confirm_commits_once_and_a_repeat_gets_the_same_answer(store, asy
     assert (await sql(async_engine, "SELECT status FROM pending_writes")) == [("committed",)]
 
 
-async def test_an_expired_confirm_is_410(store, async_engine):
+# --- Waiting, replaced, dated and discarded (Part E #50) ---
+
+
+async def _discard(app, principal, write_id) -> httpx.Response:
+    cfg = settings()
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
+                                 base_url="http://testserver") as client:
+        return await client.post(
+            f"/agents/writes/{write_id}/discard",
+            headers={"origin": APP, "x-csrf-token": csrf_token(principal.raw_session_id, cfg)},
+            cookies={cfg.session_cookie: principal.raw_session_id})
+
+
+async def _held(store, me, kind="meal", args=None, trace="t-held") -> str:
+    """A held entry as a turn stages it, without the turn."""
+    args = args or LogMealArgs(meal="lunch", foods=[LoggedFood(**DAL)])
+    write = StagedWrite(kind=kind, args=args)
+    return str(await store.stage_write(me.user_id, kind, staging.held_payload(write),
+                                       "hash", trace))
+
+
+def _ago(**delta) -> str:
+    return (datetime.now(UTC) - timedelta(**delta)).isoformat()
+
+
+async def test_a_held_entry_waits_with_no_time_limit_and_keeps_when_it_was_said(
+        store, async_engine):
     me = await account(store, async_engine)
     app, write_id = await _pending_turn(store, async_engine, me)
-    await sql(async_engine, "UPDATE pending_writes SET expires_at = now() - interval '1 s'")
-    response = await _confirm(app, me, write_id)
-    assert response.status_code == 410 and response.json()["code"] == "expired"
-    assert await _count(async_engine, "workout_logs") == 0
+    [(expires, said)] = await sql(async_engine, "SELECT expires_at, created_at "
+                                  "FROM pending_writes")
+    assert expires is None
+    await sql(async_engine, "UPDATE pending_writes SET created_at = now() - interval '3 days'")
+    await Jobs(async_engine, None).run_once()
+    assert (await _confirm(app, me, write_id)).status_code == 200
+    [(logged, staged)] = await sql(async_engine, "SELECT w.workout_date, p.created_at "
+                                   "FROM workout_logs w, pending_writes p")
+    assert logged == staged  # when they said it, not when they tapped
+
+
+async def test_the_event_carries_when_it_was_said_and_the_meal(store, async_engine):
+    me = await account(store, async_engine)
+    models = _with_search(Models(router=[_route("nutrition")], nutrition=[
+        _calls(("web_search", {"query": "dal protein"}),
+               ("log_meal", {"meal": "lunch", "foods": [DAL]})), _lunch()]))
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("had dal for lunch, is it good protein?")))
+    await _settled()
+    [pending] = [d for n, d in events if n == "pending_write"]
+    [(write_id, said)] = await sql(async_engine, "SELECT id, created_at FROM pending_writes")
+    assert (pending["write_id"], datetime.fromisoformat(pending["at"])) == (str(write_id), said)
+    assert pending["meal"] == "lunch" and "expires_at" not in pending
+
+
+async def test_the_confirmed_date_time_and_meal_are_logged(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    write_id = await _held(store, me)
+    at = (datetime.now(UTC) - timedelta(days=2)).replace(hour=8, minute=15, microsecond=0)
+    response = await _confirm(app, me, write_id, {"at": at.isoformat(), "meal": "breakfast"})
+    assert response.status_code == 200
+    assert response.json()["writes"][0]["summary"].startswith("Logged: Breakfast")
+    assert await sql(async_engine, "SELECT meal_type, meal_date FROM nutrition_logs") == [
+        ("breakfast", at)]
+
+
+# Out of range is 400; a time without its zone can't be read at all, 422 like any bad body
+@pytest.mark.parametrize("body, status", [({"at": _ago(minutes=-60)}, 400),
+                                          ({"at": _ago(days=31)}, 400),
+                                          ({"at": "2026-11-05T08:00:00"}, 422)])
+async def test_a_date_out_of_range_is_refused_and_the_entry_still_waits(store, async_engine,
+                                                                        body, status):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    write_id = await _held(store, me)
+    response = await _confirm(app, me, write_id, body)
+    assert response.status_code == status
+    assert (await sql(async_engine, "SELECT status FROM pending_writes")) == [("pending",)]
+    ok = await _confirm(app, me, write_id, {"at": _ago(days=29)})
+    assert ok.status_code == 200 and await _count(async_engine, "nutrition_logs") == 1
+
+
+async def test_a_bad_date_says_what_to_pick(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    response = await _confirm(app, me, await _held(store, me), {"at": _ago(minutes=-60)})
+    assert response.json() == {"code": "bad_date", "message":
+                               "Choose a date and time in the last 30 days, not in the future."}
+
+
+async def test_only_a_meal_has_a_meal_time(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    write_id = await _held(store, me, "workout", LogWorkoutArgs(**BRIDGES))
+    assert (await _confirm(app, me, write_id, {"meal": "lunch"})).status_code == 400
+    assert (await sql(async_engine, "SELECT status FROM pending_writes")) == [("pending",)]
+
+
+async def test_a_newer_entry_replaces_the_waiting_one_of_its_kind(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    old_meal = await _held(store, me, trace="t1")
+    workout = await _held(store, me, "workout", LogWorkoutArgs(**BRIDGES), trace="t2")
+    new_meal = await _held(store, me, trace="t3")
+
+    replaced = await _confirm(app, me, old_meal)
+    assert (replaced.status_code, replaced.json()["code"]) == (410, "replaced")
+    assert replaced.json()["message"] == ("A newer entry replaced this one. "
+                                          "Please log it again if you still want it.")
+    assert await sql(async_engine, "SELECT payload::text FROM pending_writes "
+                     "WHERE id = :i", i=old_meal) == [("{}",)]  # its content is gone
+    assert (await _confirm(app, me, workout)).status_code == 200  # another kind: kept
+    assert (await _confirm(app, me, new_meal)).status_code == 200
+
+
+async def test_one_turns_entries_of_a_kind_wait_together(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    first, second = [await _held(store, me, trace="t1") for _ in range(2)]
+    other = await account(store, async_engine, email="b@example.com")
+    theirs = await _held(store, other, trace="t2")  # someone else's never replaces mine
+    for write_id in (first, second):
+        assert (await _confirm(app, me, write_id)).status_code == 200
+    assert (await _confirm(app, other, theirs)).status_code == 200
+
+
+async def test_a_turn_that_holds_nothing_leaves_the_waiting_entry(store, async_engine):
+    me = await account(store, async_engine)
+    app, write_id = await _pending_turn(store, async_engine, me)
+    chat_only = _writes_app(store, async_engine, Models(router=[_route("physical")],
+                                                        physical=[_ack("Sounds good.")]))
+    await _post(chat_only, me, _payload("thanks!"))
+    await _settled()
+    assert (await _confirm(app, me, write_id)).status_code == 200
+
+
+async def test_dont_log_drops_the_entry(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    write_id = await _held(store, me)
+    for _ in range(2):  # a repeat gets the same answer
+        response = await _discard(app, me, write_id)
+        assert (response.status_code, response.json()) == (200, {"discarded": True})
+    assert await sql(async_engine, "SELECT status, payload::text, expires_at > now() "
+                     "FROM pending_writes") == [("discarded", "{}", True)]
+    confirm = await _confirm(app, me, write_id)
+    assert (confirm.status_code, confirm.json()["code"]) == (409, "discarded")
+    assert await _count(async_engine, "nutrition_logs") == 0
+
+
+async def test_dont_log_after_logging_or_on_someone_elses_entry(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    write_id = await _held(store, me)
+    await _confirm(app, me, write_id)
+    response = await _discard(app, me, write_id)
+    assert (response.status_code, response.json()["code"]) == (409, "logged")
+    other = await account(store, async_engine, email="b@example.com")
+    assert (await _discard(app, other, await _held(store, me, trace="t9"))).status_code == 404
+    assert (await _discard(app, await guest(store), write_id)).status_code == 404
 
 
 async def test_a_confirm_after_the_profile_gained_a_knee_injury_is_409(store, async_engine):
@@ -333,8 +489,8 @@ async def test_a_failed_commit_leaves_the_write_pending_and_confirmable(store, a
     app, write_id = await _pending_turn(store, async_engine, me)
     real = chat.insert_log
 
-    async def broken(session, user_id, write):
-        await real(session, user_id, write)  # the row is inserted, then the step fails
+    async def broken(session, user_id, write, at=None):
+        await real(session, user_id, write, at)  # the row is inserted, then the step fails
         raise RuntimeError("insert failed")
 
     monkeypatch.setattr(chat, "insert_log", broken)

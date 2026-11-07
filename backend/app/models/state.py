@@ -112,7 +112,8 @@ class PendingWrite(Base):
     profile_hash: Mapped[str] = mapped_column(String(64))
     trace_id: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = _now()
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    # NULL while it waits: no time limit (Part E #50); a decided one is kept a day
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     status: Mapped[str] = mapped_column(String(16), server_default="pending")
     result: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

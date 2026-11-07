@@ -305,11 +305,24 @@ async def test_regate_block_discards_and_repeats_409(store, user_id):
     assert again == first  # stored result, original status code
 
 
-async def test_expired_write_is_410(store, user_id, async_engine):
-    write_id = await _stage(store, user_id)
-    await _sql(async_engine, "UPDATE pending_writes SET expires_at = now() - interval '1 second'")
-    result = await store.confirm_write(write_id, user_id, _allow, _committer([]))
-    assert result.status_code == 410
+async def test_a_write_waits_until_a_newer_one_of_its_kind_replaces_it(store, user_id,
+                                                                        async_engine):
+    old = await _stage(store, user_id)
+    assert (await _sql(async_engine, "SELECT expires_at FROM pending_writes")).scalar() is None
+    await store.stage_write(user_id, "workout", {}, "hash", "t2")  # another kind
+    await store.stage_write(user_id, "meal", {"user_id": user_id, "meal": "dinner"}, "hash",
+                            "t1")  # the same turn
+    assert (await store.confirm_write(old, user_id, _allow, _committer([]))).status_code == 200
+    newer = await _stage(store, user_id)
+    assert newer != old
+    await store.stage_write(user_id, "meal", {"user_id": user_id, "meal": "x"}, "hash", "t3")
+    result = await store.confirm_write(newer, user_id, _allow, _committer([]))
+    assert (result.status_code, result.body["code"]) == (410, "replaced")
+    statuses = (await _sql(async_engine, "SELECT kind, status FROM pending_writes "
+                           "ORDER BY created_at, kind")).all()
+    assert sorted(statuses) == [("meal", "committed"), ("meal", "discarded"),
+                                ("meal", "discarded"), ("meal", "pending"),
+                                ("workout", "pending")]
 
 
 async def test_other_users_write_is_404(store, user_id, async_engine):

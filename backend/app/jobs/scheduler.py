@@ -15,7 +15,7 @@ Day and month caps roll over by themselves: every spend row and rate window is k
 its period's start (budget.py), so a new day reads a new row and the month's row runs
 on. The job only deletes what has outlived its lifetime (C.11): guest rows after 240
 minutes, account rate counters after a day, expired sessions, leases, crisis flags,
-pending writes and invites, saved streams, old unresolved terms; and retries image
+decided pending writes and invites, saved streams, old unresolved terms; and retries image
 deletions. Account and global spend, account traces and rule hit counts are kept.
 """
 
@@ -47,6 +47,7 @@ _GUEST = "(starts_with(key, 'session:') OR starts_with(key, 'ip:'))"
 # name -> statement; each deletes the rows past their lifetime (C.11)
 _DELETES = {
     "leases": "DELETE FROM inflight_leases WHERE expires_at < now()",
+    # A waiting entry has no expiry (NULL); a decided one is kept a day
     "pending_writes": "DELETE FROM pending_writes WHERE expires_at <= now()",
     "invites": "DELETE FROM invites WHERE expires_at <= now()",
     # Every window but an account's is at most 240 minutes long (C.12)

@@ -64,14 +64,16 @@ async def test_sessions_leases_flags_writes_and_invites_go_when_expired(jobs, as
     for key, at in (("old", "31 minutes"), ("new", "29 minutes")):
         await sql(async_engine, "INSERT INTO principal_flags (principal_key, crisis_at) "
                   "VALUES (:k, now() - CAST(:a AS interval))", k=key, a=at)
-    for kind, status, ends in (("workout", "pending", "-1 second"),
-                               ("meal", "pending", "5 minutes"),
-                               ("practice", "committed", "-1 second"),
-                               ("workout", "discarded", "20 hours")):
+    # A waiting entry has no expiry however old (Part E #50); a decided one is kept a day
+    for kind, status, ends, age in (("meal", "pending", None, "400 days"),
+                                    ("practice", "committed", "-1 second", "1 day"),
+                                    ("workout", "discarded", "-1 second", "1 day"),
+                                    ("workout", "discarded", "20 hours", "4 hours")):
         await sql(async_engine, "INSERT INTO pending_writes (id, user_id, kind, payload, "
-                  "profile_hash, trace_id, status, expires_at) VALUES (:i, :u, :k, '{}', 'h', "
-                  "'t', :s, now() + CAST(:e AS interval))",
-                  i=uuid.uuid4(), u=user, k=kind, s=status, e=ends)
+                  "profile_hash, trace_id, status, created_at, expires_at) VALUES (:i, :u, :k, "
+                  "'{}', 'h', 't', :s, now() - CAST(:a AS interval), "
+                  "now() + CAST(:e AS interval))",
+                  i=uuid.uuid4(), u=user, k=kind, s=status, a=age, e=ends)
     for token, ends, used in (("old", "-1 second", None), ("live", "1 day", None),
                               ("used", "1 day", user)):
         await sql(async_engine, "INSERT INTO invites (id, token_hash, created_by, expires_at, "

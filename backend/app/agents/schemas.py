@@ -22,7 +22,14 @@ from functools import reduce
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    model_validator,
+)
 
 from app.config.limits import IMPORT_LOG_ENTRIES, IMPORT_TURNS
 from app.guardrails.loader import get_guardrails
@@ -42,6 +49,7 @@ AgentName = Literal["physical", "nutrition", "mental"]
 # answered by the router's own reply, no coach (Part E #36)
 TurnKind = Literal["coaching", "greeting", "meta", "off_topic", "unclear", "other_language"]
 WriteKind = Literal["workout", "meal", "practice"]
+MealType = Literal["breakfast", "lunch", "dinner", "snack"]
 Intensity = Literal["low", "moderate", "high"]
 
 # A short text: catalogue-style IDs and tags
@@ -296,7 +304,7 @@ class LogWorkoutArgs(_LLMModel):
 
 
 class LogMealArgs(_LLMModel):
-    meal: Literal["breakfast", "lunch", "dinner", "snack"]
+    meal: MealType
     foods: list[LoggedFood] = Field(min_length=1, max_length=5)
 
     def totals(self) -> dict[str, float | bool | None]:
@@ -554,9 +562,12 @@ class SectionEndData(_EventData):
 
 class ConfirmWrite(_Model):
     """POST /agents/writes/{id}/confirm, body optional: the attributes from the
-    `pending_write` event the person didn't have (Part E #45)."""
+    `pending_write` event the person didn't have (Part E #45), and the date, time and
+    meal as the person confirms them; left out, the event's `at` and `meal` (#50)."""
 
     left_out: list[Annotated[str, Field(max_length=40)]] = Field(default=[], max_length=10)
+    at: AwareDatetime | None = None
+    meal: MealType | None = None
 
 
 class ImportLog(_Model):
@@ -588,21 +599,21 @@ class PendingWriteData(_EventData):
     # left out (Part E #45); empty when only a web search holds the write
     warnings: list[Annotated[str, Field(max_length=300)]] = []
     attributes: list[Annotated[str, Field(max_length=40)]] = []
+    # When the person said it, and a meal's meal: the confirm card asks for both again,
+    # filled in with these (Part E #50). It waits with no time limit.
+    at: datetime
+    meal: MealType | None = None
     # Account mode
     write_id: str | None = None
-    expires_at: datetime | None = None
     # Guest mode
     entry: StagedWrite | None = None
     profile_hash: str | None = None
 
     @model_validator(mode="after")
     def _one_mode(self):
-        account = self.write_id is not None and self.expires_at is not None
         guest = self.entry is not None and self.profile_hash is not None
-        if account == guest:
-            raise ValueError(
-                "needs write_id + expires_at (account) or entry + profile_hash (guest)"
-            )
+        if (self.write_id is not None) == guest:
+            raise ValueError("needs write_id (account) or entry + profile_hash (guest)")
         return self
 
 

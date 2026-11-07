@@ -112,6 +112,27 @@ def test_accounts_without_a_status_become_active(fresh):
         assert conn.execute(text("SELECT id, is_active FROM users ORDER BY id")).all() == [
             (1, True), (2, False)]
 
+def test_held_entries_lose_their_time_limit(fresh):
+    """18293a4b5c63 (Part E #50): a waiting entry has no expiry; one already past the old
+    15 minutes couldn't be confirmed, so it goes; a decided one keeps its day."""
+    alembic("upgrade", "0718293a4b52")
+    with fresh.begin() as conn:
+        conn.execute(text("INSERT INTO users (id, email, username, password_hash) "
+                          "VALUES (1, 'a@x.io', 'a', 'h')"))
+        for name, status, ends in (("live", "pending", "10 minutes"),
+                                   ("late", "pending", "-1 minute"),
+                                   ("done", "committed", "20 hours")):
+            conn.execute(text(
+                "INSERT INTO pending_writes (id, user_id, kind, payload, profile_hash, "
+                "trace_id, status, expires_at) VALUES (gen_random_uuid(), 1, 'meal', '{}', "
+                ":n, 't', :s, now() + CAST(:e AS interval))"), {"n": name, "s": status, "e": ends})
+    alembic("upgrade", "head")
+    with fresh.connect() as conn:
+        assert conn.execute(text("SELECT profile_hash, expires_at IS NULL FROM pending_writes "
+                                 "ORDER BY profile_hash")).all() == [("done", False),
+                                                                     ("live", True)]
+
+
 def test_schema_matches_models(migrated):
     with migrated.connect() as conn:
         diff = compare_metadata(

@@ -17,8 +17,11 @@ nowhere and costs nothing.
 Confirm (C.17, accounts): a write held after a web search or for a conflict with the
 profile is gated again against the profile as it is now, then logged with its warnings,
 in one transaction. The body may name what the person left out (`{"left_out":
-["peanut"]}`, from the event's `attributes`). A repeat gets the first answer. Guests
-confirm in the browser, which keeps their logs.
+["peanut"]}`, from the event's `attributes`) and the date, time and meal they confirm
+(`at`, `meal`; else when they said it). A held write waits with no time limit until it
+is confirmed, discarded ("Don't log") or replaced by a newer one of its kind (Part E
+#50). A repeat gets the first answer. Guests confirm in the browser, which keeps their
+logs.
 """
 
 import json
@@ -28,7 +31,7 @@ from fastapi import APIRouter, Body, Depends, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import ValidationError
 
-from app.agents.schemas import CONTRACT_VERSION, ChatPayload, ConfirmWrite, Usage
+from app.agents.schemas import CONTRACT_VERSION, ChatPayload, ConfirmWrite, StagedWrite, Usage
 from app.config import limits
 from app.config.settings import Settings, get_settings
 from app.data.state_store import StateStore
@@ -53,6 +56,7 @@ from app.orchestration.staging import (
     UNCHECKABLE,
     confirm_attributes,
     held_entry,
+    logged_at_allowed,
     recheck,
     with_left_out,
 )
@@ -146,24 +150,52 @@ async def confirm_write(
     user_id = principal.user_id
     if user_id is None:  # a guest's pending entries live in the browser
         raise ApiError(404, "not_found", "There is no such entry to confirm.")
-    left_out = set(body.left_out) if body else set()
+    body = body or ConfirmWrite()
+    left_out = set(body.left_out)
 
-    async def regate(payload: dict) -> str | None:
+    # Errors are raised inside the transaction: it rolls back and the write stays pending
+    def confirmed(payload: dict) -> StagedWrite | None:
         write = held_entry(payload["kind"], payload)
         if write is None:
-            return UNCHECKABLE
+            return None
         if not left_out <= set(confirm_attributes(write)):
-            # Raised inside the transaction: it rolls back and the write stays pending
             raise ApiError(400, "bad_request", "Only what the warning names can be left out.")
+        if body.meal is not None:
+            if write.kind != "meal":
+                raise ApiError(400, "bad_request", "Only a meal has a meal time.")
+            write = write.model_copy(
+                update={"args": write.args.model_copy(update={"meal": body.meal})})
+        if body.at is not None and not logged_at_allowed(body.at):
+            raise ApiError(400, "bad_date", "Choose a date and time in the last "
+                           f"{limits.LOG_DATE_BACK.days} days, not in the future.")
+        return with_left_out(write, left_out)
+
+    async def regate(payload: dict) -> str | None:
+        write = confirmed(payload)
+        if write is None:
+            return UNCHECKABLE
         # Read under the row lock, so the check sees the profile as late as it can
         return recheck(write, (await load_profile(sessions, user_id)).profile)
 
     async def commit(session, payload: dict) -> dict:
-        write = with_left_out(held_entry(payload["kind"], payload), left_out)
-        log_id = await insert_log(session, user_id, write)
+        write = confirmed(payload)
+        log_id = await insert_log(session, user_id, write, at=body.at or payload["staged_at"])
         return {"writes": [confirmation(write, str(log_id), "account")]}
 
     result = await store.confirm_write(write_id, user_id, regate, commit)
+    return JSONResponse(result.body, status_code=result.status_code)
+
+
+@writes_router.post("/{write_id}/discard")
+async def discard_write(
+    write_id: uuid.UUID,
+    principal: Principal = Depends(get_principal),
+    store: StateStore = Depends(get_state_store),
+) -> JSONResponse:
+    """"Don't log" (Part E #50): the entry is dropped, its content deleted."""
+    if principal.user_id is None:
+        raise ApiError(404, "not_found", "There is no such entry to confirm.")
+    result = await store.discard_write(write_id, principal.user_id)
     return JSONResponse(result.body, status_code=result.status_code)
 
 

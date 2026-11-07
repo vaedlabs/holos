@@ -64,9 +64,12 @@ SEARCHES_GLOBAL_MONTH = 800
 GUEST_SESSION_TTL = timedelta(minutes=240)
 ACCOUNT_SESSION_IDLE = timedelta(days=7)
 ACCOUNT_SESSION_MAX = timedelta(days=30)
-PENDING_WRITE_TTL = timedelta(minutes=15)
 INVITE_TTL = timedelta(days=7)
 CRISIS_FLAG_TTL = timedelta(minutes=30)
+DECIDED_WRITE_KEPT = timedelta(days=1)  # a repeat tap gets the same answer
+# A held log entry has no time limit (Part E #50); its confirmed date and time
+LOG_DATE_BACK = timedelta(days=30)
+LOG_DATE_AHEAD = timedelta(minutes=5)  # the phone's clock may run a little ahead
 
 # Output and import
 TRACE_TO_BROWSER_BYTES = 32 * 1024

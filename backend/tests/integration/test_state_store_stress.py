@@ -142,8 +142,8 @@ async def test_each_write_commits_once_under_racing_confirms(store, async_engine
             "INSERT INTO users (email, username, password_hash) "
             "VALUES ('w@x.io', 'w', 'h') RETURNING id"
         ))
-    writes = [
-        await store.stage_write(user_id, "workout", {"n": i}, "hash", f"t{i}") for i in range(10)
+    writes = [  # one turn's: a later turn's would replace them (Part E #50)
+        await store.stage_write(user_id, "workout", {"n": i}, "hash", "t") for i in range(10)
     ]
     commits = Counter()
 

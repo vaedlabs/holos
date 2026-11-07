@@ -167,8 +167,7 @@ async def _pending_write(c: Composer, trace: Trace) -> None:
     poha = LoggedFood(**poha.model_dump(), protein_g=8, carbs_g=55, fat_g=11)
     await c.pending_write(StagedWrite(kind="meal", args=LogMealArgs(meal="breakfast",
                                                                     foods=[poha])),
-                          write_id="pw_3c9a",
-                          expires_at=datetime(2026, 10, 25, 9, 45, tzinfo=UTC))
+                          at=datetime(2026, 10, 25, 9, 30, tzinfo=UTC), write_id="pw_3c9a")
 
 
 async def _crisis(c: Composer, trace: Trace) -> None:

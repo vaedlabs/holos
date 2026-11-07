@@ -21,6 +21,7 @@ coaches' writes commit as usual.
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,6 +37,7 @@ from app.agents.schemas import (
     WriteWarning,
 )
 from app.agents.tools import GateHook, GateResult, ToolContext
+from app.config import limits
 from app.data.state_store import Pending, stage_pending
 from app.guardrails import types
 from app.guardrails.gate import UNCHECKED_RULE, gate
@@ -147,6 +149,12 @@ def held_entry(kind: WriteKind, payload: dict) -> StagedWrite | None:
 def held_payload(write: StagedWrite) -> dict:
     return {"args": write.args.model_dump(mode="json"),
             "warnings": [w.model_dump(mode="json") for w in write.warnings]}
+
+
+def logged_at_allowed(at: datetime, now: datetime | None = None) -> bool:
+    """A confirmed date and time: in the last 30 days, not in the future (Part E #50)."""
+    now = now or datetime.now(UTC)
+    return now - limits.LOG_DATE_BACK <= at <= now + limits.LOG_DATE_AHEAD
 
 
 def with_left_out(write: StagedWrite, left_out: set[str]) -> StagedWrite:

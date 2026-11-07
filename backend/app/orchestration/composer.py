@@ -212,15 +212,17 @@ class Composer:
     async def notice(self, code: str) -> None:
         await self._send([("notice", {"code": code, "message": NOTICES[code]})])
 
-    async def pending_write(self, write: StagedWrite, *, write_id: str | None = None,
-                            expires_at: datetime | None = None,
+    async def pending_write(self, write: StagedWrite, *, at: datetime,
+                            write_id: str | None = None,
                             profile_hash: str | None = None) -> None:
-        """A write that waits for the person's confirmation (C.17)."""
+        """A write that waits for the person's confirmation (C.17), with when they said
+        it and a meal's meal, which the confirm card asks for again (Part E #50)."""
         fields: dict[str, Any] = {"summary": summarise(write.kind, write.args)[:300],
                                   "warnings": [warning_text(w) for w in write.conflicts],
-                                  "attributes": confirm_attributes(write)}
+                                  "attributes": confirm_attributes(write), "at": at,
+                                  "meal": getattr(write.args, "meal", None)}
         if self.mode == "account":
-            fields |= {"write_id": write_id, "expires_at": expires_at}
+            fields |= {"write_id": write_id}
         else:
             fields |= {"entry": write.model_dump(mode="json"), "profile_hash": profile_hash}
         await self._send([("pending_write", fields)])

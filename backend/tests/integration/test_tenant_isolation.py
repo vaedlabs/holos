@@ -165,6 +165,8 @@ CHECKS = {
         w, f"/agents/chat/stream/{w.rid}"),
     ("POST", "/agents/writes/{write_id}/confirm"): lambda w: call(
         w.app, w.a, "POST", f"/agents/writes/{w.write_id}/confirm"),
+    ("POST", "/agents/writes/{write_id}/discard"): lambda w: call(
+        w.app, w.a, "POST", f"/agents/writes/{w.write_id}/discard"),
     ("POST", "/account/import"): lambda w: call(
         w.app, w.a, "POST", "/account/import", json={"import_id": str(uuid.uuid4()),
                                                      "profile": None, "history": [],

@@ -18,6 +18,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from app.agents.base import AgentRun, error_code
 from app.agents.display import history_text
@@ -280,12 +281,12 @@ async def _writes(job: ChatJob, saved: Saved, hash_: str) -> None:
     c = job.composer
     if saved.committed:
         await c.committed(saved.committed)
+    said = datetime.now(UTC)
     for write, pending in saved.pending:
         if pending is None:  # guest
-            await c.pending_write(write, profile_hash=hash_)
+            await c.pending_write(write, at=said, profile_hash=hash_)
         else:
-            await c.pending_write(write, write_id=str(pending.write_id),
-                                  expires_at=pending.expires_at)
+            await c.pending_write(write, at=pending.at, write_id=str(pending.write_id))
 
 
 async def _summary(job: ChatJob, services: Services, results: dict[AgentName, AgentResult],

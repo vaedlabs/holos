@@ -562,50 +562,49 @@ class StateStore:
     ) -> ConfirmResult:
         """Confirm a pending write in one transaction (C.17). Any failure rolls back
         everything and the write stays pending. A repeat confirm returns the stored
-        result with its original status code."""
+        result with its original status code. `regate` and `commit` get the payload with
+        its `kind` and `staged_at` (when the person said it)."""
         async with self._engine.begin() as conn:
-            row = (await conn.execute(
-                text(
-                    "SELECT kind, payload, status, result, expires_at <= now() AS expired "
-                    "FROM pending_writes WHERE id = :id AND user_id = :uid FOR UPDATE"
-                ),
-                {"id": write_id, "uid": user_id},
-            )).mappings().one_or_none()
+            row = await self._decidable(conn, write_id, user_id)
             if row is None:
-                return ConfirmResult(404, {"code": "not_found",
-                                           "message": "There is no such entry to confirm."})
-            if row["status"] in ("committed", "discarded"):
+                return ConfirmResult(404, NOT_FOUND)
+            if row["status"] != "pending":
                 return ConfirmResult(row["result"]["status_code"], row["result"]["body"])
-            if row["expired"]:
-                return ConfirmResult(410, {"code": "expired", "message": "This entry waited "
-                                           "too long to be confirmed. Please log it again."})
 
-            payload = {"kind": row["kind"], **row["payload"]}
+            payload = {"kind": row["kind"], "staged_at": row["created_at"], **row["payload"]}
             reason = await regate(payload)
             if reason is not None:
-                result = {"status_code": 409, "body": {"code": "blocked",
-                                                       "message": f"Not logged: {reason}"}}
-                await self._finish_write(conn, write_id, "discarded", result)
-                return ConfirmResult(409, result["body"])
+                blocked = {"code": "blocked", "message": f"Not logged: {reason}"}
+                await _decide(conn, write_id, "discarded", 409, blocked)
+                return ConfirmResult(409, blocked)
 
             async with AsyncSession(bind=conn) as session:
                 body = await commit(session, payload)
                 await session.flush()
-            result = {"status_code": 200, "body": body}
-            await self._finish_write(conn, write_id, "committed", result)
+            await _decide(conn, write_id, "committed", 200, body)
             return ConfirmResult(200, body)
 
+    async def discard_write(self, write_id: uuid.UUID, user_id: int) -> ConfirmResult:
+        """The person chose not to log it ("Don't log"). Repeats, and an entry that was
+        never logged anyway, get the same 200; a logged one can't be taken back here."""
+        async with self._engine.begin() as conn:
+            row = await self._decidable(conn, write_id, user_id)
+            if row is None:
+                return ConfirmResult(404, NOT_FOUND)
+            if row["status"] == "committed":
+                return ConfirmResult(409, {"code": "logged",
+                                           "message": "This entry is already logged."})
+            if row["status"] == "pending":
+                await _decide(conn, write_id, "discarded", 409, DISCARDED)
+        return ConfirmResult(200, {"discarded": True})
+
     @staticmethod
-    async def _finish_write(
-        conn: AsyncConnection, write_id: uuid.UUID, status: str, result: dict[str, Any]
-    ) -> None:
-        await conn.execute(
-            text(
-                "UPDATE pending_writes SET status = :status, result = CAST(:result AS json), "
-                "confirmed_at = now(), expires_at = now() + interval '1 day' WHERE id = :id"
-            ),
-            {"status": status, "result": _json(result), "id": write_id},
-        )
+    async def _decidable(conn: AsyncConnection, write_id: uuid.UUID, user_id: int):
+        return (await conn.execute(
+            text("SELECT kind, payload, status, result, created_at FROM pending_writes "
+                 "WHERE id = :id AND user_id = :uid FOR UPDATE"),
+            {"id": write_id, "uid": user_id},
+        )).mappings().one_or_none()
 
     # --- Request claims (C.5) ---
 
@@ -637,25 +636,53 @@ class StateStore:
 @dataclass(frozen=True)
 class Pending:
     write_id: uuid.UUID
-    expires_at: datetime
+    at: datetime  # when the person said it: the confirm card's date and time
+
+
+NOT_FOUND = {"code": "not_found", "message": "There is no such entry to confirm."}
+DISCARDED = {"code": "discarded", "message": "You chose not to log this entry. "
+             "Log it again if you want it."}
+REPLACED = {"code": "replaced", "message": "A newer entry replaced this one. "
+            "Please log it again if you still want it."}
+
+
+async def _decide(conn: AsyncConnection, write_id: uuid.UUID, status: str, status_code: int,
+                  body: dict[str, Any]) -> None:
+    """The entry's answer, kept a day for repeat taps; a discarded entry's content goes."""
+    await conn.execute(
+        text("UPDATE pending_writes SET status = :status, result = CAST(:result AS json), "
+             "confirmed_at = now(), expires_at = now() + :kept, payload = CASE "
+             "WHEN :discarded THEN CAST('{}' AS json) ELSE payload END "
+             "WHERE id = :id"),
+        {"status": status, "result": _json({"status_code": status_code, "body": body}),
+         "kept": limits.DECIDED_WRITE_KEPT, "discarded": status == "discarded", "id": write_id})
 
 
 async def stage_pending(
     conn: AsyncConnection, user_id: int, kind: str, payload: dict[str, Any], profile_hash: str,
     trace_id: str,
 ) -> Pending:
-    """A write that waits for confirmation (C.17), inside the caller's transaction: a
-    chat turn stages it with the turn's messages."""
+    """A write that waits for the person's decision (C.17), inside the caller's
+    transaction: a chat turn stages it with the turn's messages. It has no time limit;
+    it replaces the waiting entries of its kind from earlier turns, so one turn's entries
+    of each kind wait (owner, 7 Nov 2026, Part E #50)."""
+    await conn.execute(
+        text("UPDATE pending_writes SET status = 'discarded', result = CAST(:result AS json), "
+             "confirmed_at = now(), expires_at = now() + :kept, payload = CAST('{}' AS json) "
+             "WHERE user_id = :uid AND kind = :kind AND status = 'pending' "
+             "AND trace_id <> :trace"),
+        {"result": _json({"status_code": 410, "body": REPLACED}),
+         "kept": limits.DECIDED_WRITE_KEPT, "uid": user_id, "kind": kind, "trace": trace_id})
     row = (await conn.execute(
         text(
             "INSERT INTO pending_writes (id, user_id, kind, payload, profile_hash, "
-            "trace_id, expires_at) VALUES (:id, :uid, :kind, CAST(:payload AS json), "
-            ":hash, :trace, now() + :ttl) RETURNING id, expires_at"
+            "trace_id) VALUES (:id, :uid, :kind, CAST(:payload AS json), :hash, :trace) "
+            "RETURNING id, created_at"
         ),
         {"id": uuid.uuid4(), "uid": user_id, "kind": kind, "payload": _json(payload),
-         "hash": profile_hash, "trace": trace_id, "ttl": limits.PENDING_WRITE_TTL},
+         "hash": profile_hash, "trace": trace_id},
     )).one()
-    return Pending(row.id, row.expires_at)
+    return Pending(row.id, row.created_at)
 
 
 def _json(value: Any) -> str:
