@@ -548,6 +548,17 @@ async def test_the_coach_is_told_who_else_is_answering():
             "answer only the food part.") in last
 
 
+async def test_the_coach_is_told_the_persons_day_and_time():
+    """Part E #51: "yesterday" and "this morning" need the person's own day."""
+    agent, fake = _agent(MentalAgent, _result(MentalReply(
+        kind="answer", summary="ok", items=[], notes=[], source_ids=[], follow_up=None,
+        risk_flag=False)))
+    run = _run(message="can't sleep", profile=NONE)
+    run.now = "It's Monday 9 Nov 2026, 9:30 am for this person."
+    await agent.run(run)
+    assert run.now in fake.calls[0].messages[-1].text
+
+
 async def test_a_lone_coach_gets_no_other_coaches_note():
     agent, fake = _agent(MentalAgent, _result(MentalReply(
         kind="answer", summary="ok", items=[], notes=[], source_ids=[], follow_up=None,

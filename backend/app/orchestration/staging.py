@@ -198,11 +198,12 @@ class Saved:
 
 
 async def commit_writes(session: AsyncSession, user_id: int, writes: TurnWrites,
-                        hash_: str, trace_id: str) -> Saved:
-    """Account: inside the turn's transaction, with its messages (C.2 stage 13)."""
+                        hash_: str, trace_id: str, at: datetime | None = None) -> Saved:
+    """Account: inside the turn's transaction, with its messages (C.2 stage 13). `at`:
+    when the person said it, so the row and its Logged line agree (Part E #51)."""
     saved = Saved()
     for write in writes.commit:
-        saved.committed.append((write, str(await insert_log(session, user_id, write))))
+        saved.committed.append((write, str(await insert_log(session, user_id, write, at))))
     conn = await session.connection()
     for write in writes.pending:
         saved.pending.append((write, await stage_pending(

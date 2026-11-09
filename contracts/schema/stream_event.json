@@ -128,6 +128,19 @@
     "CommittedWrite": {
       "additionalProperties": false,
       "properties": {
+        "at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
         "entry": {
           "anyOf": [
             {
@@ -1160,6 +1173,54 @@
       "title": "LoggedFood",
       "type": "object"
     },
+    "LoggedNoteData": {
+      "additionalProperties": false,
+      "description": "After `committed`: one sentence from the coach about what was just saved (owner,\nPart E #54 B). Optional: when it fails or is late, the record has said it.",
+      "properties": {
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "text": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "trace_id": {
+          "maxLength": 64,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "trace_id",
+        "text"
+      ],
+      "title": "LoggedNoteData",
+      "type": "object"
+    },
+    "LoggedNoteEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/LoggedNoteData"
+        },
+        "event": {
+          "const": "logged_note",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "data"
+      ],
+      "title": "LoggedNoteEvent",
+      "type": "object"
+    },
     "NoticeData": {
       "additionalProperties": false,
       "properties": {
@@ -2123,6 +2184,7 @@
       "done": "#/$defs/DoneEvent",
       "error": "#/$defs/ErrorEvent",
       "item": "#/$defs/ItemEvent",
+      "logged_note": "#/$defs/LoggedNoteEvent",
       "notice": "#/$defs/NoticeEvent",
       "pending_write": "#/$defs/PendingWriteEvent",
       "section_end": "#/$defs/SectionEndEvent",
@@ -2160,6 +2222,9 @@
     },
     {
       "$ref": "#/$defs/CommittedEvent"
+    },
+    {
+      "$ref": "#/$defs/LoggedNoteEvent"
     },
     {
       "$ref": "#/$defs/CrisisEvent"

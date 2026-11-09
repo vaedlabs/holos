@@ -37,13 +37,14 @@ from app.config.limits import (
     RESERVE_TOKENS_IN,
     ROUTING_DEADLINE_S,
 )
-from app.config.speeds import ROUTER, SUMMARY
+from app.config.speeds import LOGGED_NOTE, LOGGED_NOTE_S, ROUTER, SUMMARY
 from app.data.state_store import StateStore
 from app.data.stream_store import RequestEnded
 from app.observability.background import Outcome
 from app.observability.tracer import Trace
 from app.orchestration.admission import Admitted
 from app.orchestration.budget import Budget, CallMeter
+from app.orchestration.clock import now_note, zone
 from app.orchestration.composer import (
     Composer,
     Gated,
@@ -52,6 +53,7 @@ from app.orchestration.composer import (
     trace_view,
     turn_text,
 )
+from app.orchestration.logged_note import logged_note
 from app.orchestration.principal import Principal
 from app.orchestration.services import Services
 from app.orchestration.staging import (
@@ -92,6 +94,8 @@ class ChatJob:
     image: ImageInput | None = None
     images: ImageStore | None = None  # where an account's photo is kept (C.8)
     started: float = field(default_factory=time.monotonic)
+    # When the person said it: the time of their logged entries and Logged lines (#51)
+    said: datetime = field(default_factory=lambda: datetime.now(UTC))
     crisis_recent: bool = False  # read once, at the start (C.16)
     outcome: Outcome | None = None  # for the background writer (C.2 stage 15)
 
@@ -166,7 +170,7 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
 
             async def also(session) -> Saved:
                 return await commit_writes(session, job.principal.user_id, writes, hash_,
-                                           job.admitted.trace_id)
+                                           job.admitted.trace_id, at=job.said)
 
             key = await _keep_image(job)
             try:
@@ -177,7 +181,7 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
                 if key is not None:  # no message points at it: don't leave it behind
                     await _forget_image(job, key)
                 raise
-        await _writes(job, saved, hash_)
+        await _writes(job, services, saved, hash_, profile, meters)
         decisions = [d for r in results.values() for d in r.decisions]
         decisions += [*(own.decisions if own else ()), *(summary.decisions if summary else ())]
         sources = [s for r in results.values() for s in r.sources]
@@ -227,6 +231,7 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
                             search=services.search, search_keys=job.admitted.search_keys)
         result = await services.coaches[agent].run(AgentRun(
             message=job.payload.message, profile=profile, history=history, tools=tools,
+            now=now_note(zone(job.payload.timezone), job.said),
             deadline=deadline, principal=job.principal.fairness_key,
             meter=meters.get("meal_photo" if photo else agent),
             images=(job.image,) if photo else (), others=tuple(a for a in agents if a != agent),
@@ -275,16 +280,22 @@ async def _forget_image(job: ChatJob, key: str) -> None:
         log.warning("orphan image left: trace=%s", job.admitted.trace_id, exc_info=True)
 
 
-async def _writes(job: ChatJob, saved: Saved, hash_: str) -> None:
-    """After the commit (C.2 stage 14): what was logged, then what waits for the
-    person's confirmation."""
+async def _writes(job: ChatJob, services: Services, saved: Saved, hash_: str,
+                  profile: UserProfile | None, meters: "_Meters") -> None:
+    """After the commit (C.2 stage 14): what was logged and the coach's sentence about
+    it (Part E #54 B), then what waits for the person's confirmation."""
     c = job.composer
+    tz = zone(job.payload.timezone)
     if saved.committed:
-        await c.committed(saved.committed)
-    said = datetime.now(UTC)
+        await c.committed(saved.committed, job.said, tz)
+        note = await logged_note(
+            services.summary, _plan(job, LOGGED_NOTE, "logged_note", meters, LOGGED_NOTE_S),
+            job.payload.message, [w for w, _ in saved.committed], job.said, tz, profile)
+        if note is not None:
+            await c.logged_note(note)
     for write, pending in saved.pending:
         if pending is None:  # guest
-            await c.pending_write(write, at=said, profile_hash=hash_)
+            await c.pending_write(write, at=job.said, profile_hash=hash_)
         else:
             await c.pending_write(write, at=pending.at, write_id=str(pending.write_id))
 

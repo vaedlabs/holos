@@ -330,6 +330,20 @@ failures:
       - tests/integration/test_chat.py::test_every_coach_failing_ends_with_an_error
     seen_live: null
 
+  - id: provider.logged_note_fails
+    layer: provider
+    what: The sentence after a save is late (2.5 s), empty, cut off or fails, or our code for it has a bug.
+    cause: deadline_waiting
+    handling: The sentence is left out; a bug is logged with its stack. The save and the "Logged" record stand.
+    person_sees: The "Logged" line, without the coach's sentence.
+    code: null
+    tests:
+      - tests/unit/test_logged_note.py::test_a_late_sentence_is_dropped_at_its_time_limit
+      - tests/unit/test_logged_note.py::test_an_empty_cut_off_or_failed_reply_sends_nothing
+      - tests/unit/test_logged_note.py::test_a_bug_is_logged_and_sends_nothing
+      - tests/integration/test_writes.py::test_a_failed_sentence_leaves_the_save_and_the_stream_whole
+    seen_live: null
+
   - id: provider.hard_limit
     layer: provider
     what: A request passes its hard limit (90 s).

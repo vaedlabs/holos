@@ -298,6 +298,20 @@ def test_write_claims_are_removed(claim):
     assert [s.kind for s in result.scrubbed] == ["write_claim"]
 
 
+@pytest.mark.parametrize("claim", ["I've logged it.", "Maine log kar diya.", "मैंने लॉग कर दिया।"])
+def test_after_the_save_saying_logged_is_true_and_stays(claim):
+    """Part E #54 B: the sentence written once the save happened."""
+    text = f"{claim} Nice work."
+    assert gate_text(text, NONE, after_save=True).content == text
+    assert gate_text(text, NONE).content == "Nice work."
+
+
+def test_after_the_save_every_other_check_still_applies():
+    result = gate_text("Logged your lunch. See https://evil.example for more.", NONE,
+                       after_save=True)
+    assert result.content == "Logged your lunch. See for more."
+
+
 
 def test_a_hindi_reply_loses_only_the_claiming_sentence():
     summary = "आज अच्छा किया। आपका वर्कआउट लॉग हो गया। ऐसे ही करते रहो।"

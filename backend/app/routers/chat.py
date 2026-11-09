@@ -48,6 +48,7 @@ from app.observability.background import Outcome, record
 from app.observability.tracer import Trace
 from app.orchestration import worker
 from app.orchestration.admission import admit
+from app.orchestration.clock import known_zone, zone
 from app.orchestration.composer import Composer, confirmation, trace_view
 from app.orchestration.coordinator import ChatJob
 from app.orchestration.principal import Principal, check_csrf, resolve_principal
@@ -151,6 +152,7 @@ async def confirm_write(
     if user_id is None:  # a guest's pending entries live in the browser
         raise ApiError(404, "not_found", "There is no such entry to confirm.")
     body = body or ConfirmWrite()
+    _check_zone(body.timezone)
     left_out = set(body.left_out)
 
     # Errors are raised inside the transaction: it rolls back and the write stays pending
@@ -179,8 +181,10 @@ async def confirm_write(
 
     async def commit(session, payload: dict) -> dict:
         write = confirmed(payload)
-        log_id = await insert_log(session, user_id, write, at=body.at or payload["staged_at"])
-        return {"writes": [confirmation(write, str(log_id), "account")]}
+        at = body.at or payload["staged_at"]
+        log_id = await insert_log(session, user_id, write, at=at)
+        return {"writes": [confirmation(write, str(log_id), "account", at,
+                                        zone(body.timezone))]}
 
     result = await store.confirm_write(write_id, user_id, regate, commit)
     return JSONResponse(result.body, status_code=result.status_code)
@@ -199,6 +203,11 @@ async def discard_write(
     return JSONResponse(result.body, status_code=result.status_code)
 
 
+def _check_zone(name: str | None) -> None:
+    if name is not None and not known_zone(name):
+        raise ApiError(400, "bad_request", "Unknown time zone.")
+
+
 def _payload(raw: dict, principal: Principal) -> ChatPayload:
     """C.2 stage 5: the payload, its contract version and the storage mode's rules."""
     version = raw.get("contract_version")
@@ -210,6 +219,7 @@ def _payload(raw: dict, principal: Principal) -> ChatPayload:
         raise ApiError(400, "bad_request", "The message couldn't be read.") from None
     if payload.contract_version > CONTRACT_VERSION:
         raise ApiError(400, "bad_request", "Unknown contract version.")
+    _check_zone(payload.timezone)
     if principal.user_id is not None:
         if payload.guest_profile is not None or payload.guest_history is not None:
             raise ApiError(400, "bad_request", "An account's profile and history are "

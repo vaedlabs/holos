@@ -29,6 +29,7 @@ from app.agents.schemas import (
 )
 from app.contracts import generate
 from app.observability.tracer import Trace
+from app.orchestration import clock
 from app.orchestration import composer as composer_module
 from app.orchestration.composer import (
     TRACE_VIEW_MAX,
@@ -109,7 +110,11 @@ async def _plan_single(c: Composer, trace: Trace) -> None:
                _exercise("plank", 3, None, 30, "low", "Keep hips level")])))
     walk = LogWorkoutArgs(catalogue_id="brisk_walking", sets=None, reps=None,
                           duration_s=1800, note="")
-    await c.committed([(StagedWrite(kind="workout", args=walk), "w_81f2")])
+    said = datetime(2026, 11, 9, 2, 10, tzinfo=UTC)
+    await c.committed([(StagedWrite(kind="workout", args=walk), "w_81f2")], said,
+                      clock.zone("Asia/Kolkata"))
+    await c.logged_note("Logged your 30-minute brisk walk this morning. Nice way to start "
+                        "the day.")
 
 
 async def _holistic(c: Composer, trace: Trace) -> None:
@@ -247,8 +252,15 @@ def test_every_sample_stream_has_a_scenario():
     assert {p.stem for p in STREAMS.glob("*.jsonl")} == set(SCENARIOS)
 
 
+class _Frozen(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return datetime(2026, 11, 9, 4, 0, tzinfo=UTC).astimezone(tz)
+
+
 @pytest.mark.parametrize("name", sorted(SCENARIOS))
-async def test_the_composer_sends_the_sample_stream(name):
+async def test_the_composer_sends_the_sample_stream(name, monkeypatch):
+    monkeypatch.setattr(clock, "datetime", _Frozen)  # the samples' "today"
     sample = _sample(name)
     mode, scenario = SCENARIOS[name]
     sink = Recorder()

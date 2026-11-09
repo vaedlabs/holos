@@ -383,6 +383,8 @@ class ChatPayload(_Model):
     guest_history: list[HistoryTurn] | None = Field(default=None, max_length=6)
     client_request_id: UUID
     contract_version: int = Field(ge=1)
+    # The device's IANA time zone ("Asia/Kolkata"), not its clock (Part E #51); none: UTC
+    timezone: str | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
     def _not_blank(self):
@@ -568,6 +570,7 @@ class ConfirmWrite(_Model):
     left_out: list[Annotated[str, Field(max_length=40)]] = Field(default=[], max_length=10)
     at: AwareDatetime | None = None
     meal: MealType | None = None
+    timezone: str | None = Field(default=None, max_length=64)  # for the "Logged" line
 
 
 class ImportLog(_Model):
@@ -619,7 +622,8 @@ class PendingWriteData(_EventData):
 
 class CommittedWrite(_Model):
     kind: WriteKind
-    summary: str = Field(max_length=300)
+    summary: str = Field(max_length=300)  # "Logged: Breakfast: Poha · 8:15 pm"
+    at: datetime | None = None  # when it happened, as stored (Part E #51)
     write_id: str | None = None  # account
     entry: StagedWrite | None = None  # guest: for the browser to store
     warnings: list[Annotated[str, Field(max_length=300)]] = []  # as logged, left-outs too
@@ -627,6 +631,13 @@ class CommittedWrite(_Model):
 
 class CommittedData(_EventData):
     writes: list[CommittedWrite] = Field(min_length=1)
+
+
+class LoggedNoteData(_EventData):
+    """After `committed`: one sentence from the coach about what was just saved (owner,
+    Part E #54 B). Optional: when it fails or is late, the record has said it."""
+
+    text: str = Field(min_length=1, max_length=300)
 
 
 class Helpline(_Model):
@@ -675,6 +686,7 @@ EVENT_DATA: dict[str, type[_EventData]] = {
     "section_end": SectionEndData,
     "pending_write": PendingWriteData,
     "committed": CommittedData,
+    "logged_note": LoggedNoteData,
     "crisis": CrisisData,
     "notice": NoticeData,
     "error": ErrorData,

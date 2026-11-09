@@ -39,6 +39,11 @@ PHYSICAL_PLAN = Speed(8.1, 14.6, 16.3, 18.3, first_p90=PHYSICAL.first_p90)
 NUTRITION_PLAN = Speed(12.7, 20.1, 23.7, 24.0, first_p90=NUTRITION.first_p90)
 MENTAL_PLAN = Speed(3.3, 4.2, 4.3, 4.5, first_p90=MENTAL.first_p90)
 SUMMARY = SMALL_FREE_TEXT
+# The sentence after a save (Part E #54 B), measured 9 Nov 2026 on 100 calls (80 back to
+# back, 20 after a pause), backups on, so p99 is the slowest call. The time limit sits
+# just past p95: about 1 in 20 sentences is dropped, and the record has said it already.
+LOGGED_NOTE = Speed(1.2, 2.2, 2.4, 4.0)
+LOGGED_NOTE_S = 2.5
 
 # The SDK's own timeout ends up to this much late (Part D); our bound doesn't rely on it
 TIMEOUT_OVERSHOOT_S = 0.5

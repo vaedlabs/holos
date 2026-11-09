@@ -133,6 +133,7 @@ class _Check:
         self.purpose = purpose
         self.held = False  # an entry this turn waits for confirmation
         self.logged = False  # the turn logged entries, and none of them waits
+        self.after_save = False  # written after the save: "logged" is true
         self.version = rules.version
         self.matcher = matcher
         self.profile = profile
@@ -307,7 +308,8 @@ class _Check:
 
     def _sentence_ok(self, sentence: str, where: str) -> bool:
         folded = fold_for_matching(sentence)
-        if (WRITE_CLAIM.search(folded) or (self.held and REFUSAL_CLAIM.search(folded))
+        if ((WRITE_CLAIM.search(folded) and not self.after_save)
+                or (self.held and REFUSAL_CLAIM.search(folded))
                 or (self.logged and CARD_CLAIM.search(folded))):
             self.scrubbed.append(Scrub("write_claim", where, sentence.strip()[:200]))
             return False
@@ -425,8 +427,12 @@ def gate(
 
 
 def gate_text(
-    text: str, profile: ProfileLike, guardrails: Guardrails | None = None
+    text: str, profile: ProfileLike, guardrails: Guardrails | None = None,
+    after_save: bool = False,
 ) -> GateResult:
-    """Check free prose that belongs to no one domain, such as the holistic summary."""
+    """Check free prose that belongs to no one domain, such as the holistic summary.
+    after_save: the sentence written once entries were saved (Part E #54 B): it may say
+    they were logged, since the save already happened; every other check applies."""
     check = _new_check(guardrails, profile)
+    check.after_save = after_save
     return check.result(check.prose(text, "summary"), [])

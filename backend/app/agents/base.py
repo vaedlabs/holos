@@ -121,6 +121,7 @@ class AgentRun:
     others: tuple[AgentName, ...] = ()  # the other coaches answering this message
     trace: Trace | None = None  # the request's trace; None: a trace of this run alone
     crisis_recent: bool = False  # the crisis check matched in the last 30 minutes (C.16)
+    now: str = ""  # the person's local day and time (clock.now_note, Part E #51)
     # Every gate decision of the run, retries included: the trace stores them all (C.14
     # step 6). The result's `decisions` are the final reply's, which the person sees
     decided: list[schemas.Decision] = field(default_factory=list)
@@ -358,6 +359,8 @@ class BaseAgent:
         """Per-turn context (Part D: 46 of 374 replies covered another coach's area, 5
         came back in English to someone writing Hindi or Hinglish)."""
         note = f"Holos note: {STYLE_NOTE[writing_style(run.message)]}"
+        if run.now:
+            note += f" {run.now}"
         if run.others:
             names = " and ".join(AREA[a] for a in run.others)
             note += (f" The {names} {'coach is' if len(run.others) == 1 else 'coaches are'} "

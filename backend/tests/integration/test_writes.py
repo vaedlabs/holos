@@ -7,6 +7,7 @@ import asyncio
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import ANY
 
 import httpx
 import pytest
@@ -27,6 +28,7 @@ from app.config.settings import get_settings
 from app.data.state_store import StateStore
 from app.jobs.scheduler import Jobs
 from app.orchestration import staging
+from app.orchestration.clock import UTC_ZONE, now_note, when_text, zone
 from app.orchestration.principal import csrf_token
 from app.providers import LLMResult, ToolCall, Usage
 from app.routers import chat
@@ -104,6 +106,14 @@ async def _confirm(app, principal, write_id, body=None) -> httpx.Response:
             cookies={cfg.session_cookie: principal.raw_session_id})
 
 
+def _line(write: dict, tz=UTC_ZONE) -> str:
+    """A "Logged" line without its time, once the time is checked to be the entry's own,
+    in the person's zone (Part E #51)."""
+    line, when = write["summary"].rsplit(" · ", 1)
+    assert when == when_text(datetime.fromisoformat(write["at"]), tz)
+    return line
+
+
 async def _count(engine, table) -> int:
     return (await sql(engine, f"SELECT count(*) FROM {table}"))[0][0]
 
@@ -112,11 +122,13 @@ async def _pending_turn(store, async_engine, me, args=BRIDGES):
     """A turn with a web search that logs `args`: its pending write's ID."""
     models = _with_search(Models(router=[_route("physical")], physical=[
         _calls(("web_search", {"query": "glute bridge benefits"}), ("log_workout", args)),
-        _ack()]))
+        _ack()], summary=[_result(text="Logged your bridges.")]))
     app = _writes_app(store, async_engine, models)
     events = _events(await _post(app, me, _payload("did 3x12 glute bridges, are they good?")))
     await _settled()
     [pending] = [d for n, d in events if n == "pending_write"]
+    # Held: no sentence is asked for; the coach's reply explained it (Part E #54 B)
+    assert "logged_note" not in _names(events) and models.fakes["summary"].calls == []
     return app, pending["write_id"]
 
 
@@ -174,18 +186,57 @@ async def test_a_staged_entry_is_cleaned_like_prose():
 async def test_an_account_turn_commits_its_writes_with_its_messages(store, async_engine):
     me = await account(store, async_engine)
     models = Models(router=[_route("physical")], physical=[
-        _calls(("log_workout", BRIDGES)), _ack()])
+        _calls(("log_workout", BRIDGES)), _ack()],
+        summary=[_result(text="Logged your glute bridges. Strong work today.")])
     rid = uuid.uuid4()
+    before = datetime.now(UTC)
     events = _events(await _post(_writes_app(store, async_engine, models), me,
-                                 _payload("log 3x12 glute bridges", rid=rid)))
+                                 _payload("log 3x12 glute bridges", rid=rid,
+                                          timezone="Asia/Kolkata")))
     await _settled()
     [committed] = [d for n, d in events if n == "committed"]
-    [(log_id, exercises)] = await sql(async_engine, "SELECT id, exercises FROM workout_logs")
-    assert committed["writes"] == [{"kind": "workout", "summary": "Logged: Glute bridge: 3 x 12",
-                                    "write_id": str(log_id), "entry": None, "warnings": []}]
+    [(log_id, exercises, logged_at)] = await sql(
+        async_engine, "SELECT id, exercises, workout_date FROM workout_logs")
+    [write] = committed["writes"]
+    assert _line(write, zone("Asia/Kolkata")) == "Logged: Glute bridge: 3 x 12"
+    assert before <= datetime.fromisoformat(write.pop("at")) == logged_at
+    assert write == {"kind": "workout", "summary": write["summary"], "write_id": str(log_id),
+                     "entry": None, "warnings": []}
     assert '"catalogue_id": "glute_bridge"' in exercises
-    assert _names(events)[-3:] == ["section_end", "committed", "done"]
+    coach = models.fakes["physical"].calls[0].messages[-1].text
+    assert now_note(zone("Asia/Kolkata"), logged_at) in coach  # the person's day (#51)
+    # Then the coach's sentence (Part E #54 B), which may say "logged": the save happened
+    assert _names(events)[-4:] == ["section_end", "committed", "logged_note", "done"]
+    assert [d["text"] for n, d in events if n == "logged_note"] == [
+        "Logged your glute bridges. Strong work today."]
+    prompt = models.fakes["summary"].calls[0].messages[-1].text
+    assert "Glute bridge: 3 x 12" in prompt and "log 3x12 glute bridges" in prompt
     assert await _count(async_engine, "conversation_messages") == 2
+
+
+async def test_a_failed_sentence_leaves_the_save_and_the_stream_whole(store, async_engine):
+    """No scripted reply: the sentence's call fails as a bug. The record went out and the
+    turn ends normally, without the sentence (Part E #54 B)."""
+    me = await account(store, async_engine)
+    models = Models(router=[_route("physical")], physical=[
+        _calls(("log_workout", BRIDGES)), _ack()])
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("log 3x12 glute bridges")))
+    await _settled()
+    assert _names(events)[-3:] == ["section_end", "committed", "done"]
+    assert await _count(async_engine, "workout_logs") == 1
+
+
+async def test_an_unknown_time_zone_is_refused_before_anything_runs(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    for name in ("Mars/Olympus", "../../etc/passwd", "x" * 65):
+        response = await _post(app, me, _payload("log 3x12 glute bridges", timezone=name))
+        assert response.status_code in (400, 422), name
+    write_id = await _held(store, me)
+    response = await _confirm(app, me, write_id, {"timezone": "Mars/Olympus"})
+    assert response.status_code == 400
+    assert await sql(async_engine, "SELECT status FROM pending_writes") == [("pending",)]
 
 
 async def test_messages_and_writes_are_one_transaction(store, async_engine, monkeypatch):
@@ -213,8 +264,10 @@ async def test_a_guest_turn_sends_its_entries_and_stores_nothing(store, async_en
                                  _payload("log 3x12 glute bridges")))
     await _settled()
     [committed] = [d for n, d in events if n == "committed"]
-    assert committed["writes"] == [{"kind": "workout", "summary": "Logged: Glute bridge: 3 x 12",
-                                    "write_id": None, "warnings": [],
+    assert _line(committed["writes"][0]) == "Logged: Glute bridge: 3 x 12"
+    del committed["writes"][0]["at"]
+    assert committed["writes"] == [{"kind": "workout", "summary": ANY, "write_id": None,
+                                    "warnings": [],
                                     "entry": {"kind": "workout", "args": BRIDGES,
                                               "warnings": []}}]
     assert await _count(async_engine, "workout_logs") == 0
@@ -278,7 +331,7 @@ async def test_a_search_holds_only_the_writes_of_the_coach_that_ran_it(store, as
         router=[_route("physical", "nutrition")],
         physical=[_calls(("log_workout", BRIDGES)), _ack()],
         nutrition=[_calls(("web_search", {"query": "dal protein"}), ("log_meal", meal)), lunch],
-        summary=[_result(text="Good day.")]))
+        summary=[_result(text="Good day."), _result(text="Bridges logged. Nice.")]))
     events = _events(await _post(_writes_app(store, async_engine, models), me,
                                  _payload("log my bridges and my dal lunch")))
     await _settled()
@@ -299,9 +352,10 @@ async def test_confirm_commits_once_and_a_repeat_gets_the_same_answer(store, asy
     assert first.status_code == again.status_code == 200
     assert first.json() == again.json()
     [(log_id,)] = await sql(async_engine, "SELECT id FROM workout_logs")
-    assert first.json() == {"writes": [{"kind": "workout", "summary":
-                                        "Logged: Glute bridge: 3 x 12", "write_id": str(log_id),
-                                        "entry": None, "warnings": []}]}
+    [write] = first.json()["writes"]
+    assert _line(write) == "Logged: Glute bridge: 3 x 12"  # when it was said, no zone sent
+    assert write == {"kind": "workout", "summary": write["summary"], "at": write["at"],
+                     "write_id": str(log_id), "entry": None, "warnings": []}
     assert (await sql(async_engine, "SELECT status FROM pending_writes")) == [("committed",)]
 
 
@@ -378,9 +432,12 @@ async def test_the_confirmed_date_time_and_meal_are_logged(store, async_engine):
     app = _writes_app(store, async_engine, Models())
     write_id = await _held(store, me)
     at = (datetime.now(UTC) - timedelta(days=2)).replace(hour=8, minute=15, microsecond=0)
-    response = await _confirm(app, me, write_id, {"at": at.isoformat(), "meal": "breakfast"})
+    response = await _confirm(app, me, write_id, {"at": at.isoformat(), "meal": "breakfast",
+                                                  "timezone": "America/New_York"})
     assert response.status_code == 200
-    assert response.json()["writes"][0]["summary"].startswith("Logged: Breakfast")
+    [write] = response.json()["writes"]
+    assert _line(write, zone("America/New_York")).startswith("Logged: Breakfast")
+    assert datetime.fromisoformat(write["at"]) == at
     assert await sql(async_engine, "SELECT meal_type, meal_date FROM nutrition_logs") == [
         ("breakfast", at)]
 
@@ -732,8 +789,8 @@ async def test_a_logged_meal_keeps_its_macros_and_the_coach_can_read_them(store,
     events = _events(await _post(app, me, _payload("log my lunch: dal and rice")))
     await _settled()
     [committed] = [d["writes"] for n, d in events if n == "committed"]
-    assert committed[0]["summary"] == ("Logged: Lunch: Dal, Rice · 430 kcal · "
-                                       "protein 16 g, carbs 80 g, fat 6 g")
+    assert _line(committed[0]) == ("Logged: Lunch: Dal, Rice · 430 kcal · "
+                                   "protein 16 g, carbs 80 g, fat 6 g")
     [(calories, macros, foods)] = await sql(async_engine, "SELECT calories, macros, foods "
                                             "FROM nutrition_logs")
     assert calories == 430
@@ -758,7 +815,7 @@ async def test_unknown_macros_are_stored_as_unknown_and_never_shown_short(store,
     await _settled()
     [committed] = [d["writes"] for n, d in events if n == "committed"]
     # Only totals every food gave: carbs and fat, not calories or protein
-    assert committed[0]["summary"] == "Logged: Lunch: Dal, Rice · carbs 80 g, fat 6 g"
+    assert _line(committed[0]) == "Logged: Lunch: Dal, Rice · carbs 80 g, fat 6 g"
     [(calories, macros)] = await sql(async_engine, "SELECT calories, macros FROM nutrition_logs")
     assert calories == 230  # the known part, marked incomplete
     assert json.loads(macros) == {"protein_g": 12.0, "carbs_g": 80.0, "fat_g": 5.5,

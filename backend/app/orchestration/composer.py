@@ -22,6 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
+from zoneinfo import ZoneInfo
 
 from app.agents.base import decisions_of
 from app.agents.display import history_text, item_display, keep_lines
@@ -47,6 +48,7 @@ from app.data.stream_store import Event
 from app.guardrails.gate import gate_text
 from app.guardrails.loader import get_guardrails
 from app.observability.tracer import Step, Trace
+from app.orchestration.clock import UTC_ZONE, when_text
 from app.orchestration.staging import confirm_attributes, warning_text
 
 log = logging.getLogger(__name__)
@@ -92,8 +94,8 @@ class Gated:
     decisions: tuple[Decision, ...] = ()
 
 
-def gated(text: str, profile: UserProfile) -> Gated:
-    result = gate_text(text, profile)
+def gated(text: str, profile: UserProfile, after_save: bool = False) -> Gated:
+    result = gate_text(text, profile, after_save=after_save)
     return Gated(result.content.strip(), tuple(decisions_of(result)))
 
 
@@ -229,11 +231,16 @@ class Composer:
             fields |= {"entry": write.model_dump(mode="json"), "profile_hash": profile_hash}
         await self._send([("pending_write", fields)])
 
-    async def committed(self, writes: list[tuple[StagedWrite, str | None]]) -> None:
+    async def committed(self, writes: list[tuple[StagedWrite, str | None]],
+                        at: datetime | None = None, tz: ZoneInfo = UTC_ZONE) -> None:
         """Confirmations from the commit result (C.17): written here, never by a model.
         Each write with its stored ID (account) or None (guest: the browser stores it)."""
         await self._send([("committed", {"writes": [
-            confirmation(w, write_id, self.mode) for w, write_id in writes]})])
+            confirmation(w, write_id, self.mode, at, tz) for w, write_id in writes]})])
+
+    async def logged_note(self, text: str) -> None:
+        """The coach's sentence about what was just saved (Part E #54 B)."""
+        await self._send([("logged_note", {"text": text})])
 
     # --- The end ---
 
@@ -290,13 +297,16 @@ class Composer:
 
 
 def confirmation(write: StagedWrite, write_id: str | None,
-                 mode: Literal["guest", "account"]) -> dict[str, Any]:
-    """A committed write as the app shows it: "Logged: …" from what was stored, with
-    the ID (account) or the whole entry (guest). The stream's `committed` event and the
-    confirm endpoint both send this, so the app reads one shape."""
-    return CommittedWrite(kind=write.kind,
-                          summary=f"Logged: {summarise(write.kind, write.args)}"[:300],
-                          write_id=write_id, entry=write if mode == "guest" else None,
+                 mode: Literal["guest", "account"], at: datetime | None = None,
+                 tz: ZoneInfo = UTC_ZONE) -> dict[str, Any]:
+    """A committed write as the app shows it: "Logged: … · 8:15 pm" from what was
+    stored, when it happened in the person's zone (Part E #51), with the ID (account) or
+    the whole entry (guest). The stream's `committed` event and the confirm endpoint both
+    send this, so the app reads one shape."""
+    when = f" · {when_text(at, tz)}" if at is not None else ""
+    summary = f"Logged: {summarise(write.kind, write.args)}"
+    return CommittedWrite(kind=write.kind, summary=f"{summary[:300 - len(when)]}{when}",
+                          at=at, write_id=write_id, entry=write if mode == "guest" else None,
                           warnings=[warning_text(w) for w in write.conflicts]
                           ).model_dump(mode="json")
 
