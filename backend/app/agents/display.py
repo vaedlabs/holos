@@ -22,12 +22,18 @@ def duration(seconds: int, sets: int | None = None) -> str:
     return f"{sets} x {one}" if sets and sets > 1 else one
 
 
+def item_name(item: BaseModel) -> str:
+    """An exercise or practice by its catalogue name; another activity by the person's
+    words (Part E #53)."""
+    return getattr(item, "activity", None) or NAMES[item.catalogue_id]
+
+
 def item_display(item: BaseModel) -> str:
     """An item or a write's arguments: exercises and practices by catalogue name."""
     if isinstance(item, FoodItem):
         kcal = f", about {round(item.calories)} kcal" if item.calories else ""
         return f"{item.name} ({item.portion}{kcal})"
-    name = NAMES[item.catalogue_id]
+    name = item_name(item)
     if isinstance(item, PracticeItem) or hasattr(item, "duration_min"):
         return f"{name}: {item.duration_min} min"
     if item.sets and item.reps:

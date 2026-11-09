@@ -80,7 +80,14 @@ EXERCISE_TAGS: dict[str, tuple] = {
     "heavy_load": (True, False),
     "supine": (True, False),
     "inversion": (True, False),
+    # Sports (catalogue version 6, Part E #53): what impact alone misses
+    "contact": (True, False),  # tackles and collisions with other players
+    "fall_risk": (True, False),  # falls are part of it: skating, climbing, riding
 }
+
+# A logged activity the catalogue doesn't have (Part E #53): named in the person's words,
+# checked against nothing, never part of a plan
+OTHER_ACTIVITY = "other_activity"
 
 PRACTICE_TAGS: dict[str, tuple] = {
     "breath_hold": (True, False),

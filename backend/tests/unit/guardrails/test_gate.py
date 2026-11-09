@@ -518,7 +518,9 @@ def test_a_logged_food_may_be_named_in_the_reply():
                               "Confirm below to log it.")
     plain = gate("nutrition", reply, vegan)
     assert plain.content["summary"] == "Confirm below to log it."  # the old loss
-    logged = gate("nutrition", reply, vegan, logged=[{"meal": "dinner", "foods": [PANEER]}])
+    # A conflict: the entry waits on the card, so "confirm below" is true
+    logged = gate("nutrition", reply, vegan, logged=[{"meal": "dinner", "foods": [PANEER]}],
+                  held=True)
     assert logged.content["summary"] == reply["summary"]
 
 
@@ -565,6 +567,10 @@ def test_what_a_held_reply_should_say_is_kept(text):
 @pytest.mark.parametrize("text", [
     "You can confirm it on the card below.", "It's waiting for your confirmation.",
     "Neeche card par confirm kar sakte ho.", "नीचे कार्ड पर कन्फर्म कर सकते हैं।",
+    # Live, 9 Nov 2026: no "card", but the same untrue claim
+    "Gardening for 40 minutes is listed below for you to confirm.",
+    "Your 30-minute pickleball entry is ready for you to confirm below.",
+    "Neeche confirm kar dena.", "नीचे इसकी पुष्टि करें।",
 ])
 def test_a_confirm_card_is_only_mentioned_while_an_entry_waits(text):
     summary = f"Good game. {text}"

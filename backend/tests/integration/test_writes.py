@@ -59,6 +59,8 @@ DAL = {"day": None, "name": "Dal", "ingredients": ["lentils"], "allergen_tags": 
        "diet_tags": ["vegan"], "portion": "1 bowl", "calories": 230, "note": "",
        "protein_g": 12, "carbs_g": 35, "fat_g": 5}
 NOW = {"day": None, "time": None, "ampm": None, "part": None}  # a log's `when`: just now
+# A guest's entry as the browser gets it: the fields left out read as their empty value
+BRIDGES_AS_SENT = {**BRIDGES, "activity": None, "when": NOW}
 RICE = {**DAL, "name": "Rice", "ingredients": ["rice"], "calories": 200, "protein_g": 4,
         "carbs_g": 45, "fat_g": 0.5}
 KNEE = {"condition_ids": ["knee_ligament_injury"], "allergen_tags": [], "diet_tags": [],
@@ -269,7 +271,7 @@ async def test_a_guest_turn_sends_its_entries_and_stores_nothing(store, async_en
     del committed["writes"][0]["at"]
     assert committed["writes"] == [{"kind": "workout", "summary": ANY, "write_id": None,
                                     "warnings": [],
-                                    "entry": {"kind": "workout", "args": {**BRIDGES, "when": NOW},
+                                    "entry": {"kind": "workout", "args": BRIDGES_AS_SENT,
                                               "warnings": [], "at": None,
                                               "time_guessed": False}}]
     assert await _count(async_engine, "workout_logs") == 0
@@ -316,7 +318,7 @@ async def test_a_guests_held_entry_carries_the_profile_hash(store, async_engine)
     [pending] = [d for n, d in events if n == "pending_write"]
     # The hash of the profile the browser sent, so it can tell if it changed (C.17)
     assert pending["profile_hash"] == staging.profile_hash(UserProfile(**profile))
-    assert pending["entry"] == {"kind": "workout", "args": {**BRIDGES, "when": NOW},
+    assert pending["entry"] == {"kind": "workout", "args": BRIDGES_AS_SENT,
                                 "warnings": [], "at": None, "time_guessed": False}
     assert pending["warnings"] == []  # held for the search only
     assert await _count(async_engine, "pending_writes") == 0
@@ -524,6 +526,46 @@ async def test_an_entry_held_before_when_existed_still_confirms(store, async_eng
     response = await _confirm(app, me, write_id)
     assert response.status_code == 200
     assert response.json()["writes"][0]["summary"].startswith("Logged: Glute bridge")
+
+
+# --- Another activity (Part E #53) ---
+
+
+ARCHERY = {"catalogue_id": "other_activity", "activity": "Archery", "sets": None, "reps": None,
+           "duration_s": 3600, "note": ""}
+
+
+async def test_another_activity_is_saved_in_their_words_and_counted(store, async_engine):
+    """A health condition: marked as not checked, but saved at once (owner, 4 A); and
+    counted for the developer's alert, with no link to the person."""
+    me = await account(store, async_engine)
+    await sql(async_engine, "INSERT INTO medical_history (user_id, conditions) "
+              "VALUES (:u, 'knee ligament injury')", u=me.user_id)
+    models = Models(router=[_route("physical")], physical=[
+        _calls(("log_workout", ARCHERY)), _ack("An hour of archery, nice.")])
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("log an hour of archery")))
+    await _settled()
+    assert "pending_write" not in _names(events)
+    [[write]] = [d["writes"] for n, d in events if n == "committed"]
+    assert _line(write) == "Logged: Archery: 60 min"
+    assert write["warnings"] == []  # as an unchecked ingredient: recorded, nothing to confirm
+    [(kind, exercises, warnings)] = await sql(
+        async_engine, "SELECT exercise_type, exercises, warnings FROM workout_logs")
+    assert kind == "other_activity" and json.loads(exercises)[0]["name"] == "Archery"
+    assert [(w["kind"], w["attributes"]) for w in warnings] == [("unchecked", ["Archery"])]
+    assert await sql(async_engine, "SELECT term, field, count FROM unresolved_terms") == [
+        ("archery", "activity", 1)]
+
+
+async def test_a_guests_other_activity_is_counted_too(store, async_engine):
+    models = Models(router=[_route("physical")], physical=[
+        _calls(("log_workout", {**ARCHERY, "activity": "Gatka"})), _ack()])
+    events = _events(await _post(_writes_app(store, async_engine, models), await guest(store),
+                                 _payload("log an hour of gatka")))
+    await _settled()
+    assert "committed" in _names(events)
+    assert await sql(async_engine, "SELECT term, count FROM unresolved_terms") == [("gatka", 1)]
 
 
 async def test_the_confirmed_date_time_and_meal_are_logged(store, async_engine):

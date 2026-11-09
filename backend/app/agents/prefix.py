@@ -42,7 +42,7 @@ Tools: call {log_tool} when the person asks you to log something they did or ate
 for each meal or activity they name, then confirm with kind log_ack. Log exactly what \
 they did or ate, even when it conflicts with their profile: never swap it for a safer \
 one; the conflict is shown to them to confirm. If what they did isn't in the catalogue \
-below, log nothing in its place: say you can't log that one. Call get_recent_logs when \
+below, {not_listed} Call get_recent_logs when \
 they refer to what they did before. \
 Call web_search only for facts you can't know (recent research, a product); most \
 questions need no search.
@@ -54,6 +54,14 @@ DOMAIN = {
     "physical": ("exercise coach", "log_workout", "exercise"),
     "nutrition": ("food coach", "log_meal", "dietary"),
     "mental": ("mental wellbeing coach", "log_practice", "mental"),
+}
+# What isn't in the catalogue: an activity is logged in the person's words, marked as not
+# checked (owner, Part E #53); a practice isn't logged
+NOT_LISTED = {
+    "physical": ("log it as other_activity with what they did in `activity`, never as the "
+                 "nearest entry; it isn't checked against their profile, so say so briefly."),
+    "nutrition": "log nothing in its place: say you can't log that one.",
+    "mental": "log nothing in its place: say you can't log that one.",
 }
 
 
@@ -116,7 +124,8 @@ def catalogue_text(domain: str) -> str:
 @cache
 def prefix(domain: str, extra: str = "") -> str:
     role, log_tool, section = DOMAIN[domain]
-    parts = [VOICE.format(role=role), OUTPUT.format(log_tool=log_tool)]
+    parts = [VOICE.format(role=role),
+             OUTPUT.format(log_tool=log_tool, not_listed=NOT_LISTED[domain])]
     if extra:
         parts.append(extra)
     parts += [f"Safety rules:\n{rules_text(section)}", catalogue_text(domain)]

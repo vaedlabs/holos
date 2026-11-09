@@ -13,7 +13,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.display import NAMES
+from app.agents.display import item_name
 from app.agents.schemas import LogMealArgs, LogPracticeArgs, LogWorkoutArgs, StagedWrite
 from app.data.repositories import (
     MentalLogRepository,
@@ -33,7 +33,7 @@ async def insert_log(session: AsyncSession, user_id: int, write: StagedWrite,
         row = await WorkoutLogRepository(session, user_id).add(
             exercise_type=args.catalogue_id,
             exercises=json.dumps([{"catalogue_id": args.catalogue_id,
-                                   "name": NAMES[args.catalogue_id], "sets": args.sets,
+                                   "name": item_name(args), "sets": args.sets,
                                    "reps": args.reps, "duration_s": args.duration_s}]),
             duration_minutes=args.duration_s / 60 if args.duration_s else None,
             notes=args.note or None, warnings=warnings, **dated)

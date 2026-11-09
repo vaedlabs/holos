@@ -1,7 +1,16 @@
 {
   "additionalProperties": false,
   "properties": {
+    "activity": {
+      "description": "Only with 'other_activity': what they did, in a few of their words, such as 'Archery'; null otherwise. At most 40 characters.",
+      "title": "Activity",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "catalogue_id": {
+      "description": "A catalogue ID. Only when nothing in the catalogue fits what they did: 'other_activity', with its name in `activity`; never in place of an entry that fits.",
       "enum": [
         "back_squat",
         "front_squat",
@@ -126,13 +135,43 @@
         "headstand",
         "shoulder_stand",
         "handstand",
-        "neck_bridge"
+        "neck_bridge",
+        "badminton",
+        "tennis",
+        "table_tennis",
+        "squash",
+        "pickleball",
+        "padel",
+        "cricket",
+        "football",
+        "basketball",
+        "volleyball",
+        "kabaddi",
+        "kho_kho",
+        "field_hockey",
+        "rugby",
+        "american_football",
+        "baseball",
+        "handball",
+        "ultimate_frisbee",
+        "boxing",
+        "kickboxing",
+        "martial_arts",
+        "wrestling",
+        "golf",
+        "climbing",
+        "skating",
+        "skiing",
+        "surfing",
+        "kayaking",
+        "horse_riding",
+        "other_activity"
       ],
-      "title": "ExerciseId",
+      "title": "LoggedExerciseId",
       "type": "string"
     },
     "duration_s": {
-      "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical and swimming, which may be longer.",
+      "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical, swimming, cricket, baseball, golf, climbing, skiing, kayaking, horse riding and other activities, which may be longer.",
       "maximum": 86400,
       "minimum": 1,
       "title": "Duration S",
@@ -166,7 +205,7 @@
     },
     "when": {
       "additionalProperties": false,
-      "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when.",
+      "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now ('abhi', 'just now', 'just got back') or say nothing about when; never add a part of the day they didn't name.",
       "properties": {
         "ampm": {
           "description": "'am' or 'pm' only when the person said which; null otherwise.",
@@ -225,6 +264,7 @@
   },
   "required": [
     "catalogue_id",
+    "activity",
     "sets",
     "reps",
     "duration_s",

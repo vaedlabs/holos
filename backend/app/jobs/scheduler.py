@@ -22,6 +22,10 @@ It also watches the failure rate (failure library, Part E #55): over 10% of at l
 requests in the last 5 minutes ended in an error or a partial answer (a spend cap isn't
 a failure) → one ERROR line starting "ALERT failure_rate", with the commonest causes,
 for monitoring to pick up (Phase 7). The same rows can feed a dashboard later.
+
+And it flags activities logged as "other activity" since its last run (owner, Part E
+#53): one ERROR line starting "ALERT other_activity", each name with how many times, so
+the developer can add the common ones to the catalogue. Names only, never who.
 """
 
 import asyncio
@@ -95,7 +99,8 @@ class Jobs:
         tasks = {"sessions": self.state.purge_expired_sessions,
                  "crisis_flags": self.state.purge_expired_flags}
         tasks |= {name: (lambda sql=sql: self._delete(sql)) for name, sql in _DELETES.items()}
-        return tasks | {"streams": self._streams, "unresolved_terms": self._terms,
+        return tasks | {"streams": self._streams, "activity_alert": self._new_activities,
+                        "unresolved_terms": self._terms,
                         "image_deletions": lambda: retry_deletions(self.engine, self.images),
                         "failure_alert": self._failure_rate}
 
@@ -136,6 +141,16 @@ class Jobs:
                   "(%d%%); causes: %s", failed, total, FAILURE_WINDOW.seconds // 60,
                   round(100 * failed / total),
                   ", ".join(f"{c} {n}" for c, n in causes) or "none recorded")
+        return 1
+
+    async def _new_activities(self) -> int:
+        """1 if it logged an alert. Before the purge, so nothing is deleted unflagged."""
+        async with self.engine.begin() as conn:
+            found = await terms.new_activities(conn)
+        if not found:
+            return 0
+        log.error("ALERT other_activity: logged but not in the catalogue: %s", ", ".join(
+            f"{name} x{n}" for name, n in sorted(found.items(), key=lambda kv: (-kv[1], kv[0]))))
         return 1
 
     async def _terms(self) -> int:

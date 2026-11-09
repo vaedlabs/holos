@@ -39,7 +39,8 @@ async def test_a_save_adds_one_count_with_no_user_link(app):
     await _save(app, app.a, "/medical/history", conditions="bad hip thing, asthma")
     rows = await sql(app.engine, "SELECT * FROM unresolved_terms")
     assert [(r[0], r[1], r[3]) for r in rows] == [("bad hip thing", "conditions", 1)]
-    assert len(rows[0]) == 4  # term, field, day, count: nothing that names a person
+    # term, field, day, count, alerted: nothing that names a person
+    assert len(rows[0]) == 5
     # Saving again, or chatting (a read), adds nothing
     await _save(app, app.a, "/medical/history", conditions="bad hip thing, asthma")
     assert await sql(app.engine, "SELECT count FROM unresolved_terms") == [(1,)]

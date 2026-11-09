@@ -20,7 +20,8 @@
 #    whose name hides an allergen or diet conflict (owner, 29 Oct 2026)
 # 5: profile terms for allergies and diets, so an account's saved text resolves to tags
 #    (Plan C.8, Part E #41); in the owner's later list check (P6.2)
-version: 5
+# 6: 30 sports, with contact and fall_risk tags (owner, 9 Nov 2026, Part E #53)
+version: 6
 
 profile_terms:
   allergens:
@@ -562,6 +563,130 @@ exercises:
     name: Neck bridge
     aliases: [wrestler bridge, neck bridges]
     tags: {neck_load: high, spinal_load: moderate}
+
+  # --- Sports (catalogue version 6, owner, 9 Nov 2026, Part E #53) ---
+  # Racket sports
+  - id: badminton
+    name: Badminton
+    aliases: [shuttlecock, shuttle badminton]
+    tags: {knee_load: moderate, ankle_load: high, shoulder_load: moderate, impact: moderate, exertion: high}
+  - id: tennis
+    name: Tennis
+    aliases: [lawn tennis]
+    tags: {knee_load: moderate, ankle_load: high, shoulder_load: high, wrist_load: moderate, impact: moderate, exertion: high}
+  - id: table_tennis
+    name: Table tennis
+    aliases: [ping pong, pingpong]
+    tags: {wrist_load: moderate, exertion: moderate}
+  # Not "Squash": the vegetable would match it in a food reply
+  - id: squash
+    name: Squash (sport)
+    aliases: [squash game, squash court, squash rackets]
+    tags: {knee_load: high, ankle_load: high, shoulder_load: moderate, wrist_load: moderate, impact: high, exertion: high}
+  - id: pickleball
+    name: Pickleball
+    aliases: [pickle ball]
+    tags: {knee_load: moderate, ankle_load: moderate, shoulder_load: moderate, wrist_load: moderate, impact: moderate, exertion: moderate}
+  - id: padel
+    name: Padel
+    aliases: [padel tennis]
+    tags: {knee_load: moderate, ankle_load: high, shoulder_load: moderate, wrist_load: moderate, impact: moderate, exertion: high}
+  # Team sports
+  - id: cricket
+    name: Cricket
+    aliases: [cricket match, net practice, nets practice, gully cricket, box cricket]
+    tags: {knee_load: moderate, ankle_load: moderate, shoulder_load: high, spinal_load: moderate, impact: moderate, exertion: moderate}
+  - id: football
+    name: Football
+    aliases: [soccer, futsal, five a side, 5 a side]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high, contact: true}
+  - id: basketball
+    name: Basketball
+    aliases: [basket ball]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high, contact: true}
+  - id: volleyball
+    name: Volleyball
+    aliases: [volley ball, beach volleyball]
+    tags: {knee_load: high, ankle_load: high, shoulder_load: high, impact: high, exertion: moderate}
+  - id: kabaddi
+    name: Kabaddi
+    aliases: [kabbadi]
+    tags: {knee_load: high, ankle_load: high, neck_load: moderate, spinal_load: moderate, impact: high, exertion: high, contact: true, fall_risk: true}
+  - id: kho_kho
+    name: Kho kho
+    aliases: [khokho, kho-kho]
+    tags: {knee_load: high, ankle_load: high, spinal_flexion: moderate, impact: high, exertion: high, fall_risk: true}
+  - id: field_hockey
+    name: Hockey
+    aliases: [field hockey]
+    tags: {knee_load: moderate, ankle_load: high, spinal_flexion: moderate, impact: moderate, exertion: high, contact: true}
+  - id: rugby
+    name: Rugby
+    aliases: [rugby union, rugby league, touch rugby]
+    tags: {knee_load: high, ankle_load: high, shoulder_load: high, neck_load: high, spinal_load: high, impact: high, exertion: high, contact: true, fall_risk: true}
+  - id: american_football
+    name: American football
+    aliases: [gridiron, flag football]
+    tags: {knee_load: high, ankle_load: high, shoulder_load: high, neck_load: high, spinal_load: high, impact: high, exertion: high, contact: true, fall_risk: true}
+  - id: baseball
+    name: Baseball
+    aliases: [softball]
+    tags: {knee_load: moderate, shoulder_load: high, exertion: moderate}
+  - id: handball
+    name: Handball
+    aliases: [team handball]
+    tags: {knee_load: high, ankle_load: high, shoulder_load: high, impact: high, exertion: high, contact: true}
+  - id: ultimate_frisbee
+    name: Ultimate frisbee
+    aliases: [frisbee, ultimate frisbee game]
+    tags: {knee_load: high, ankle_load: high, impact: high, exertion: high}
+  # Combat sports and martial arts
+  - id: boxing
+    name: Boxing
+    aliases: [sparring, punching bag, bag work, heavy bag]
+    tags: {shoulder_load: high, wrist_load: high, neck_load: moderate, impact: moderate, exertion: high, contact: true}
+  - id: kickboxing
+    name: Kickboxing
+    aliases: [kick boxing, muay thai]
+    tags: {knee_load: moderate, ankle_load: moderate, shoulder_load: high, wrist_load: moderate, neck_load: moderate, impact: high, exertion: high, contact: true}
+  - id: martial_arts
+    name: Martial arts
+    aliases: [karate, taekwondo, judo, kung fu, kalaripayattu]
+    tags: {knee_load: moderate, ankle_load: moderate, shoulder_load: moderate, wrist_load: moderate, impact: high, exertion: high, contact: true, fall_risk: true}
+  - id: wrestling
+    name: Wrestling
+    aliases: [kushti, pehlwani, grappling, bjj, brazilian jiu jitsu]
+    tags: {knee_load: high, shoulder_load: high, neck_load: high, spinal_load: high, spinal_flexion: high, exertion: high, contact: true, fall_risk: true}
+  # Outdoor and other sports
+  - id: golf
+    name: Golf
+    aliases: [driving range, round of golf]
+    tags: {spinal_load: moderate, wrist_load: moderate, shoulder_load: moderate}
+  - id: climbing
+    name: Climbing
+    aliases: [rock climbing, bouldering, wall climbing]
+    tags: {shoulder_load: high, wrist_load: high, impact: moderate, exertion: high, fall_risk: true}
+  - id: skating
+    name: Skating
+    aliases: [roller skating, inline skating, ice skating, skateboarding]
+    tags: {knee_load: moderate, ankle_load: high, impact: moderate, exertion: moderate, fall_risk: true}
+  - id: skiing
+    name: Skiing
+    aliases: [snowboarding, cross country skiing]
+    tags: {knee_load: high, ankle_load: moderate, impact: moderate, exertion: high, fall_risk: true}
+  # Not "Surfing": "surfing your phone" would match it in sleep advice
+  - id: surfing
+    name: Surfing (sport)
+    aliases: [surf session, bodyboarding, paddleboarding, stand up paddleboarding]
+    tags: {shoulder_load: high, spinal_load: moderate, exertion: high, fall_risk: true}
+  - id: kayaking
+    name: Kayaking
+    aliases: [canoeing, rafting, kayak]
+    tags: {shoulder_load: high, wrist_load: moderate, spinal_load: moderate, exertion: moderate}
+  - id: horse_riding
+    name: Horse riding
+    aliases: [horseback riding, equestrian, horse ride]
+    tags: {spinal_load: moderate, impact: moderate, exertion: moderate, fall_risk: true}
 
 practices:
   - id: box_breathing

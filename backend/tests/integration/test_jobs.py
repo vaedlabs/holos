@@ -19,7 +19,7 @@ from app.data.state_store import StateStore
 from app.data.stream_store import StreamStore
 from app.jobs import scheduler
 from app.jobs.scheduler import Jobs
-from app.observability import background
+from app.observability import background, terms
 from app.observability.tracer import Trace
 from app.orchestration.budget import spend_keys
 
@@ -337,6 +337,25 @@ async def test_a_failure_rate_over_ten_percent_alerts_with_its_causes(jobs, asyn
         assert (await jobs.run_once())["failure_alert"] == 1
     assert _alerts(caplog) == ["ALERT failure_rate: 3 of 20 requests failed in the last 5 "
                                "minutes (15%); causes: deadline_waiting 2, unavailable 1"]
+
+
+async def _activities(engine, *names):
+    async with engine.begin() as conn:
+        await terms.count_activities(conn, list(names))
+
+
+async def test_other_activities_are_flagged_once_each_with_no_one_named(jobs, async_engine,
+                                                                       caplog):
+    """Owner, 9 Nov 2026 (Part E #53): like the account running dry, the developer hears."""
+    await _activities(async_engine, "Archery", "archery ", "Gatka")
+    with caplog.at_level("ERROR"):
+        assert (await jobs.run_once())["activity_alert"] == 1
+        assert (await jobs.run_once())["activity_alert"] == 0  # nothing new
+        await _activities(async_engine, "Archery")
+        assert (await jobs.run_once())["activity_alert"] == 1
+    assert [r.getMessage() for r in caplog.records if "ALERT other_activity" in r.getMessage()] == [
+        "ALERT other_activity: logged but not in the catalogue: archery x2, gatka x1",
+        "ALERT other_activity: logged but not in the catalogue: archery x1"]
 
 
 @pytest.mark.parametrize(("good", "bad", "why"), [

@@ -113,6 +113,7 @@ SCENARIOS = [Scenario(f.__name__, f) for f in
 
 # Gemini rejects the physical schema: "too many states for serving" (124 exercise ids
 # plus numeric bounds, Part D), and since its item limit was dropped (2 Nov 2026) "too
-# much branching" for the same ids. C.9 never sends physical replies to Gemini; the
-# real 400 is kept as an error-mapping fixture.
+# much branching" for the same ids, and so for the 153 with sports (9 Nov 2026, Part E
+# #53). C.9 never sends physical replies to Gemini; the real 400 is kept as an
+# error-mapping fixture.
 EXPECTED_ERRORS = {("gemini", "structured_physical"): "BadRequest"}

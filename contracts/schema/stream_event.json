@@ -559,7 +559,36 @@
         "headstand",
         "shoulder_stand",
         "handstand",
-        "neck_bridge"
+        "neck_bridge",
+        "badminton",
+        "tennis",
+        "table_tennis",
+        "squash",
+        "pickleball",
+        "padel",
+        "cricket",
+        "football",
+        "basketball",
+        "volleyball",
+        "kabaddi",
+        "kho_kho",
+        "field_hockey",
+        "rugby",
+        "american_football",
+        "baseball",
+        "handball",
+        "ultimate_frisbee",
+        "boxing",
+        "kickboxing",
+        "martial_arts",
+        "wrestling",
+        "golf",
+        "climbing",
+        "skating",
+        "skiing",
+        "surfing",
+        "kayaking",
+        "horse_riding"
       ],
       "title": "ExerciseId",
       "type": "string"
@@ -594,7 +623,7 @@
               "type": "null"
             }
           ],
-          "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical and swimming, which may be longer.",
+          "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical, swimming, cricket, baseball, golf, climbing, skiing, kayaking, horse riding and other activities, which may be longer.",
           "title": "Duration S"
         },
         "intensity": {
@@ -917,7 +946,7 @@
         },
         "when": {
           "$ref": "#/$defs/When",
-          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when."
+          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now ('abhi', 'just now', 'just got back') or say nothing about when; never add a part of the day they didn't name."
         }
       },
       "required": [
@@ -973,7 +1002,7 @@
         },
         "when": {
           "$ref": "#/$defs/When",
-          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when."
+          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now ('abhi', 'just now', 'just got back') or say nothing about when; never add a part of the day they didn't name."
         }
       },
       "required": [
@@ -990,8 +1019,22 @@
     "LogWorkoutArgs": {
       "additionalProperties": false,
       "properties": {
+        "activity": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only with 'other_activity': what they did, in a few of their words, such as 'Archery'; null otherwise.",
+          "title": "Activity"
+        },
         "catalogue_id": {
-          "$ref": "#/$defs/ExerciseId"
+          "$ref": "#/$defs/LoggedExerciseId",
+          "description": "A catalogue ID. Only when nothing in the catalogue fits what they did: 'other_activity', with its name in `activity`; never in place of an entry that fits."
         },
         "duration_s": {
           "anyOf": [
@@ -1004,7 +1047,7 @@
               "type": "null"
             }
           ],
-          "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical and swimming, which may be longer.",
+          "description": "Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, running, cycling, rowing, elliptical, swimming, cricket, baseball, golf, climbing, skiing, kayaking, horse riding and other activities, which may be longer.",
           "title": "Duration S"
         },
         "note": {
@@ -1040,11 +1083,12 @@
         },
         "when": {
           "$ref": "#/$defs/When",
-          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when."
+          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now ('abhi', 'just now', 'just got back') or say nothing about when; never add a part of the day they didn't name."
         }
       },
       "required": [
         "catalogue_id",
+        "activity",
         "sets",
         "reps",
         "duration_s",
@@ -1053,6 +1097,166 @@
       ],
       "title": "LogWorkoutArgs",
       "type": "object"
+    },
+    "LoggedExerciseId": {
+      "enum": [
+        "back_squat",
+        "front_squat",
+        "goblet_squat",
+        "bodyweight_squat",
+        "sumo_squat",
+        "split_squat",
+        "pistol_squat",
+        "hack_squat",
+        "jump_squat",
+        "cossack_squat",
+        "wall_sit",
+        "forward_lunge",
+        "reverse_lunge",
+        "walking_lunge",
+        "lateral_lunge",
+        "jumping_lunge",
+        "step_up",
+        "leg_press",
+        "leg_extension",
+        "leg_curl",
+        "nordic_curl",
+        "deadlift",
+        "romanian_deadlift",
+        "sumo_deadlift",
+        "trap_bar_deadlift",
+        "good_morning",
+        "hip_thrust",
+        "glute_bridge",
+        "single_leg_glute_bridge",
+        "calf_raise",
+        "seated_calf_raise",
+        "clamshell",
+        "side_lying_leg_raise",
+        "hip_abduction_machine",
+        "kettlebell_swing",
+        "box_jump",
+        "broad_jump",
+        "jump_rope",
+        "jumping_jacks",
+        "burpee",
+        "mountain_climber",
+        "hiit_workout",
+        "circuit_training",
+        "bench_press",
+        "incline_bench_press",
+        "dumbbell_bench_press",
+        "push_up",
+        "knee_push_up",
+        "incline_push_up",
+        "dip",
+        "overhead_press",
+        "dumbbell_shoulder_press",
+        "arnold_press",
+        "lateral_raise",
+        "front_raise",
+        "upright_row",
+        "chest_fly",
+        "pec_deck",
+        "skull_crusher",
+        "overhead_tricep_extension",
+        "tricep_pushdown",
+        "pull_up",
+        "chin_up",
+        "lat_pulldown",
+        "seated_cable_row",
+        "bent_over_row",
+        "dumbbell_row",
+        "face_pull",
+        "band_pull_apart",
+        "bicep_curl",
+        "hammer_curl",
+        "wrist_curl",
+        "shrug",
+        "farmer_carry",
+        "plank",
+        "high_plank",
+        "side_plank",
+        "crunch",
+        "sit_up",
+        "bicycle_crunch",
+        "v_up",
+        "lying_leg_raise",
+        "hanging_leg_raise",
+        "russian_twist",
+        "dead_bug",
+        "bird_dog",
+        "ab_wheel_rollout",
+        "back_extension",
+        "superman_hold",
+        "pallof_press",
+        "walking",
+        "brisk_walking",
+        "hiking",
+        "jogging",
+        "running",
+        "interval_running",
+        "sprinting",
+        "long_distance_running",
+        "stair_climbing",
+        "cycling",
+        "stationary_cycling",
+        "spin_class",
+        "rowing_machine",
+        "elliptical",
+        "swimming",
+        "aqua_aerobics",
+        "dance_workout",
+        "yoga_flow",
+        "sun_salutation",
+        "downward_dog",
+        "childs_pose",
+        "cat_cow",
+        "hamstring_stretch",
+        "quad_stretch",
+        "hip_flexor_stretch",
+        "chest_doorway_stretch",
+        "neck_mobility",
+        "foam_rolling",
+        "tai_chi",
+        "pilates_mat",
+        "headstand",
+        "shoulder_stand",
+        "handstand",
+        "neck_bridge",
+        "badminton",
+        "tennis",
+        "table_tennis",
+        "squash",
+        "pickleball",
+        "padel",
+        "cricket",
+        "football",
+        "basketball",
+        "volleyball",
+        "kabaddi",
+        "kho_kho",
+        "field_hockey",
+        "rugby",
+        "american_football",
+        "baseball",
+        "handball",
+        "ultimate_frisbee",
+        "boxing",
+        "kickboxing",
+        "martial_arts",
+        "wrestling",
+        "golf",
+        "climbing",
+        "skating",
+        "skiing",
+        "surfing",
+        "kayaking",
+        "horse_riding",
+        "other_activity"
+      ],
+      "title": "LoggedExerciseId",
+      "type": "string"
     },
     "LoggedFood": {
       "additionalProperties": false,

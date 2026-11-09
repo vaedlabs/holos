@@ -197,3 +197,5 @@ class UnresolvedTerm(Base):
     field: Mapped[str] = mapped_column(String(24), primary_key=True)
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     count: Mapped[int] = mapped_column(Integer)
+    # How much of `count` the job has flagged to the developer (activities, Part E #53)
+    alerted: Mapped[int] = mapped_column(Integer, server_default="0")

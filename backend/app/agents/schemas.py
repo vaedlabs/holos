@@ -33,7 +33,7 @@ from pydantic import (
 
 from app.config.limits import IMPORT_LOG_ENTRIES, IMPORT_TURNS
 from app.guardrails.loader import get_guardrails
-from app.guardrails.types import Allergen, Diet
+from app.guardrails.types import OTHER_ACTIVITY, Allergen, Diet
 
 CONTRACT_VERSION = 1
 
@@ -41,6 +41,9 @@ _catalogue = get_guardrails().catalogue
 
 # Enums built from catalogue.yaml, so the model can only return known IDs
 ExerciseId = StrEnum("ExerciseId", {i: i for i in _catalogue.exercise_ids})
+# A log may also name an activity the catalogue doesn't have; a plan never (Part E #53)
+LoggedExerciseId = StrEnum("LoggedExerciseId",
+                           {i: i for i in [*_catalogue.exercise_ids, OTHER_ACTIVITY]})
 PracticeId = StrEnum("PracticeId", {i: i for i in _catalogue.practice_ids})
 
 ReplyKind = Literal["plan", "answer", "log_ack", "clarify"]
@@ -77,14 +80,19 @@ DAY = Field(max_length=16, description=(
 
 # Owner, 2 Nov 2026 (Part E #38): a marathon long run, a long ride or an Ironman day runs
 # for hours; any other exercise at most 90 minutes. The ceiling only stops impossible
-# numbers.
-ENDURANCE_IDS = frozenset({"walking", "brisk_walking", "hiking", "jogging", "running",
-                           "long_distance_running", "cycling", "stationary_cycling",
-                           "rowing_machine", "elliptical", "swimming"})
+# numbers. Owner, 9 Nov 2026 (Part E #53): so do a cricket match, a round of golf or a
+# day's skiing, and an activity the catalogue doesn't have.
+LONG_IDS = frozenset({"walking", "brisk_walking", "hiking", "jogging", "running",
+                      "long_distance_running", "cycling", "stationary_cycling",
+                      "rowing_machine", "elliptical", "swimming", "cricket", "baseball",
+                      "golf", "climbing", "skiing", "kayaking", "horse_riding",
+                      OTHER_ACTIVITY})
 DURATION_MAX_S = 5400
 ENDURANCE_MAX_S = 86400
 DURATION_RULE = ("Seconds. At most 5400 (90 minutes), except walking, hiking, jogging, "
-                 "running, cycling, rowing, elliptical and swimming, which may be longer.")
+                 "running, cycling, rowing, elliptical, swimming, cricket, baseball, "
+                 "golf, climbing, skiing, kayaking, horse riding and other activities, "
+                 "which may be longer.")
 
 
 class ExerciseItem(_LLMModel):
@@ -103,7 +111,7 @@ class ExerciseItem(_LLMModel):
 
 
 def _check_duration(catalogue_id: str, duration_s: int | None) -> None:
-    if (duration_s or 0) > DURATION_MAX_S and catalogue_id not in ENDURANCE_IDS:
+    if (duration_s or 0) > DURATION_MAX_S and catalogue_id not in LONG_IDS:
         raise ValueError(f"{catalogue_id} lasts at most {DURATION_MAX_S} s")
 
 
@@ -321,24 +329,37 @@ class When(_LLMModel):
 WHEN = Field(description=(
     "When it happened, copied from what the person said: 'this morning' is today and "
     "morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. "
-    "Every field null when they mean just now or say nothing about when."))
+    "Every field null when they mean just now ('abhi', 'just now', 'just got back') or "
+    "say nothing about when; never add a part of the day they didn't name."))
 
 
 class _LogArgs(_LLMModel):
-    """A log tool's arguments. `when` missing or null is just now, so entries held,
-    stored or kept in a browser before it existed still read; the provider's schema
-    still requires it."""
+    """A log tool's arguments. Fields added later read as their empty value when
+    missing (`when` null is just now, `activity` null), so entries held, stored or kept
+    in a browser before them still read; the provider's schema still requires them."""
 
     @model_validator(mode="before")
     @classmethod
-    def _now_if_missing(cls, data: Any) -> Any:
-        if isinstance(data, dict) and data.get("when") is None:
+    def _fill_missing(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if data.get("when") is None:
             data = {**data, "when": {"day": None, "time": None, "ampm": None, "part": None}}
+        if "activity" in cls.model_fields and "activity" not in data:
+            data = {**data, "activity": None}
         return data
 
 
 class LogWorkoutArgs(_LogArgs):
-    catalogue_id: ExerciseId
+    catalogue_id: LoggedExerciseId = Field(description=(
+        f"A catalogue ID. Only when nothing in the catalogue fits what they did: "
+        f"'{OTHER_ACTIVITY}', with its name in `activity`; never in place of an entry "
+        f"that fits."))
+    # Only with other_activity: what they did, in their words ("Archery"), shown as
+    # its name; checked against nothing (Part E #53)
+    activity: str | None = Field(max_length=40, description=(
+        f"Only with '{OTHER_ACTIVITY}': what they did, in a few of their words, such as "
+        f"'Archery'; null otherwise."))
     sets: int | None = Field(ge=1, le=10)
     reps: int | None = Field(ge=1, le=100)
     # As a plan's item: a logged long run may last hours (Part E #38)
@@ -349,6 +370,18 @@ class LogWorkoutArgs(_LogArgs):
     @model_validator(mode="after")
     def _duration_fits_the_exercise(self):
         _check_duration(self.catalogue_id, self.duration_s)
+        return self
+
+    @model_validator(mode="after")
+    def _an_other_activity_is_named(self):
+        """Its name is all it has; a catalogue entry has its own (a stray one is
+        dropped)."""
+        if self.catalogue_id == OTHER_ACTIVITY:
+            if not (self.activity or "").strip():
+                raise ValueError(f"{OTHER_ACTIVITY} needs the activity's name")
+            self.activity = self.activity.strip()
+        else:
+            self.activity = None
         return self
 
 

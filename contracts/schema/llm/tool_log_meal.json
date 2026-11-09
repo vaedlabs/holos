@@ -159,7 +159,7 @@
     },
     "when": {
       "additionalProperties": false,
-      "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when.",
+      "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now ('abhi', 'just now', 'just got back') or say nothing about when; never add a part of the day they didn't name.",
       "properties": {
         "ampm": {
           "description": "'am' or 'pm' only when the person said which; null otherwise.",

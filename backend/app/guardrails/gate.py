@@ -40,6 +40,7 @@ from .matcher import Entry, Matcher, get_matcher
 from .normalise import fold_for_matching
 from .types import (
     ACTION_ORDER,
+    OTHER_ACTIVITY,
     Action,
     Allergen,
     Decision,
@@ -57,6 +58,8 @@ MALFORMED_RULE = "GT-MALFORMED-01"
 UNCHECKED_RULE = "GT-UNCHECKED-01"
 MALFORMED_REASON = "Not a known catalogue item"
 UNCHECKED_REASON = "Not checked against your allergies"
+# An activity the catalogue doesn't have (Part E #53): its tags are unknown
+UNCHECKED_ACTIVITY_REASON = "Not checked against your health conditions"
 PHOTO_CAVEAT = ("A photo can't show every ingredient (oils, sauces, spice mixes). "
                 "Check with whoever made it.")
 REASON_MAX = 200
@@ -103,8 +106,10 @@ REFUSAL_CLAIM = re.compile(
     r"|(?<!\w)(?:लॉग|सेव) नहीं (?:कर|हो)"
 )
 # "Confirm it on the card below": false when nothing waits (Part E #52)
+# Live, 9 Nov 2026 (Part E #53): "listed below for you to confirm" over a saved entry
 CARD_CLAIM = re.compile(
-    r"^(?=.*(?:\bconfirm|कन्फर्म|पुष्टि))(?=.*(?:\bcards?\b|\bwait|कार्ड|इंतज़ार|इंतजार))")
+    r"^(?=.*(?:\bconfirm|कन्फर्म|पुष्टि))"
+    r"(?=.*(?:\bcards?\b|\bwait|\bbelow\b|\bneeche\b|कार्ड|इंतज़ार|इंतजार|नीचे))")
 
 
 def _as_list(value: Any) -> list:
@@ -214,6 +219,19 @@ class _Check:
             return ItemVerdict(index, "block", decisions=(d,))
         hits = self.entry_hits(entry)
         return replace(self._verdict(index, hits, entry.name), attributes=self._attributes(hits))
+
+    def other_activity(self, index: int, item: Mapping[str, Any]) -> ItemVerdict:
+        """A logged activity the catalogue doesn't have: its name is prose, checked like
+        a note, and with a health condition in the profile it is marked as not checked
+        (as an unknown ingredient is with allergies). Saved either way: it was done."""
+        name = self.prose(str(item.get("activity") or ""), "activity")[:40]
+        item["activity"] = name or "Other activity"
+        if not self.profile.condition_ids:
+            return ItemVerdict(index, "allow")
+        name = item["activity"]
+        d = self.decision("warn", UNCHECKED_RULE, UNCHECKED_ACTIVITY_REASON, [name])
+        return ItemVerdict(index, "warn", (f"{UNCHECKED_ACTIVITY_REASON}: {name}",), (d,),
+                           ((UNCHECKED_RULE, (name,)),))
 
     def food_item(self, index: int, food: Any) -> ItemVerdict:
         if not isinstance(food, Mapping) or not isinstance(food.get("name"), str):
@@ -420,6 +438,9 @@ def gate(
             content["follow_up"] = check.prose(content["follow_up"], "follow_up") or None
     elif domain == "nutrition":  # a meal: its foods are the items
         items = _items(check, domain, content.get("foods"), "foods")
+    elif content.get("catalogue_id") == OTHER_ACTIVITY:  # only a log can name one
+        items = [check.other_activity(0, content)]
+        content["note"] = check.prose(content.get("note", ""), "note")
     else:  # a workout or practice: the entry itself is the one item
         items = [check.catalogue_item(0, content, ITEM_KIND[domain])]
         content["note"] = check.prose(content.get("note", ""), "note")

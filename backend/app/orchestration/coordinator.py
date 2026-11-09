@@ -41,6 +41,7 @@ from app.config.limits import (
 from app.config.speeds import LOGGED_NOTE, LOGGED_NOTE_S, ROUTER, SUMMARY
 from app.data.state_store import StateStore
 from app.data.stream_store import RequestEnded
+from app.observability import terms
 from app.observability.background import Outcome
 from app.observability.tracer import Trace
 from app.orchestration.admission import Admitted
@@ -300,6 +301,23 @@ async def _writes(job: ChatJob, services: Services, saved: Saved, hash_: str,
         else:
             await c.pending_write(write, at=write.at or pending.at,
                                   write_id=str(pending.write_id))
+    await _count_activities(job, saved)
+
+
+async def _count_activities(job: ChatJob, saved: Saved) -> None:
+    """Activities the catalogue doesn't have, counted for the developer's alert (owner,
+    Part E #53): after the events, so the person never waits for it, and a failure is
+    only logged."""
+    names = [w.args.activity for w, _ in [*saved.committed, *saved.pending]
+             if getattr(w.args, "activity", None)]
+    if not names or job.sessions is None:
+        return
+    try:
+        async with job.sessions() as session, session.begin():
+            await terms.count_activities(await session.connection(), names)
+    except Exception:
+        log.warning("other activities not counted: trace=%s", job.admitted.trace_id,
+                    exc_info=True)
 
 
 async def _summary(job: ChatJob, services: Services, results: dict[AgentName, AgentResult],

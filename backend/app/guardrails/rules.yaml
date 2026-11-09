@@ -11,7 +11,8 @@
 # 2: vegetarian also blocks egg; eggetarian has its own rule (DI-EGGT-01)
 # 3: crisis phrases widened, spelling variants folded (Plan Part E #19)
 # 4: bending the spine forward with osteoporosis or back problems (Part E #38)
-version: 4
+# 5: contact and fall risk in sports: pregnancy, osteoporosis, neck and back (Part E #53)
+version: 5
 
 exercise:
   # Knees
@@ -59,6 +60,11 @@ exercise:
     block: {spinal_flexion: high}
     severity: block
     reason: Bending the spine forward can aggravate back pain
+  - id: EX-BACK-06
+    when: {condition: [lower_back_injury, back_pain]}
+    block: {contact: true}
+    severity: warn
+    reason: Tackles and collisions can jar the back
 
   # Shoulders
   - id: EX-SHLD-01
@@ -100,6 +106,11 @@ exercise:
     block: {inversion: true}
     severity: block
     reason: Inversions put weight on the neck
+  - id: EX-NECK-03
+    when: {condition: neck_injury}
+    block: {contact: true}
+    severity: warn
+    reason: Tackles and collisions can jar an injured neck
 
   # Heart and blood pressure
   - id: EX-HEART-01
@@ -154,6 +165,11 @@ exercise:
     block: {spinal_flexion: moderate}
     severity: warn
     reason: Keep the back straight and bend from the hips with osteoporosis
+  - id: EX-BONE-06
+    when: {condition: osteoporosis}
+    block: {fall_risk: true}
+    severity: block
+    reason: A fall can break a bone with osteoporosis
   - id: EX-JOINT-01
     when: {condition: arthritis}
     block: {impact: high}
@@ -183,6 +199,16 @@ exercise:
     block: {heavy_load: true}
     severity: warn
     reason: Heavy lifting during pregnancy
+  - id: EX-PREG-05
+    when: {condition: pregnancy}
+    block: {contact: true}
+    severity: block
+    reason: Contact sports risk a blow to the abdomen during pregnancy
+  - id: EX-PREG-06
+    when: {condition: pregnancy}
+    block: {fall_risk: true}
+    severity: block
+    reason: Activities with a risk of falling during pregnancy
   - id: EX-PREG-03
     when: {condition: pregnancy}
     block: {supine: true}

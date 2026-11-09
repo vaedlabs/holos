@@ -27,7 +27,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import schemas
-from app.agents.display import NAMES
+from app.agents.display import NAMES, item_name
 from app.agents.schemas import (
     WRITE_ARGS,
     AgentResult,
@@ -82,7 +82,9 @@ def warnings_of(kind: WriteKind, args: BaseModel, checked: types.GateResult
 
 
 def _item_name(args: BaseModel) -> str:
-    return NAMES.get(args.catalogue_id, str(args.catalogue_id))
+    if getattr(args, "activity", None) or args.catalogue_id in NAMES:
+        return item_name(args)
+    return str(args.catalogue_id)
 
 
 def warning_text(warning: WriteWarning) -> str:
