@@ -141,14 +141,17 @@ def held_entry(kind: WriteKind, payload: dict) -> StagedWrite | None:
     (an entry held before a schema change can't be checked, so it isn't saved)."""
     try:
         return StagedWrite(kind=kind, args=WRITE_ARGS[kind].model_validate(payload["args"]),
-                           warnings=payload.get("warnings") or [])
+                           warnings=payload.get("warnings") or [], at=payload.get("at"),
+                           time_guessed=payload.get("time_guessed", False))
     except (ValidationError, KeyError, TypeError):
         return None
 
 
 def held_payload(write: StagedWrite) -> dict:
     return {"args": write.args.model_dump(mode="json"),
-            "warnings": [w.model_dump(mode="json") for w in write.warnings]}
+            "warnings": [w.model_dump(mode="json") for w in write.warnings],
+            "at": write.at.isoformat() if write.at else None,
+            "time_guessed": write.time_guessed}
 
 
 def logged_at_allowed(at: datetime, now: datetime | None = None) -> bool:
@@ -186,7 +189,7 @@ def turn_writes(coached: list[tuple[AgentResult, bool]]) -> TurnWrites:
         if result.reply is None or result.removed_count:
             continue  # the reply failed the gate: its writes are discarded
         for write in result.staged_writes:
-            held = untrusted or bool(write.conflicts)
+            held = untrusted or write.waits
             (writes.pending if held else writes.commit).append(write)
     return writes
 
@@ -200,10 +203,12 @@ class Saved:
 async def commit_writes(session: AsyncSession, user_id: int, writes: TurnWrites,
                         hash_: str, trace_id: str, at: datetime | None = None) -> Saved:
     """Account: inside the turn's transaction, with its messages (C.2 stage 13). `at`:
-    when the person said it, so the row and its Logged line agree (Part E #51)."""
+    when the person said it, for an entry with no time of its own, so the row and its
+    Logged line agree (Part E #51)."""
     saved = Saved()
     for write in writes.commit:
-        saved.committed.append((write, str(await insert_log(session, user_id, write, at))))
+        saved.committed.append((write, str(await insert_log(session, user_id, write,
+                                                            write.at or at))))
     conn = await session.connection()
     for write in writes.pending:
         saved.pending.append((write, await stage_pending(

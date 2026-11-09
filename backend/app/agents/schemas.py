@@ -289,13 +289,62 @@ class WebSearchArgs(_LLMModel):
     query: str = Field(max_length=200)
 
 
-class LogWorkoutArgs(_LLMModel):
+# When a logged entry happened (Part E #51 step 2): the coach copies what the person said
+# into fixed choices and the server works out the date and time in their zone
+# (agents/when.py), so no model does date arithmetic
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+
+
+class When(_LLMModel):
+    """Every field null: just now. A nullable object isn't in either provider's schema
+    rules, so the object is always there and its fields are null instead."""
+
+    day: str | None = Field(
+        max_length=10,
+        pattern=(rf"^(today|yesterday|tomorrow|{'|'.join(WEEKDAYS)}"
+                 rf"|\d{{4}}-\d{{2}}-\d{{2}})$"),
+        description="'today', 'yesterday', 'tomorrow', a weekday such as 'monday' (always "
+                    "the last one before today, never a coming one), or a date the person "
+                    "gave, as YYYY-MM-DD; null if they said nothing about the day. Copy a "
+                    "coming day as it is: it can't be logged, and the tool says so.")
+    time: str | None = Field(
+        max_length=5, pattern=r"^([01]?\d|2[0-3]):[0-5]\d$",
+        description="The clock time the person gave, as H:MM ('7:30', '19:30'); null if "
+                    "they gave none. Never guess one.")
+    ampm: Literal["am", "pm"] | None = Field(
+        description="'am' or 'pm' only when the person said which; null otherwise.")
+    part: Literal["morning", "afternoon", "evening", "night"] | None = Field(
+        description="The part of the day the person named ('this morning', 'kal raat', "
+                    "'shaam ko'); null if none.")
+
+
+WHEN = Field(description=(
+    "When it happened, copied from what the person said: 'this morning' is today and "
+    "morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. "
+    "Every field null when they mean just now or say nothing about when."))
+
+
+class _LogArgs(_LLMModel):
+    """A log tool's arguments. `when` missing or null is just now, so entries held,
+    stored or kept in a browser before it existed still read; the provider's schema
+    still requires it."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _now_if_missing(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("when") is None:
+            data = {**data, "when": {"day": None, "time": None, "ampm": None, "part": None}}
+        return data
+
+
+class LogWorkoutArgs(_LogArgs):
     catalogue_id: ExerciseId
     sets: int | None = Field(ge=1, le=10)
     reps: int | None = Field(ge=1, le=100)
     # As a plan's item: a logged long run may last hours (Part E #38)
     duration_s: int | None = Field(ge=1, le=ENDURANCE_MAX_S, description=DURATION_RULE)
     note: str = Field(max_length=120)
+    when: When = WHEN
 
     @model_validator(mode="after")
     def _duration_fits_the_exercise(self):
@@ -303,9 +352,10 @@ class LogWorkoutArgs(_LLMModel):
         return self
 
 
-class LogMealArgs(_LLMModel):
+class LogMealArgs(_LogArgs):
     meal: MealType
     foods: list[LoggedFood] = Field(min_length=1, max_length=5)
+    when: When = WHEN
 
     def totals(self) -> dict[str, float | bool | None]:
         """The meal's calories and macros: each the sum over the foods that give it
@@ -319,12 +369,13 @@ class LogMealArgs(_LLMModel):
         return out
 
 
-class LogPracticeArgs(_LLMModel):
+class LogPracticeArgs(_LogArgs):
     catalogue_id: PracticeId
     duration_min: int = Field(ge=1, le=60)
     mood_before: int | None = Field(ge=1, le=5)
     mood_after: int | None = Field(ge=1, le=5)
     note: str = Field(max_length=120)
+    when: When = WHEN
 
 
 TOOL_ARG_MODELS: dict[str, type[_LLMModel]] = {
@@ -430,10 +481,20 @@ class StagedWrite(_Model):
     kind: WriteKind
     args: LogWorkoutArgs | LogMealArgs | LogPracticeArgs
     warnings: list[WriteWarning] = Field(default=[], max_length=20)
+    # When it happened, from the coach's `when` (None: when the person said it), and
+    # whether no time was given, so the person picks it on the card (owner, Part E #51)
+    at: datetime | None = None
+    time_guessed: bool = False
 
     @property
     def conflicts(self) -> list[WriteWarning]:
         return [w for w in self.warnings if w.kind == "conflict"]
+
+    @property
+    def waits(self) -> bool:
+        """It waits for the person's confirmation whatever the turn: a conflict with
+        their profile (Part E #45) or a time they didn't give (Part E #51)."""
+        return bool(self.conflicts) or self.time_guessed
 
     @model_validator(mode="after")
     def _args_match_kind(self):
@@ -606,6 +667,8 @@ class PendingWriteData(_EventData):
     # filled in with these (Part E #50). It waits with no time limit.
     at: datetime
     meal: MealType | None = None
+    # No time was given: `at` is the usual time for it, for the person to change
+    time_guessed: bool = False
     # Account mode
     write_id: str | None = None
     # Guest mode
@@ -706,7 +769,7 @@ STREAM_EVENT = TypeAdapter(StreamEvent)
 # --- Provider schema ---
 
 # Keywords neither provider enforces in structured output (Plan Part D)
-_UNENFORCED = ("maxLength", "minLength")
+_UNENFORCED = ("maxLength", "minLength", "pattern")
 
 
 def llm_json_schema(model: type[BaseModel]) -> dict[str, Any]:
@@ -715,7 +778,8 @@ def llm_json_schema(model: type[BaseModel]) -> dict[str, Any]:
     $defs are inlined (Gemini documents only root references), nullable fields
     become {"type": [X, "null"]}, every object gets additionalProperties: false,
     and string lengths move into the description because neither provider
-    enforces them. Pydantic still checks the lengths when the reply is parsed.
+    enforces them; a pattern is left out (its description says the format). Pydantic
+    still checks lengths and patterns when the reply is parsed.
     """
     schema = model.model_json_schema()
     defs = schema.pop("$defs", {})
@@ -735,7 +799,10 @@ def llm_json_schema(model: type[BaseModel]) -> dict[str, Any]:
             other = next(o for o in options if o != {"type": "null"})
             if isinstance(other.get("type"), str) and "$ref" not in other:
                 rest = {k: v for k, v in node.items() if k != "anyOf"}
-                return walk({**other, **rest, "type": [other["type"], "null"]})
+                nullable = {**other, **rest, "type": [other["type"], "null"]}
+                if "enum" in other:  # else null isn't a choice, and the model must pick one
+                    nullable["enum"] = [*other["enum"], None]
+                return walk(nullable)
         out = {k: walk(v) for k, v in node.items() if k not in _UNENFORCED}
         if node.get("type") in ("string", ["string", "null"]) and "maxLength" in node:
             limit = f"At most {node['maxLength']} characters."

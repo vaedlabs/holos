@@ -16,10 +16,10 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from app.agents.clock import when_text
 from app.agents.schemas import StagedWrite, UserProfile
 from app.agents.style import STYLE_NOTE, writing_style
 from app.agents.tools.write import summarise
-from app.orchestration.clock import when_text
 from app.orchestration.composer import gated
 from app.orchestration.staging import NO_PROFILE, warning_text
 from app.providers import CallPlan, ProviderError, ResilientProvider, Turn
@@ -40,7 +40,8 @@ no emojis."""
 def note_prompt(message: str, saved: list[StagedWrite], at: datetime, tz: ZoneInfo) -> str:
     lines = []
     for write in saved:
-        lines.append(f"- {summarise(write.kind, write.args)} ({when_text(at, tz)})")
+        lines.append(f"- {summarise(write.kind, write.args)} "
+                     f"({when_text(write.at or at, tz)})")
         lines += [f"  warning: {warning_text(w)}" for w in write.conflicts]
     style = STYLE_NOTE[writing_style(message)]
     return f"The person wrote: {message}\n\nSaved:\n" + "\n".join(lines) + f"\n\n({style})"

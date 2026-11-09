@@ -914,11 +914,16 @@
           ],
           "title": "Meal",
           "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/When",
+          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when."
         }
       },
       "required": [
         "meal",
-        "foods"
+        "foods",
+        "when"
       ],
       "title": "LogMealArgs",
       "type": "object"
@@ -965,6 +970,10 @@
           "maxLength": 120,
           "title": "Note",
           "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/When",
+          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when."
         }
       },
       "required": [
@@ -972,7 +981,8 @@
         "duration_min",
         "mood_before",
         "mood_after",
-        "note"
+        "note",
+        "when"
       ],
       "title": "LogPracticeArgs",
       "type": "object"
@@ -1027,6 +1037,10 @@
             }
           ],
           "title": "Sets"
+        },
+        "when": {
+          "$ref": "#/$defs/When",
+          "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when."
         }
       },
       "required": [
@@ -1034,7 +1048,8 @@
         "sets",
         "reps",
         "duration_s",
-        "note"
+        "note",
+        "when"
       ],
       "title": "LogWorkoutArgs",
       "type": "object"
@@ -1345,6 +1360,11 @@
           "maxLength": 300,
           "title": "Summary",
           "type": "string"
+        },
+        "time_guessed": {
+          "default": false,
+          "title": "Time Guessed",
+          "type": "boolean"
         },
         "trace_id": {
           "maxLength": 64,
@@ -1733,6 +1753,19 @@
           ],
           "title": "Args"
         },
+        "at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
         "kind": {
           "enum": [
             "workout",
@@ -1741,6 +1774,11 @@
           ],
           "title": "Kind",
           "type": "string"
+        },
+        "time_guessed": {
+          "default": false,
+          "title": "Time Guessed",
+          "type": "boolean"
         },
         "warnings": {
           "default": [],
@@ -2121,6 +2159,82 @@
         "cost_usd"
       ],
       "title": "Usage",
+      "type": "object"
+    },
+    "When": {
+      "additionalProperties": false,
+      "description": "Every field null: just now. A nullable object isn't in either provider's schema\nrules, so the object is always there and its fields are null instead.",
+      "properties": {
+        "ampm": {
+          "anyOf": [
+            {
+              "enum": [
+                "am",
+                "pm"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "'am' or 'pm' only when the person said which; null otherwise.",
+          "title": "Ampm"
+        },
+        "day": {
+          "anyOf": [
+            {
+              "maxLength": 10,
+              "pattern": "^(today|yesterday|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\\d{4}-\\d{2}-\\d{2})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "'today', 'yesterday', 'tomorrow', a weekday such as 'monday' (always the last one before today, never a coming one), or a date the person gave, as YYYY-MM-DD; null if they said nothing about the day. Copy a coming day as it is: it can't be logged, and the tool says so.",
+          "title": "Day"
+        },
+        "part": {
+          "anyOf": [
+            {
+              "enum": [
+                "morning",
+                "afternoon",
+                "evening",
+                "night"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The part of the day the person named ('this morning', 'kal raat', 'shaam ko'); null if none.",
+          "title": "Part"
+        },
+        "time": {
+          "anyOf": [
+            {
+              "maxLength": 5,
+              "pattern": "^([01]?\\d|2[0-3]):[0-5]\\d$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The clock time the person gave, as H:MM ('7:30', '19:30'); null if they gave none. Never guess one.",
+          "title": "Time"
+        }
+      },
+      "required": [
+        "day",
+        "time",
+        "ampm",
+        "part"
+      ],
+      "title": "When",
       "type": "object"
     },
     "WriteWarning": {

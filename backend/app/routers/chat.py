@@ -31,6 +31,7 @@ from fastapi import APIRouter, Body, Depends, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import ValidationError
 
+from app.agents.clock import known_zone, zone
 from app.agents.schemas import CONTRACT_VERSION, ChatPayload, ConfirmWrite, StagedWrite, Usage
 from app.config import limits
 from app.config.settings import Settings, get_settings
@@ -48,7 +49,6 @@ from app.observability.background import Outcome, record
 from app.observability.tracer import Trace
 from app.orchestration import worker
 from app.orchestration.admission import admit
-from app.orchestration.clock import known_zone, zone
 from app.orchestration.composer import Composer, confirmation, trace_view
 from app.orchestration.coordinator import ChatJob
 from app.orchestration.principal import Principal, check_csrf, resolve_principal
@@ -181,7 +181,8 @@ async def confirm_write(
 
     async def commit(session, payload: dict) -> dict:
         write = confirmed(payload)
-        at = body.at or payload["staged_at"]
+        at = body.at or write.at or payload["staged_at"]
+        write = write.model_copy(update={"at": at, "time_guessed": False})
         log_id = await insert_log(session, user_id, write, at=at)
         return {"writes": [confirmation(write, str(log_id), "account", at,
                                         zone(body.timezone))]}

@@ -235,6 +235,16 @@ def test_gemini_gets_no_item_limit_on_lists_of_items(agent):
     assert (props["notes"]["maxItems"], props["source_ids"]["maxItems"]) == (3, 5)
 
 
+@pytest.mark.parametrize("model", schemas.LLM_MODELS, ids=LLM_IDS)
+def test_a_nullable_choice_can_be_null(model):
+    """Live, 9 Nov 2026: `when.part` was sent as [string, null] with an enum without
+    null, so the coach had to pick a part of the day for "log my walk" (Part E #51).
+    Both providers accepted null in the enum live (9 Nov 2026)."""
+    for node in _schema_nodes(schemas.llm_json_schema(model)):
+        if "enum" in node and isinstance(node.get("type"), list):
+            assert None in node["enum"], f"{model.__name__}: {node}"
+
+
 # --- Sample streams (C.4, C.5) ---
 
 

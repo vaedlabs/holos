@@ -490,6 +490,19 @@ failures:
       - tests/unit/tools/test_write_and_read_tools.py::test_unknown_catalogue_id_is_invalid_and_not_staged
     seen_live: "2026-11-07: pickleball logged as circuit training (Part E #53)"
 
+  - id: tools.log_time_out_of_range
+    layer: tools
+    what: A log's time is ahead of now (beyond 5 minutes), more than 30 days back, or a date that doesn't exist.
+    cause: none
+    handling: Refused before the gate, nothing staged; the coach is told why (owner, Part E #51).
+    person_sees: The coach says it can't log that time, and that they can log it once it's done.
+    code: null
+    tests:
+      - tests/unit/agents/test_when.py::test_ahead_of_now_or_too_far_back_is_not_logged
+      - tests/unit/tools/test_write_and_read_tools.py::test_a_time_ahead_or_too_far_back_stages_nothing
+      - tests/integration/test_writes.py::test_a_time_ahead_of_now_logs_nothing_and_the_coach_says_so
+    seen_live: null
+
   - id: tools.recent_logs_down
     layer: tools
     what: The database can't answer the recent-logs tool.

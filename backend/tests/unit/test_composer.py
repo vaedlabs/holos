@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.agents import clock
 from app.agents.schemas import (
     AgentResult,
     Decision,
@@ -29,7 +30,6 @@ from app.agents.schemas import (
 )
 from app.contracts import generate
 from app.observability.tracer import Trace
-from app.orchestration import clock
 from app.orchestration import composer as composer_module
 from app.orchestration.composer import (
     TRACE_VIEW_MAX,

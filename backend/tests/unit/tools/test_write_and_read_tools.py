@@ -1,8 +1,11 @@
 """Write tools gate then stage and never touch the DB; read tools in guest mode (Plan P2.2)."""
 
+from datetime import timedelta
+
 import pytest
 from sqlalchemy.exc import OperationalError
 
+from app.agents.clock import zone
 from app.agents.schemas import Decision, WriteWarning
 from app.agents.tools import AGENT_TOOLS, GateResult, ToolContext
 from app.agents.tools import write as write_tools
@@ -42,6 +45,45 @@ async def test_write_stages_and_never_opens_the_db(account_ctx, name):
     assert out == {"status": "staged", "summary": summary}
     [staged] = account_ctx.staged_writes
     assert staged.kind == kind
+
+
+# --- When it happened (Part E #51) ---
+
+
+async def test_a_time_the_person_gave_is_staged_with_it(account_ctx, lunchtime):
+    args = {**WRITES["log_workout"][1],
+            "when": {"day": "yesterday", "time": "7:00", "ampm": "am", "part": None}}
+    out = await TOOLS["log_workout"].run(args, account_ctx)
+    assert out["status"] == "staged"
+    [staged] = account_ctx.staged_writes
+    assert staged.at == (lunchtime - timedelta(days=1)).replace(hour=7, minute=0)
+    assert not staged.time_guessed and not staged.waits
+
+
+async def test_no_time_given_waits_with_the_usual_time_for_the_person_to_pick(account_ctx):
+    account_ctx.tz = zone("Asia/Kolkata")  # lunchtime in UTC is 6 pm there
+    args = {**WRITES["log_meal"][1],
+            "when": {"day": "yesterday", "time": None, "ampm": None, "part": None}}
+    out = await TOOLS["log_meal"].run(args, account_ctx)
+    assert out["status"] == "held"
+    assert "with yesterday, 1:00 pm filled in" in out["next"]
+    [staged] = account_ctx.staged_writes
+    assert staged.time_guessed and staged.waits
+
+
+@pytest.mark.parametrize(("when", "reason"), [
+    ({"day": "today", "time": "11:00", "ampm": "pm", "part": None}, "ahead of time"),
+    ({"day": "2025-01-01", "time": None, "ampm": None, "part": None}, "more than 30 days"),
+])
+async def test_a_time_ahead_or_too_far_back_stages_nothing(account_ctx, when, reason):
+    async def never(kind, args, ctx):
+        raise AssertionError("the gate ran")
+
+    account_ctx.gate_write = never
+    out = await TOOLS["log_practice"].run({**WRITES["log_practice"][1], "when": when},
+                                          account_ctx)
+    assert out["status"] == "refused" and reason in out["reason"]
+    assert account_ctx.staged_writes == []
 
 
 @pytest.mark.parametrize("name", list(WRITES))

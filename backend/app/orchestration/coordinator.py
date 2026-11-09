@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from app.agents.base import AgentRun, error_code
+from app.agents.clock import now_note, zone
 from app.agents.display import history_text
 from app.agents.schemas import (
     AgentName,
@@ -44,7 +45,6 @@ from app.observability.background import Outcome
 from app.observability.tracer import Trace
 from app.orchestration.admission import Admitted
 from app.orchestration.budget import Budget, CallMeter
-from app.orchestration.clock import now_note, zone
 from app.orchestration.composer import (
     Composer,
     Gated,
@@ -228,7 +228,8 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
         tools = ToolContext(mode="account" if job.principal.user_id else "guest",
                             trace_id=job.admitted.trace_id, user_id=job.principal.user_id,
                             sessions=job.sessions, gate_write=write_gate(profile),
-                            search=services.search, search_keys=job.admitted.search_keys)
+                            search=services.search, search_keys=job.admitted.search_keys,
+                            said=job.said, tz=zone(job.payload.timezone))
         result = await services.coaches[agent].run(AgentRun(
             message=job.payload.message, profile=profile, history=history, tools=tools,
             now=now_note(zone(job.payload.timezone), job.said),
@@ -295,9 +296,10 @@ async def _writes(job: ChatJob, services: Services, saved: Saved, hash_: str,
             await c.logged_note(note)
     for write, pending in saved.pending:
         if pending is None:  # guest
-            await c.pending_write(write, at=job.said, profile_hash=hash_)
+            await c.pending_write(write, at=write.at or job.said, profile_hash=hash_)
         else:
-            await c.pending_write(write, at=pending.at, write_id=str(pending.write_id))
+            await c.pending_write(write, at=write.at or pending.at,
+                                  write_id=str(pending.write_id))
 
 
 async def _summary(job: ChatJob, services: Services, results: dict[AgentName, AgentResult],

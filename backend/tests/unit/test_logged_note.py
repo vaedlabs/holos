@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.agents.clock import zone
 from app.agents.schemas import (
     LoggedFood,
     LogMealArgs,
@@ -17,7 +18,6 @@ from app.agents.schemas import (
     WriteWarning,
 )
 from app.config.speeds import LOGGED_NOTE
-from app.orchestration.clock import zone
 from app.orchestration.logged_note import logged_note, note_prompt
 from app.orchestration.services import SUMMARY_OPTIONS
 from app.providers import (

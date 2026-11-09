@@ -7,11 +7,14 @@ at the same time (Plan C.10), so read tools open their own database session from
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.agents.clock import UTC_ZONE
 from app.agents.schemas import Decision, Source, StagedWrite, WriteKind, WriteWarning
 from app.data.state_store import SpendKey
 
@@ -48,6 +51,10 @@ class ToolContext:
     sources: list[Source] = field(default_factory=list)
     searches_used: int = 0
     untrusted: bool = False  # a web search result entered the turn (Plan C.17)
+    # When the person said it and their time zone: a log's `when` is worked out from
+    # these (Part E #51); None is the moment the tool runs
+    said: datetime | None = None
+    tz: ZoneInfo = UTC_ZONE
 
     def clear_staged(self) -> None:
         """A retry starts without the writes of the failed attempt (Plan C.10 step 6)."""

@@ -5,12 +5,18 @@ touches the database: the Composer commits staged writes after the final reply
 passes the gate, or turns them into pending writes after a web search or when the
 entry conflicts with the profile ("held": the person confirms, Part E #45). The tool
 says "held" for both, so the coach never tells the person it was logged (Part E #52).
+
+Before the gate, the entry's `when` becomes a time (agents/when.py, Part E #51): one
+ahead of now or too far back is refused, nothing staged; one the person didn't give is
+the usual time, and the entry waits for them to pick it on the card.
 """
 
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel
 
+from app.agents.clock import when_text
 from app.agents.display import item_display
 from app.agents.schemas import (
     LogMealArgs,
@@ -19,6 +25,7 @@ from app.agents.schemas import (
     StagedWrite,
     WriteKind,
 )
+from app.agents.when import NotLoggable, resolve
 
 from .base import Tool, ToolContext
 
@@ -53,19 +60,32 @@ HELD = ("Not refused and not saved yet: it waits for the person to confirm it on
         "below your reply, where they can also choose Don't log. Say what conflicts, if "
         "anything, and that they can confirm it there. Don't say it was refused, couldn't "
         "be saved, or was logged.")
+# Part E #51: no time given, so the card asks for one (owner, 9 Nov 2026)
+HELD_TIME = ("Not saved yet: the person didn't say what time, so it waits on the card below "
+             "your reply with {} filled in, for them to pick the time and confirm. Say so "
+             "briefly. Don't say it was refused, couldn't be saved, or was logged.")
 
 
 async def _stage(kind: WriteKind, args: BaseModel, ctx: ToolContext) -> dict[str, Any]:
+    said = ctx.said or datetime.now(UTC)
+    try:
+        when = resolve(args.when, getattr(args, "meal", None), said, ctx.tz)
+    except NotLoggable as exc:
+        return {"status": "refused", "reason": str(exc)}
     gate = await ctx.gate_write(kind, args, ctx)
     ctx.decisions.extend(gate.decisions)
     if not gate.allowed:
         return {"status": "refused", "reason": gate.reason or "Not allowed for your profile"}
     args = gate.args or args
-    write = StagedWrite(kind=kind, args=args, warnings=list(gate.warnings))
+    write = StagedWrite(kind=kind, args=args, warnings=list(gate.warnings),
+                        at=None if when.at == said else when.at, time_guessed=when.guessed)
     ctx.staged_writes.append(write)
     if write.conflicts:  # something they already had conflicts: they confirm (Part E #45)
         return {"status": "held", "summary": summarise(kind, args),
                 "warnings": [f"{w.item}: {w.reason}" for w in write.conflicts], "next": HELD}
+    if write.time_guessed:
+        return {"status": "held", "summary": summarise(kind, args),
+                "next": HELD_TIME.format(when_text(when.at, ctx.tz, said))}
     if ctx.untrusted:  # a web search came first: the person confirms it (C.17)
         return {"status": "held", "summary": summarise(kind, args), "next": HELD}
     return {"status": "staged", "summary": summarise(kind, args)}

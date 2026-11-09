@@ -62,6 +62,64 @@
       "description": "At most 120 characters.",
       "title": "Note",
       "type": "string"
+    },
+    "when": {
+      "additionalProperties": false,
+      "description": "When it happened, copied from what the person said: 'this morning' is today and morning, 'yesterday at 7' is yesterday and 7:00, 'kal raat' is yesterday and night. Every field null when they mean just now or say nothing about when.",
+      "properties": {
+        "ampm": {
+          "description": "'am' or 'pm' only when the person said which; null otherwise.",
+          "enum": [
+            "am",
+            "pm",
+            null
+          ],
+          "title": "Ampm",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "day": {
+          "description": "'today', 'yesterday', 'tomorrow', a weekday such as 'monday' (always the last one before today, never a coming one), or a date the person gave, as YYYY-MM-DD; null if they said nothing about the day. Copy a coming day as it is: it can't be logged, and the tool says so. At most 10 characters.",
+          "title": "Day",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "part": {
+          "description": "The part of the day the person named ('this morning', 'kal raat', 'shaam ko'); null if none.",
+          "enum": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            null
+          ],
+          "title": "Part",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "time": {
+          "description": "The clock time the person gave, as H:MM ('7:30', '19:30'); null if they gave none. Never guess one. At most 5 characters.",
+          "title": "Time",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "day",
+        "time",
+        "ampm",
+        "part"
+      ],
+      "title": "When",
+      "type": "object"
     }
   },
   "required": [
@@ -69,7 +127,8 @@
     "duration_min",
     "mood_before",
     "mood_after",
-    "note"
+    "note",
+    "when"
   ],
   "type": "object"
 }

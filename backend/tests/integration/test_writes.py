@@ -6,13 +6,14 @@ for the person's confirmation; confirm commits once, and checks the profile agai
 import asyncio
 import json
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from unittest.mock import ANY
 
 import httpx
 import pytest
 import pytest_asyncio
 
+from app.agents.clock import UTC_ZONE, now_note, when_text, zone
 from app.agents.schemas import (
     LoggedFood,
     LogMealArgs,
@@ -28,7 +29,6 @@ from app.config.settings import get_settings
 from app.data.state_store import StateStore
 from app.jobs.scheduler import Jobs
 from app.orchestration import staging
-from app.orchestration.clock import UTC_ZONE, now_note, when_text, zone
 from app.orchestration.principal import csrf_token
 from app.providers import LLMResult, ToolCall, Usage
 from app.routers import chat
@@ -58,6 +58,7 @@ SQUATS = {"catalogue_id": "back_squat", "sets": 1, "reps": 10, "duration_s": Non
 DAL = {"day": None, "name": "Dal", "ingredients": ["lentils"], "allergen_tags": [],
        "diet_tags": ["vegan"], "portion": "1 bowl", "calories": 230, "note": "",
        "protein_g": 12, "carbs_g": 35, "fat_g": 5}
+NOW = {"day": None, "time": None, "ampm": None, "part": None}  # a log's `when`: just now
 RICE = {**DAL, "name": "Rice", "ingredients": ["rice"], "calories": 200, "protein_g": 4,
         "carbs_g": 45, "fat_g": 0.5}
 KNEE = {"condition_ids": ["knee_ligament_injury"], "allergen_tags": [], "diet_tags": [],
@@ -183,13 +184,13 @@ async def test_a_staged_entry_is_cleaned_like_prose():
 # --- Committed with the turn ---
 
 
-async def test_an_account_turn_commits_its_writes_with_its_messages(store, async_engine):
+async def test_an_account_turn_commits_its_writes_with_its_messages(store, async_engine,
+                                                                    lunchtime):
     me = await account(store, async_engine)
     models = Models(router=[_route("physical")], physical=[
         _calls(("log_workout", BRIDGES)), _ack()],
         summary=[_result(text="Logged your glute bridges. Strong work today.")])
     rid = uuid.uuid4()
-    before = datetime.now(UTC)
     events = _events(await _post(_writes_app(store, async_engine, models), me,
                                  _payload("log 3x12 glute bridges", rid=rid,
                                           timezone="Asia/Kolkata")))
@@ -199,7 +200,7 @@ async def test_an_account_turn_commits_its_writes_with_its_messages(store, async
         async_engine, "SELECT id, exercises, workout_date FROM workout_logs")
     [write] = committed["writes"]
     assert _line(write, zone("Asia/Kolkata")) == "Logged: Glute bridge: 3 x 12"
-    assert before <= datetime.fromisoformat(write.pop("at")) == logged_at
+    assert datetime.fromisoformat(write.pop("at")) == logged_at == lunchtime
     assert write == {"kind": "workout", "summary": write["summary"], "write_id": str(log_id),
                      "entry": None, "warnings": []}
     assert '"catalogue_id": "glute_bridge"' in exercises
@@ -268,8 +269,9 @@ async def test_a_guest_turn_sends_its_entries_and_stores_nothing(store, async_en
     del committed["writes"][0]["at"]
     assert committed["writes"] == [{"kind": "workout", "summary": ANY, "write_id": None,
                                     "warnings": [],
-                                    "entry": {"kind": "workout", "args": BRIDGES,
-                                              "warnings": []}}]
+                                    "entry": {"kind": "workout", "args": {**BRIDGES, "when": NOW},
+                                              "warnings": [], "at": None,
+                                              "time_guessed": False}}]
     assert await _count(async_engine, "workout_logs") == 0
     assert await _count(async_engine, "pending_writes") == 0
 
@@ -314,7 +316,8 @@ async def test_a_guests_held_entry_carries_the_profile_hash(store, async_engine)
     [pending] = [d for n, d in events if n == "pending_write"]
     # The hash of the profile the browser sent, so it can tell if it changed (C.17)
     assert pending["profile_hash"] == staging.profile_hash(UserProfile(**profile))
-    assert pending["entry"] == {"kind": "workout", "args": BRIDGES, "warnings": []}
+    assert pending["entry"] == {"kind": "workout", "args": {**BRIDGES, "when": NOW},
+                                "warnings": [], "at": None, "time_guessed": False}
     assert pending["warnings"] == []  # held for the search only
     assert await _count(async_engine, "pending_writes") == 0
 
@@ -425,6 +428,102 @@ async def test_the_event_carries_when_it_was_said_and_the_meal(store, async_engi
     [(write_id, said)] = await sql(async_engine, "SELECT id, created_at FROM pending_writes")
     assert (pending["write_id"], datetime.fromisoformat(pending["at"])) == (str(write_id), said)
     assert pending["meal"] == "lunch" and "expires_at" not in pending
+
+
+# --- When it happened, from what the person said (Part E #51 step 2) ---
+
+
+def _yesterday(time=None, ampm=None, part=None) -> dict:
+    return {"day": "yesterday", "time": time, "ampm": ampm, "part": part}
+
+
+async def test_a_time_the_person_gave_is_logged_at_it(store, async_engine, lunchtime):
+    me = await account(store, async_engine)
+    models = Models(router=[_route("physical")], physical=[
+        _calls(("log_workout", {**BRIDGES, "when": _yesterday("7:00", "am")})), _ack()],
+        summary=[_result(text="Bridges logged for yesterday morning.")])
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("did 3x12 glute bridges yesterday at 7 am",
+                                          timezone="Asia/Kolkata")))
+    await _settled()
+    india = zone("Asia/Kolkata")  # 7 am the day before, in their zone
+    day = lunchtime.astimezone(india).date() - timedelta(days=1)
+    seven = datetime.combine(day, time(7), tzinfo=india).astimezone(UTC)
+    [[write]] = [d["writes"] for n, d in events if n == "committed"]
+    assert _line(write, india) == "Logged: Glute bridge: 3 x 12"
+    assert datetime.fromisoformat(write["at"]) == seven
+    assert await sql(async_engine, "SELECT workout_date FROM workout_logs") == [(seven,)]
+    note = models.fakes["summary"].calls[0].messages[-1].text
+    assert f"({when_text(seven, india)})" in note
+
+
+async def test_no_time_given_waits_on_the_card_with_the_usual_time(store, async_engine,
+                                                                  lunchtime):
+    """Owner (9 Nov 2026, B): "yesterday's lunch" has no time; 1 pm is filled in, and the
+    person picks the time and confirms. Nothing is saved, and no sentence comes."""
+    me = await account(store, async_engine)
+    models = Models(router=[_route("nutrition")], nutrition=[
+        _calls(("log_meal", {"meal": "lunch", "foods": [DAL], "when": _yesterday()})),
+        _lunch("I couldn't save it yet. Pick the time on the card.")],
+        summary=[_result(text="Logged.")])
+    app = _writes_app(store, async_engine, models)
+    events = _events(await _post(app, me, _payload("log yesterday's lunch: dal")))
+    await _settled()
+    one_pm = (lunchtime - timedelta(days=1)).replace(hour=13, minute=0)
+    [pending] = [d for n, d in events if n == "pending_write"]
+    assert pending["time_guessed"] is True and datetime.fromisoformat(pending["at"]) == one_pm
+    assert "committed" not in _names(events) and models.fakes["summary"].calls == []
+    said = " ".join(d["chunk"] for n, d in events if n == "text")
+    assert said == "Pick the time on the card."  # held: never "couldn't save" (#52)
+    tool = models.fakes["nutrition"].calls[1].messages[-1].output
+    assert tool["status"] == "held" and "yesterday, 1:00 pm filled in" in tool["next"]
+    assert await _count(async_engine, "nutrition_logs") == 0
+    # Confirmed as it is: the filled-in time
+    response = await _confirm(app, me, pending["write_id"])
+    assert datetime.fromisoformat(response.json()["writes"][0]["at"]) == one_pm
+    assert await sql(async_engine, "SELECT meal_date FROM nutrition_logs") == [(one_pm,)]
+
+
+async def test_the_time_the_person_picks_is_logged(store, async_engine, lunchtime):
+    me = await account(store, async_engine)
+    models = Models(router=[_route("nutrition")], nutrition=[
+        _calls(("log_meal", {"meal": "dinner", "foods": [DAL], "when": _yesterday()})),
+        _lunch()])
+    app = _writes_app(store, async_engine, models)
+    events = _events(await _post(app, me, _payload("log yesterday's dinner: dal")))
+    await _settled()
+    [pending] = [d for n, d in events if n == "pending_write"]
+    picked = (lunchtime - timedelta(days=1)).replace(hour=21, minute=15)
+    response = await _confirm(app, me, pending["write_id"], {"at": picked.isoformat()})
+    [write] = response.json()["writes"]
+    assert datetime.fromisoformat(write["at"]) == picked
+    assert _line(write).startswith("Logged: Dinner")
+    assert await sql(async_engine, "SELECT meal_date FROM nutrition_logs") == [(picked,)]
+
+
+async def test_a_time_ahead_of_now_logs_nothing_and_the_coach_says_so(store, async_engine):
+    me = await account(store, async_engine)
+    tomorrow = {"day": "today", "time": "11:30", "ampm": "pm", "part": None}
+    models = Models(router=[_route("physical")], physical=[
+        _calls(("log_workout", {**BRIDGES, "when": tomorrow})),
+        _ack("I can log it once you've done it.")])
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("log my bridges for 11:30 tonight")))
+    await _settled()
+    assert not {"committed", "pending_write", "logged_note"} & set(_names(events))
+    tool = models.fakes["physical"].calls[1].messages[-1].output
+    assert tool["status"] == "refused" and "ahead of time" in tool["reason"]
+    assert await _count(async_engine, "workout_logs") == 0
+
+
+async def test_an_entry_held_before_when_existed_still_confirms(store, async_engine):
+    me = await account(store, async_engine)
+    app = _writes_app(store, async_engine, Models())
+    old = {"args": {k: v for k, v in BRIDGES.items() if k != "when"}, "warnings": []}
+    write_id = str(await store.stage_write(me.user_id, "workout", old, "hash", "t-old"))
+    response = await _confirm(app, me, write_id)
+    assert response.status_code == 200
+    assert response.json()["writes"][0]["summary"].startswith("Logged: Glute bridge")
 
 
 async def test_the_confirmed_date_time_and_meal_are_logged(store, async_engine):
@@ -715,7 +814,7 @@ async def test_the_coach_sees_past_warnings(store, async_engine):
     app, me, pending = await _held_poha(store, async_engine)
     await _confirm(app, me, pending["write_id"], {"left_out": ["peanut"]})
     models = Models(router=[_route("nutrition")], nutrition=[
-        _calls(("get_recent_logs", {"kind": "meal", "days": 1})), _lunch("Noted.")])
+        _calls(("get_recent_logs", {"kind": "meal", "days": 2})), _lunch("Noted.")])
     await _post(_writes_app(store, async_engine, models), me, _payload("what did I eat?"))
     await _settled()
     [entry] = models.fakes["nutrition"].calls[1].messages[-1].output["entries"]

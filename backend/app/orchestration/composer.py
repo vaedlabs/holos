@@ -25,6 +25,7 @@ from typing import Any, Literal, Protocol
 from zoneinfo import ZoneInfo
 
 from app.agents.base import decisions_of
+from app.agents.clock import UTC_ZONE, when_text
 from app.agents.display import history_text, item_display, keep_lines
 from app.agents.schemas import (
     EVENT_DATA,
@@ -48,7 +49,6 @@ from app.data.stream_store import Event
 from app.guardrails.gate import gate_text
 from app.guardrails.loader import get_guardrails
 from app.observability.tracer import Step, Trace
-from app.orchestration.clock import UTC_ZONE, when_text
 from app.orchestration.staging import confirm_attributes, warning_text
 
 log = logging.getLogger(__name__)
@@ -219,12 +219,14 @@ class Composer:
     async def pending_write(self, write: StagedWrite, *, at: datetime,
                             write_id: str | None = None,
                             profile_hash: str | None = None) -> None:
-        """A write that waits for the person's confirmation (C.17), with when they said
-        it and a meal's meal, which the confirm card asks for again (Part E #50)."""
+        """A write that waits for the person's confirmation (C.17), with when it happened
+        and a meal's meal, which the confirm card asks for again (Part E #50); a time the
+        person didn't give is marked, for them to pick (Part E #51)."""
         fields: dict[str, Any] = {"summary": summarise(write.kind, write.args)[:300],
                                   "warnings": [warning_text(w) for w in write.conflicts],
                                   "attributes": confirm_attributes(write), "at": at,
-                                  "meal": getattr(write.args, "meal", None)}
+                                  "meal": getattr(write.args, "meal", None),
+                                  "time_guessed": write.time_guessed}
         if self.mode == "account":
             fields |= {"write_id": write_id}
         else:
@@ -303,6 +305,7 @@ def confirmation(write: StagedWrite, write_id: str | None,
     stored, when it happened in the person's zone (Part E #51), with the ID (account) or
     the whole entry (guest). The stream's `committed` event and the confirm endpoint both
     send this, so the app reads one shape."""
+    at = write.at or at  # a time of its own, from what the person said (Part E #51)
     when = f" · {when_text(at, tz)}" if at is not None else ""
     summary = f"Logged: {summarise(write.kind, write.args)}"
     return CommittedWrite(kind=write.kind, summary=f"{summary[:300 - len(when)]}{when}",

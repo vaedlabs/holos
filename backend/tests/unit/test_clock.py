@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.orchestration.clock import UTC_ZONE, known_zone, now_note, when_text, zone
+from app.agents.clock import UTC_ZONE, known_zone, now_note, when_text, zone
 
 pytestmark = pytest.mark.unit
 
