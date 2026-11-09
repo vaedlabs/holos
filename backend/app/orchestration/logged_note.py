@@ -41,7 +41,7 @@ def note_prompt(message: str, saved: list[StagedWrite], at: datetime, tz: ZoneIn
     lines = []
     for write in saved:
         lines.append(f"- {summarise(write.kind, write.args)} "
-                     f"({when_text(write.at or at, tz)})")
+                     f"({when_text(write.at or at, tz, at)})")  # "yesterday" as of the turn
         lines += [f"  warning: {warning_text(w)}" for w in write.conflicts]
     style = STYLE_NOTE[writing_style(message)]
     return f"The person wrote: {message}\n\nSaved:\n" + "\n".join(lines) + f"\n\n({style})"

@@ -480,7 +480,7 @@ async def test_a_time_the_person_gave_is_logged_at_it(store, async_engine, lunch
     assert datetime.fromisoformat(write["at"]) == seven
     assert await sql(async_engine, "SELECT workout_date FROM workout_logs") == [(seven,)]
     note = models.fakes["summary"].calls[0].messages[-1].text
-    assert f"({when_text(seven, india)})" in note
+    assert "(yesterday, 7:00 am)" in note  # as of the turn, whatever the date it runs
 
 
 async def test_no_time_given_waits_on_the_card_with_the_usual_time(store, async_engine,
