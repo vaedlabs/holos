@@ -291,6 +291,11 @@ def test_helpline_domain_stays():
     "I've logged it.", "I have logged your workout.", "Your meal has been saved.",
     "Saved!", "I've added it to your log.", "Maine log kar diya.",
     "Aaj ka box breathing log ho gaya.", "Save ho gya!", "मैंने लॉग कर दिया।",
+    # Live, 9 Nov 2026
+    "Your 20-minute walk is noted.", "Your lunch has been recorded.",
+    "I've noted your walk.", "Dal chawal record hua.", "Maine note kar liya.",
+    "Walk record ho gaya.", "आपका लंच रिकॉर्ड हो गया।", "मैंने नोट कर लिया।",
+    "दाल चावल रिकॉर्ड हुआ।", "Aaj ki walk confirm ho gayi.", "20 minute walk noted hai.",
 ])
 def test_write_claims_are_removed(claim):
     result = gate("physical", physical(summary=f"Nice work. {claim} Keep going."), NONE)
@@ -313,6 +318,22 @@ def test_after_the_save_every_other_check_still_applies():
 
 
 
+@pytest.mark.parametrize("claim", [
+    "Your jog and meditation are still awaiting confirmation.", "Your walk is logged.",
+    "I couldn't save the snack.", "Confirm the chikki on the card below.",
+    "Walk confirm ho gayi.",
+])
+def test_the_summary_says_nothing_about_saving(claim):
+    """Live, 9 Nov 2026: the summary is written before it is known what saved."""
+    text = f"Nice work today. {claim} Rest well."
+    assert gate_text(text, NONE, closing=True).content == "Nice work today. Rest well."
+
+
+def test_the_summary_keeps_what_isnt_about_saving():
+    text = "Keep the walks easy and breathe slowly tonight. Confirm with your doctor first."
+    assert gate_text(text, NONE, closing=True).content == text
+
+
 def test_a_hindi_reply_loses_only_the_claiming_sentence():
     summary = "आज अच्छा किया। आपका वर्कआउट लॉग हो गया। ऐसे ही करते रहो।"
     result = gate("physical", physical(summary=summary), NONE)
@@ -321,6 +342,9 @@ def test_a_hindi_reply_loses_only_the_claiming_sentence():
 
 @pytest.mark.parametrize("text", [
     "Kai log ho gaye the wahan.", "Dal ka log hona chahiye.", "Logging helps you see trends.",
+    "If you confirm you still want this recorded, I can add it.",
+    "It has not been recorded.", "Note kar lo how your knee feels.",
+    "Record how you feel afterwards.",
 ])
 def test_words_like_a_write_claim_are_kept(text):
     assert gate_text(text, NONE).content == text

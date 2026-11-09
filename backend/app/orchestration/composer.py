@@ -94,8 +94,9 @@ class Gated:
     decisions: tuple[Decision, ...] = ()
 
 
-def gated(text: str, profile: UserProfile, after_save: bool = False) -> Gated:
-    result = gate_text(text, profile, after_save=after_save)
+def gated(text: str, profile: UserProfile, after_save: bool = False,
+          closing: bool = False) -> Gated:
+    result = gate_text(text, profile, after_save=after_save, closing=closing)
     return Gated(result.content.strip(), tuple(decisions_of(result)))
 
 

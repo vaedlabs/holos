@@ -91,10 +91,19 @@ BARE_DOMAIN = re.compile(
 )
 # "ho gaye" is left out: "log" is also "people" ("kai log ho gaye"). Devanagari has no
 # closing \b: a word ending in a vowel sign has no boundary there in `re`
+# Live, 9 Nov 2026: "your walk is noted", "dal chawal record hua", "walk confirm ho
+# gayi", "walk noted hai". "Not been recorded"
+# is a refusal, left to REFUSAL_CLAIM; "want this recorded" claims nothing.
 WRITE_CLAIM = re.compile(
-    r"\b(?:logged|saved|(?:log|save) (?:kar (?:diya|di|dia)|ho (?:gaya|gya|gayi|gai))"
+    r"\b(?:logged|saved"
+    r"|(?:log|save|record|note|confirm)"
+    r" (?:kar (?:diya|di|dia|liya|li|lia)|ho (?:gaya|gya|gayi|gai))"
+    r"|record (?:hua|hui)|(?:noted|recorded) (?:hai|ho gaya|ho gayi)"
+    r"|(?<!not )(?<!never )(?:is|are|was|were|been) (?:now |already |also )?(?:noted|recorded)"
+    r"|(?:i've|i have) (?:\w+ )?(?:noted|recorded)"
     r"|(?:added|recorded) (?:it |this |that )?(?:to|in) your (?:log|logs|diary|journal|history))\b"
-    r"|(?<!\w)(?:लॉग|सेव) (?:कर (?:दिया|दी)|हो (?:गया|गयी|गई))"
+    r"|(?<!\w)(?:लॉग|सेव|रिकॉर्ड|नोट) (?:कर (?:दिया|दी|लिया|ली)|हो (?:गया|गयी|गई))"
+    r"|(?<!\w)रिकॉर्ड (?:हुआ|हुई)"
 )
 # "Couldn't save it": false while the entry waits for confirmation (Part E #52)
 REFUSAL_CLAIM = re.compile(
@@ -109,7 +118,7 @@ REFUSAL_CLAIM = re.compile(
 # Live, 9 Nov 2026 (Part E #53): "listed below for you to confirm" over a saved entry
 CARD_CLAIM = re.compile(
     r"^(?=.*(?:\bconfirm|कन्फर्म|पुष्टि))"
-    r"(?=.*(?:\bcards?\b|\bwait|\bbelow\b|\bneeche\b|कार्ड|इंतज़ार|इंतजार|नीचे))")
+    r"(?=.*(?:\bcards?\b|\ba?wait|\bbelow\b|\bneeche\b|कार्ड|इंतज़ार|इंतजार|नीचे))")
 
 
 def _as_list(value: Any) -> list:
@@ -449,11 +458,15 @@ def gate(
 
 def gate_text(
     text: str, profile: ProfileLike, guardrails: Guardrails | None = None,
-    after_save: bool = False,
+    after_save: bool = False, closing: bool = False,
 ) -> GateResult:
     """Check free prose that belongs to no one domain, such as the holistic summary.
     after_save: the sentence written once entries were saved (Part E #54 B): it may say
-    they were logged, since the save already happened; every other check applies."""
+    they were logged, since the save already happened; every other check applies.
+    closing: the summary, written before it is known what saved and what waits, so any
+    sentence about saving, waiting or not saving goes (live, 9 Nov 2026: "your jog is
+    still awaiting confirmation" over a saved jog)."""
     check = _new_check(guardrails, profile)
     check.after_save = after_save
+    check.held = check.logged = closing
     return check.result(check.prose(text, "summary"), [])

@@ -244,6 +244,24 @@ async def test_coaches_run_in_parallel_and_the_first_answer_goes_out_first(store
     assert "mental wellbeing coach is" in models.fakes["physical"].calls[0].messages[-1].text
 
 
+async def test_the_summary_never_repeats_a_coach_or_talks_about_saving(store, async_engine):
+    """Live, 9 Nov 2026: the closing line copied a coach's sentence word for word, and
+    said saved entries were awaiting confirmation."""
+    models = Models(router=[_route("physical", "mental")],
+                    physical=[_physical("glute_bridge")], mental=[_result(MentalReply(
+                        kind="plan", summary="Try this tonight; nice work.", items=[
+                            PracticeItem(day=None, catalogue_id="box_breathing",
+                                         duration_min=5, note="")],
+                        notes=[], source_ids=[], follow_up=None, risk_flag=False))],
+                    summary=[_result(text="Here is your plan! Move gently tonight. Nice work. "
+                                           "Your plan is awaiting confirmation.")])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("a workout and help with stress")))
+    summary = [d for n, d in events if n == "text" and d.get("summary")]
+    assert summary[0]["chunk"] == "Move gently tonight."
+    assert "never repeat a coach's sentence" in models.fakes["summary"].calls[0].system
+
+
 async def test_one_coach_failing_leaves_the_others_answer_and_a_notice(store, async_engine):
     models = Models(router=[_route("physical", "mental")],
                     physical=[_physical("glute_bridge")],

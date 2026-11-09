@@ -29,6 +29,7 @@ from app.config.settings import get_settings
 from app.data.state_store import StateStore
 from app.jobs.scheduler import Jobs
 from app.orchestration import staging
+from app.orchestration.coordinator import SUMMARY_PROMPT
 from app.orchestration.principal import csrf_token
 from app.providers import LLMResult, ToolCall, Usage
 from app.routers import chat
@@ -40,6 +41,7 @@ from .test_chat import (
     Models,
     _app,
     _events,
+    _mental,
     _names,
     _payload,
     _physical,
@@ -344,6 +346,28 @@ async def test_a_search_holds_only_the_writes_of_the_coach_that_ran_it(store, as
     assert [w["kind"] for w in committed] == ["workout"]
     assert [d["summary"] for n, d in events if n == "pending_write"] == [
         "Lunch: Dal · 300 kcal · protein 14 g, carbs 40 g, fat 6 g"]
+
+
+@pytest.mark.parametrize("talking", [["mental"], ["mental", "nutrition"]])
+async def test_no_summary_when_a_coach_only_logged(store, async_engine, talking):
+    """Live, 9 Nov 2026: a coach whose only sentence was a removed "noted" claim left
+    the summary with nothing ("I don't see coach responses here"), or with part of the
+    message ("I don't see an exercise coach's update here")."""
+    tip = _result(NutritionReply(kind="answer", summary="Dal is a good source of protein.",
+                                 items=[], notes=[], source_ids=[], follow_up=None,
+                                 risk_flag=False))
+    models = Models(router=[_route("physical", *talking)],
+                    physical=[_calls(("log_workout", BRIDGES)), _ack("Your bridges are noted.")],
+                    mental=[_mental()], nutrition=[tip],
+                    summary=[_result(text="Logged your bridges."),
+                             _result(text="Both together.")])
+    events = _events(await _post(_writes_app(store, async_engine, models), await guest(store),
+                                 _payload("log my bridges and help with stress and dal")))
+    assert ("committed" in _names(events)) and _names(events)[-1] == "done"
+    assert [d for n, d in events if n == "text" and d.get("agent") == "physical"] == []
+    assert len([n for n in _names(events) if n == "section_start"]) == 1 + len(talking)
+    assert not [d for n, d in events if n == "text" and d.get("summary")]
+    assert [c.system for c in models.fakes["summary"].calls if c.system == SUMMARY_PROMPT] == []
 
 
 # --- Confirm (C.17) ---

@@ -41,6 +41,8 @@ from app.config.limits import (
 from app.config.speeds import LOGGED_NOTE, LOGGED_NOTE_S, ROUTER, SUMMARY
 from app.data.state_store import StateStore
 from app.data.stream_store import RequestEnded
+from app.guardrails.gate import SENTENCE_SPLIT
+from app.guardrails.normalise import fold_for_matching
 from app.observability import terms
 from app.observability.background import Outcome
 from app.observability.tracer import Trace
@@ -80,7 +82,9 @@ You write the closing line of Holos's answer. Several coaches (exercise, food, m
 wellbeing) have each answered part of the person's message; their answers are below. \
 Write one to three short sentences, at most 600 characters, that tie the answers \
 together for this person. Use only what the coaches said: add no new advice, items, \
-numbers or medical claims. Plain text, no lists, no headings."""
+numbers or medical claims. The person reads the coaches' answers just above, and what \
+was logged or waits to be confirmed is shown to them: never repeat a coach's sentence \
+or say what was logged. Plain text, no lists, no headings."""
 
 
 @dataclass
@@ -154,8 +158,13 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
                 return
             if len(answered) < len(agents):
                 await c.notice("partial_result")
-            if len(answered) >= 2:
-                summary = await _summary(job, services, {a: results[a] for a in answered},
+            # A coach that only logged says nothing once its claim is removed; its entry
+            # shows as a Logged line. Without its words the summary sees part of the
+            # message and says that part went unanswered (live, 9 Nov 2026: "I don't see
+            # an exercise coach's update here"), so there is none.
+            spoke = [a for a in answered if history_text(results[a].reply).strip()]
+            if len(spoke) >= 2 and len(spoke) == len(answered):
+                summary = await _summary(job, services, {a: results[a] for a in spoke},
                                          profile, meters)
                 if summary is not None:
                     await c.summary(summary)
@@ -336,8 +345,24 @@ async def _summary(job: ChatJob, services: Services, results: dict[AgentName, Ag
         return None  # on the trace already
     if not reply.text or reply.truncated:
         return None
-    text = gated(trim(reply.text.strip(), SUMMARY_CHARS), profile or NO_PROFILE)
+    fresh = _not_repeated(trim(reply.text.strip(), SUMMARY_CHARS), results)
+    text = gated(fresh, profile or NO_PROFILE, closing=True)
     return text if text.text else None
+
+
+def _not_repeated(text: str, results: dict[AgentName, AgentResult]) -> str:
+    """The summary without a coach's sentence, or a clause after its semicolon, copied
+    word for word (live, 9 Nov 2026: "Your 20-minute walk is noted." twice)."""
+    def key(sentence: str) -> str:
+        return fold_for_matching(sentence).rstrip(".!?…।; ")
+
+    said = {key(c) for r in results.values() if r.reply is not None
+            for line in (r.reply.summary, r.reply.follow_up, *r.reply.notes) if line
+            for s in SENTENCE_SPLIT.split(line) for c in [s, *s.split(";")]}
+    parts = SENTENCE_SPLIT.split(text)
+    kept = [parts[i] + (parts[i + 1] if i + 1 < len(parts) else "")
+            for i in range(0, len(parts), 2) if key(parts[i]) not in said]
+    return "".join(kept).strip()
 
 
 async def _helplines(job: ChatJob, results: dict[AgentName, AgentResult]) -> None:
