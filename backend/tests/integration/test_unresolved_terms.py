@@ -64,7 +64,7 @@ async def test_old_counts_are_purged(app):
 
 
 async def test_a_counting_failure_never_fails_the_save(app, monkeypatch):
-    from app.routers import medical
+    from app.routers.crud import medical
 
     def broken(*args):
         raise RuntimeError("db down")

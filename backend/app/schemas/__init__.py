@@ -23,9 +23,9 @@ Usage:
     # Pydantic automatically validates types, formats, and constraints
 """
 
-from app.schemas.user import UserResponse
 from app.schemas.medical import MedicalHistoryCreate, MedicalHistoryResponse
 from app.schemas.preferences import UserPreferencesCreate, UserPreferencesResponse
+from app.schemas.user import UserResponse
 
 # Export all schemas for convenient importing
 # Makes schemas available via: from app.schemas import UserResponse, MedicalHistoryResponse

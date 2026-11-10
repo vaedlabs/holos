@@ -2,9 +2,9 @@
 defined next to their routes in app/routers/auth.py (Plan C.6, C.18).
 """
 
-from pydantic import BaseModel, EmailStr
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class UserResponse(BaseModel):
@@ -40,7 +40,4 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        # Enable creating schema instance from SQLAlchemy model attributes
-        # This allows: UserResponse.from_orm(user_model_instance)
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

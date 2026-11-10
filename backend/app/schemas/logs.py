@@ -17,9 +17,9 @@ Log Types:
 - Mental fitness logs: Mental wellness activity records
 """
 
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class WorkoutLogResponse(BaseModel):
@@ -57,17 +57,14 @@ class WorkoutLogResponse(BaseModel):
     id: int
     user_id: int
     workout_date: datetime
-    exercise_type: Optional[str]
-    exercises: Optional[str]
-    duration_minutes: Optional[float]
-    notes: Optional[str]
+    exercise_type: str | None
+    exercises: str | None
+    duration_minutes: float | None
+    notes: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
-    class Config:
-        # Enable creating schema instance from SQLAlchemy model attributes
-        # This allows: WorkoutLogResponse.from_orm(workout_log_model_instance)
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WorkoutLogsListResponse(BaseModel):
@@ -92,7 +89,7 @@ class WorkoutLogsListResponse(BaseModel):
         - Supports filtering and pagination
         - Total count includes all matching logs, not just returned page
     """
-    logs: List[WorkoutLogResponse]
+    logs: list[WorkoutLogResponse]
     total: int
 
 
@@ -136,18 +133,15 @@ class NutritionLogResponse(BaseModel):
     id: int
     user_id: int
     meal_date: datetime
-    meal_type: Optional[str]
-    foods: Optional[str]  # JSON string
-    calories: Optional[float]
-    macros: Optional[str]  # JSON string
-    notes: Optional[str]
+    meal_type: str | None
+    foods: str | None  # JSON string
+    calories: float | None
+    macros: str | None  # JSON string
+    notes: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
-    class Config:
-        # Enable creating schema instance from SQLAlchemy model attributes
-        # This allows: NutritionLogResponse.from_orm(nutrition_log_model_instance)
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NutritionLogsListResponse(BaseModel):
@@ -172,7 +166,7 @@ class NutritionLogsListResponse(BaseModel):
         - Supports filtering and pagination
         - Total count includes all matching logs, not just returned page
     """
-    logs: List[NutritionLogResponse]
+    logs: list[NutritionLogResponse]
     total: int
 
 
@@ -214,18 +208,15 @@ class MentalFitnessLogResponse(BaseModel):
     id: int
     user_id: int
     activity_date: datetime
-    activity_type: Optional[str]
-    duration_minutes: Optional[float]
-    mood_before: Optional[str]
-    mood_after: Optional[str]
-    notes: Optional[str]
+    activity_type: str | None
+    duration_minutes: float | None
+    mood_before: str | None
+    mood_after: str | None
+    notes: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
-    class Config:
-        # Enable creating schema instance from SQLAlchemy model attributes
-        # This allows: MentalFitnessLogResponse.from_orm(mental_fitness_log_model_instance)
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MentalFitnessLogsListResponse(BaseModel):
@@ -250,6 +241,6 @@ class MentalFitnessLogsListResponse(BaseModel):
         - Supports filtering and pagination
         - Total count includes all matching logs, not just returned page
     """
-    logs: List[MentalFitnessLogResponse]
+    logs: list[MentalFitnessLogResponse]
     total: int
 

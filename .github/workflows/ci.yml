@@ -70,3 +70,5 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      # Catches files the repo needs but doesn't hold (frontend/lib/ was ignored once)
+      - run: npm run build

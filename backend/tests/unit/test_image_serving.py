@@ -10,7 +10,8 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app.dependencies import get_image_store, get_principal
-from app.routers import conversation
+from app.routers.crud import conversation
+from app.routers.errors import ApiError, api_error_handler
 from app.storage.images import LocalImageStore
 
 pytestmark = pytest.mark.unit
@@ -36,6 +37,7 @@ def store(tmp_path):
 
 def _client(store, user_id=7):
     app = FastAPI()
+    app.add_exception_handler(ApiError, api_error_handler)
     app.include_router(conversation.router)
     app.dependency_overrides[get_principal] = lambda: SimpleNamespace(user_id=user_id)
     app.dependency_overrides[get_image_store] = lambda: store

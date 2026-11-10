@@ -27,7 +27,8 @@ from app.orchestration.budget import ip_spend_key
 from app.orchestration.passwords import get_password_hash
 from app.orchestration.principal import csrf_token, ip_key, ip_new_sessions_key, ip_requests_key
 from app.orchestration.sessions import SITEVERIFY_URL, Turnstile
-from app.routers import auth, preferences, session
+from app.routers import auth, session
+from app.routers.crud import preferences
 from app.routers.errors import ApiError, api_error_handler
 
 pytestmark = pytest.mark.asyncio

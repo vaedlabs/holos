@@ -1,187 +1,55 @@
-"""
-Standardized error handling middleware for FastAPI application.
+"""One error body for every route: `{code, message}` (C.2, `routers/errors.py`), plus
+`details` on a 422 (Part E #57). No body carries an exception's text; the log does.
 
-This module provides centralized error handling for the FastAPI application,
-ensuring consistent error responses across all endpoints. It registers exception
-handlers for HTTP exceptions, validation errors, and general exceptions.
-
-Key Features:
-- Centralized error handling: All exceptions handled in one place
-- Consistent error responses: Standardized error response format
-- Environment-aware error messages: Detailed errors in development, generic in production
-- Comprehensive logging: All errors logged with context (method, path, details)
-- Security: Sensitive error details hidden in production
-
-Exception Handlers:
-- HTTPException: Handles HTTP exceptions (4xx, 5xx status codes)
-- RequestValidationError: Handles request validation errors (422)
-- Exception: Handles all other unhandled exceptions (500)
-
-Error Response Format:
-- error: str (error message)
-- status_code: int (HTTP status code)
-- path: str (request path)
-- details: List[Dict] (validation error details, if applicable)
-- error_type: str (exception type, development only)
-
-Security Considerations:
-- Detailed error messages only in development environment
-- Generic error messages in production to prevent information leakage
-- Error paths logged but not exposed in production responses
-
-Usage:
-    from app.middleware.error_handler import register_error_handlers
-    
-    app = FastAPI()
-    register_error_handlers(app)
+    HTTPException (Starlette's 404 and 405 too)  → its status, a code for the status
+    RequestValidationError                        → 422 bad_request with the field list
+    database refused, timed out or pool full      → 503 server_busy, Retry-After (#55)
+    anything else                                 → 500 server_error
 """
 
 import logging
-import os
+from http import HTTPStatus
+
 from fastapi import Request, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.exc import TimeoutError as PoolTimeout
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-# Logger for error handling
-# Logs all errors with context (method, path, details)
 logger = logging.getLogger(__name__)
 DATABASE_RETRY_AFTER_S = 5
 
+CODES = {400: "bad_request", 401: "no_session", 403: "forbidden", 404: "not_found",
+         405: "method_not_allowed", 409: "conflict", 410: "expired", 413: "too_large",
+         415: "unsupported_media", 429: "too_many_requests", 503: "server_busy"}
 
-def register_error_handlers(app):
-    """
-    Register exception handlers with the FastAPI app.
-    
-    This function registers three exception handlers with the FastAPI application:
-    1. HTTPException handler: Handles HTTP exceptions (4xx, 5xx)
-    2. RequestValidationError handler: Handles request validation errors (422)
-    3. Exception handler: Handles all other unhandled exceptions (500)
-    
-    Exception handlers are registered in order of specificity:
-    - Most specific handlers first (HTTPException, RequestValidationError)
-    - General handler last (Exception) to catch all remaining exceptions
-    
-    Args:
-        app: FastAPI application instance
-              Exception handlers are registered on this app instance
-    
-    Usage:
-        Call this function in main.py after creating the FastAPI app:
-        
-        from app.middleware.error_handler import register_error_handlers
-        
-        app = FastAPI()
-        register_error_handlers(app)
-        
-    Note:
-        - Handlers are registered as decorators on the app instance
-        - Order matters: more specific handlers should be registered first
-        - All handlers return JSONResponse for consistent API responses
-    """
-    
+
+def register_error_handlers(app) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        """
-        Handle HTTP exceptions (4xx, 5xx status codes).
-        
-        This handler catches all HTTP exceptions raised by FastAPI endpoints
-        or Starlette middleware. These include client errors (4xx) and server
-        errors (5xx) that are explicitly raised as HTTPException.
-        
-        Args:
-            request: FastAPI Request object (contains method, path, etc.)
-            exc: StarletteHTTPException instance (contains status_code, detail)
-        
-        Returns:
-            JSONResponse: Consistent error response with:
-                - error: str (error detail message)
-                - status_code: int (HTTP status code)
-                - path: str (request path)
-                
-        Logging:
-            - Errors logged at ERROR level with context
-            - Includes HTTP method, path, and error detail
-            
-        Example:
-            Raises HTTPException(404, detail="Not found")
-            -> Returns 404 with {"error": "Not found", "status_code": 404, "path": "/api/..."}
-        """
-        # Log the error with context
-        # Includes HTTP method, path, and error detail for debugging
-        logger.error(
-            f"HTTP {exc.status_code} error on {request.method} {request.url.path}: {exc.detail}"
-        )
-        
-        # Return consistent error response
-        # Standardized format for all HTTP exceptions
+        level = logging.ERROR if exc.status_code >= 500 else logging.WARNING
+        logger.log(level, "HTTP %d on %s %s: %s", exc.status_code, request.method,
+                   request.url.path, exc.detail)
+        message = exc.detail if isinstance(exc.detail, str) else _phrase(exc.status_code)
         return JSONResponse(
-            status_code=exc.status_code,  # Preserve original status code
-            content={
-                "error": exc.detail,  # Error detail message
-                "status_code": exc.status_code,  # HTTP status code
-                "path": str(request.url.path)  # Request path for debugging
-            }
-        )
-    
+            status_code=exc.status_code,
+            content={"code": CODES.get(exc.status_code, "error"), "message": message},
+            headers=exc.headers)
+
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        """
-        Handle request validation errors (422 Unprocessable Entity).
-        
-        This handler catches Pydantic validation errors when request data
-        doesn't match the expected schema. These occur when:
-        - Required fields are missing
-        - Field types don't match (e.g., string instead of int)
-        - Field values fail validation (e.g., negative age)
-        
-        Args:
-            request: FastAPI Request object (contains method, path, etc.)
-            exc: RequestValidationError instance (contains validation errors)
-        
-        Returns:
-            JSONResponse: Validation error response with:
-                - error: str ("Validation error")
-                - status_code: int (422)
-                - details: List[Dict] (detailed validation errors)
-                - path: str (request path)
-                
-        Validation Error Details:
-            - Each error includes field location, error type, and message
-            - Format: [{"loc": ["field"], "msg": "error message", "type": "error_type"}]
-            
-        Logging:
-            - Validation errors logged at WARNING level
-            - Includes HTTP method, path, and validation error details
-            
-        Example:
-            POST /api/users with invalid email
-            -> Returns 422 with validation error details
-        """
-        # Errors from custom validators carry the exception object in "ctx", which
-        # isn't JSON; encoding it as text keeps this a 422 instead of a crash (a 500
-        # without CORS headers, which the browser reports as "cannot connect").
+        # A custom validator's error carries the exception object: encode it as text, or
+        # the handler itself fails into a CORS-less 500 (Part E #16)
         details = jsonable_encoder(exc.errors(), custom_encoder={BaseException: str})
-
-        # Validation errors are logged at WARNING level (not ERROR - expected behavior)
-        logger.warning(f"Validation error on {request.method} {request.url.path}: {details}")
-
+        logger.warning("Validation error on %s %s: %s", request.method, request.url.path,
+                       details)
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            content={
-                "error": "Validation error",
-                "status_code": 422,
-                # "detail" is what the frontend reads (FastAPI's own shape); "details"
-                # stays for existing clients
-                "detail": details,
-                "details": details,
-                "path": str(request.url.path),
-            }
-        )
-    
+            content={"code": "bad_request", "message": "Some of what was sent isn't valid.",
+                     "details": details})
+
     async def database_unavailable(request: Request, exc: Exception):
         """The database refused, timed out or has no free connection (failure library,
         Part E #55): a moment's wait, not a bug. Handled inside the middleware, so CORS
@@ -199,81 +67,7 @@ def register_error_handlers(app):
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        """
-        Handle all other unhandled exceptions (500 Internal Server Error).
-        
-        This handler catches all exceptions that aren't handled by more specific
-        handlers. This includes:
-        - Database errors
-        - Unexpected exceptions in endpoint handlers
-        - Third-party library exceptions
-        - Any other unhandled exceptions
-        
-        Security:
-            - In development: Shows detailed error messages and exception types
-            - In production: Shows generic "Internal server error" message
-            - Prevents information leakage in production
-        
-        Args:
-            request: FastAPI Request object (contains method, path, etc.)
-            exc: Exception instance (any unhandled exception)
-        
-        Returns:
-            JSONResponse: Error response with:
-                - error: str (error message - detailed in dev, generic in prod)
-                - status_code: int (500)
-                - path: str (request path)
-                - error_type: str (exception type, development only)
-                
-        Logging:
-            - Full exception logged with traceback (logger.exception)
-            - Includes HTTP method, path, and exception message
-            
-        Environment Detection:
-            - Checks ENVIRONMENT environment variable
-            - Defaults to "development" if not set
-            - Development: Detailed errors
-            - Production: Generic errors
-            
-        Example:
-            Database connection error in endpoint
-            -> Development: Returns 500 with detailed error
-            -> Production: Returns 500 with "Internal server error"
-        """
-        # Log full exception with traceback
-        # logger.exception() includes full traceback for debugging
-        logger.exception(
-            f"Unhandled exception on {request.method} {request.url.path}: {str(exc)}"
-        )
-        
-        # Determine error message based on environment
-        # Security: Detailed errors only in development, generic in production
-        is_development = os.getenv("ENVIRONMENT", "development") == "development"
-        
-        if is_development:
-            # In development, show detailed error
-            # Helps developers debug issues quickly
-            error_message = str(exc)  # Full exception message
-            error_type = type(exc).__name__  # Exception class name
-        else:
-            # In production, show generic error
-            # Prevents information leakage (sensitive details, stack traces, etc.)
-            error_message = "Internal server error"
-            error_type = "InternalServerError"
-        
-        # Return error response
-        # Base response content (always included)
-        response_content = {
-            "error": error_message,  # Error message (detailed or generic)
-            "status_code": 500,  # HTTP status code
-            "path": str(request.url.path)  # Request path for debugging
-        }
-        
-        # Only include error type in development
-        # Error type helps debugging but shouldn't be exposed in production
-        if is_development:
-            response_content["error_type"] = error_type
-        
+        logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
         # Starlette runs this handler outside every add_middleware layer, so the
         # security headers and CORS (for the app's origin) are added here
         from app.config.settings import get_settings
@@ -285,8 +79,14 @@ def register_error_handlers(app):
             headers.update({"Access-Control-Allow-Origin": origin,
                             "Access-Control-Allow-Credentials": "true", "Vary": "Origin"})
         return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,  # 500 Internal Server Error
-            content=response_content,
-            headers=headers,
-        )
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"code": "server_error",
+                     "message": "Something went wrong. Please try again."},
+            headers=headers)
 
+
+def _phrase(status_code: int) -> str:
+    try:
+        return HTTPStatus(status_code).phrase + "."
+    except ValueError:
+        return "Something went wrong."

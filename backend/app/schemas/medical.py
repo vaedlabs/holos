@@ -17,9 +17,9 @@ Key Features:
 - All fields are optional to support incremental updates
 """
 
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class MedicalHistoryCreate(BaseModel):
@@ -57,10 +57,10 @@ class MedicalHistoryCreate(BaseModel):
         - Medical information should be kept confidential
         - Users should consult healthcare providers for medical advice
     """
-    conditions: Optional[str] = None
-    limitations: Optional[str] = None
-    medications: Optional[str] = None
-    notes: Optional[str] = None
+    conditions: str | None = None
+    limitations: str | None = None
+    medications: str | None = None
+    notes: str | None = None
 
 
 class MedicalHistoryResponse(BaseModel):
@@ -100,15 +100,12 @@ class MedicalHistoryResponse(BaseModel):
     """
     id: int
     user_id: int
-    conditions: Optional[str]
-    limitations: Optional[str]
-    medications: Optional[str]
-    notes: Optional[str]
+    conditions: str | None
+    limitations: str | None
+    medications: str | None
+    notes: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
-    class Config:
-        # Enable creating schema instance from SQLAlchemy model attributes
-        # This allows: MedicalHistoryResponse.from_orm(medical_history_model_instance)
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 

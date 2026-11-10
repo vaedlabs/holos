@@ -17,9 +17,9 @@ Validation:
 - All other fields are optional strings
 """
 
-from pydantic import BaseModel, field_validator
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class UserPreferencesCreate(BaseModel):
@@ -35,7 +35,8 @@ class UserPreferencesCreate(BaseModel):
         exercise_types: Preferred exercise types (JSON string or comma-separated, optional)
         activity_level: Current activity level (optional)
         location: Geographic location (city, address, or coordinates, optional)
-        dietary_restrictions: Dietary restrictions/allergies (JSON string or comma-separated, optional)
+        dietary_restrictions: Dietary restrictions/allergies (JSON string or
+                              comma-separated, optional)
         age: User's age (13-120, optional)
         gender: User's gender ('XX', 'XY', 'other', optional)
         lifestyle: Lifestyle category (optional)
@@ -59,14 +60,14 @@ class UserPreferencesCreate(BaseModel):
         - Used for both creating new preferences and updating existing ones
         - Validation errors return clear error messages to help users correct input
     """
-    goals: Optional[str] = None
-    exercise_types: Optional[str] = None
-    activity_level: Optional[str] = None
-    location: Optional[str] = None
-    dietary_restrictions: Optional[str] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    lifestyle: Optional[str] = None
+    goals: str | None = None
+    exercise_types: str | None = None
+    activity_level: str | None = None
+    location: str | None = None
+    dietary_restrictions: str | None = None
+    age: int | None = None
+    gender: str | None = None
+    lifestyle: str | None = None
 
     @field_validator('age')
     @classmethod
@@ -161,20 +162,17 @@ class UserPreferencesResponse(BaseModel):
     """
     id: int
     user_id: int
-    goals: Optional[str]
-    exercise_types: Optional[str]
-    activity_level: Optional[str]
-    location: Optional[str]
-    dietary_restrictions: Optional[str]
-    age: Optional[int]
-    gender: Optional[str]
-    lifestyle: Optional[str]
+    goals: str | None
+    exercise_types: str | None
+    activity_level: str | None
+    location: str | None
+    dietary_restrictions: str | None
+    age: int | None
+    gender: str | None
+    lifestyle: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
-    class Config:
-        # Enable creating schema instance from SQLAlchemy model attributes
-        # This allows: UserPreferencesResponse.from_orm(preferences_model_instance)
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 

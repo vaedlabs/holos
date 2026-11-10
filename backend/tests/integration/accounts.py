@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.config.settings import get_settings
 from app.dependencies import get_db_sessions, get_engine, get_image_store, get_state_store
 from app.orchestration.principal import csrf_token
-from app.routers import account, auth, conversation
+from app.routers import account, auth
+from app.routers.crud import conversation
 from app.routers.errors import ApiError, api_error_handler
 
 from .test_admission import APP, settings

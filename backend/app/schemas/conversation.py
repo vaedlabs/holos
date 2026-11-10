@@ -19,9 +19,10 @@ Agent Types:
 - coordinator: Coordinator Agent
 """
 
-from typing import Optional, List, Literal
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict
 
 # Shared literal type for agent names — used in request schemas and query params
 AgentType = Literal["coordinator", "physical-fitness", "nutrition", "mental-fitness"]
@@ -39,7 +40,8 @@ class ConversationMessageCreate(BaseModel):
         content: Message content/text (required)
         warnings: List of warning messages (optional)
         image_path: Path to stored image file if message includes image (optional)
-        agent_type: Type of agent that handled/responded to the message (optional, default: 'coordinator')
+        agent_type: Type of agent that handled/responded to the message
+                    (optional, default: 'coordinator')
         
     Message Roles:
         - "user": Message sent by the user (input/query)
@@ -70,9 +72,10 @@ class ConversationMessageCreate(BaseModel):
     """
     role: str  # 'user' or 'assistant'
     content: str
-    warnings: Optional[List[str]] = None
-    image_path: Optional[str] = None  # Path to stored image
-    agent_type: Optional[AgentType] = 'coordinator'  # 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'
+    warnings: list[str] | None = None
+    image_path: str | None = None  # Path to stored image
+    # 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'
+    agent_type: AgentType | None = 'coordinator'
 
 
 class ConversationMessageResponse(BaseModel):
@@ -114,15 +117,12 @@ class ConversationMessageResponse(BaseModel):
     id: int
     role: str
     content: str
-    warnings: Optional[List[str]] = None
-    image_path: Optional[str] = None  # Path to stored image
+    warnings: list[str] | None = None
+    image_path: str | None = None  # Path to stored image
     agent_type: str  # 'physical-fitness', 'nutrition', 'mental-fitness', 'coordinator'
     created_at: datetime
 
-    class Config:
-        # Enable creating schema instance from SQLAlchemy model attributes
-        # This allows: ConversationMessageResponse.from_orm(message_model_instance)
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ConversationHistoryResponse(BaseModel):
@@ -150,5 +150,5 @@ class ConversationHistoryResponse(BaseModel):
         - Messages are automatically ordered chronologically
         - Empty list if no messages exist
     """
-    messages: List[ConversationMessageResponse]
+    messages: list[ConversationMessageResponse]
 

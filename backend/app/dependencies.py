@@ -15,10 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session
 
 from app.config.settings import Settings, get_settings
-from app.data.engine import get_async_engine, get_async_sessionmaker
+from app.data.engine import get_async_engine, get_async_sessionmaker, get_sync_sessionmaker
 from app.data.state_store import StateStore
 from app.data.stream_store import StreamStore
-from app.database import get_db
 from app.models.user import User
 from app.orchestration.principal import SAFE_METHODS, Principal, check_csrf, resolve_principal
 from app.orchestration.sessions import Turnstile
@@ -28,7 +27,10 @@ from app.storage.images import get_image_store as get_images
 
 
 def get_database() -> Generator[Session, None, None]:
-    yield from get_db()
+    """A session from the CRUD pool; the CRUD routes are plain functions, so FastAPI runs
+    them in its threadpool, off the event loop (Plan C.1)."""
+    with get_sync_sessionmaker()() as session:
+        yield session
 
 
 @lru_cache(maxsize=1)

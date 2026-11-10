@@ -7,6 +7,7 @@ ones) are rewritten to `postgresql+psycopg://`, so an existing .env keeps workin
 import os
 from functools import lru_cache
 
+from dotenv import load_dotenv
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import Session, sessionmaker
 
 # Pool sizes are not fixed in the plan; these suit one small server (Plan Part E #11)
 ASYNC_POOL = {"pool_size": 10, "max_overflow": 5, "pool_timeout": 5}
@@ -34,6 +36,7 @@ def psycopg_url(url: str) -> str:
 
 
 def database_url() -> str:
+    load_dotenv()  # the CLI reads it before anything else loads .env
     url = os.getenv("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL is not set")
@@ -63,3 +66,8 @@ def get_sync_engine() -> Engine:
 @lru_cache(maxsize=1)
 def get_async_sessionmaker() -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(get_async_engine(), expire_on_commit=False)
+
+
+@lru_cache(maxsize=1)
+def get_sync_sessionmaker() -> sessionmaker[Session]:
+    return sessionmaker(get_sync_engine(), autoflush=False)

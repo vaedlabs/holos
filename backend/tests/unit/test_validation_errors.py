@@ -1,4 +1,5 @@
-"""Validation errors stay readable 422s; an empty gender means "not given" (Part E #16)."""
+"""Validation errors stay readable 422s; an empty gender means "not given" (Part E #16).
+Every error has the `{code, message}` body and no exception text (Part E #57)."""
 
 import pytest
 from fastapi import FastAPI
@@ -39,8 +40,9 @@ def test_custom_validator_error_is_a_readable_422_with_cors(client):
     assert resp.status_code == 422
     assert resp.headers.get("access-control-allow-origin") == ORIGIN
     body = resp.json()
-    assert "Gender must be one of" in body["detail"][0]["msg"]  # what the frontend shows
-    assert body["details"] == body["detail"]
+    assert body["code"] == "bad_request" and body["message"]  # one error body (Part E #57)
+    assert "Gender must be one of" in body["details"][0]["msg"]  # the field the form shows
+    assert set(body) == {"code", "message", "details"}
 
 
 def test_valid_gender_still_works(client):
@@ -66,8 +68,35 @@ def test_an_unhandled_error_is_a_500_with_nosniff_and_cors_for_the_app(monkeypat
     client = TestClient(app, raise_server_exceptions=False)
     resp = client.get("/boom", headers={"Origin": ORIGIN})
     assert resp.status_code == 500
+    assert resp.json() == {"code": "server_error",
+                           "message": "Something went wrong. Please try again."}
     assert resp.headers["x-content-type-options"] == "nosniff"
     assert resp.headers["access-control-allow-origin"] == ORIGIN
     other = client.get("/boom", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in other.headers
     assert other.headers["x-content-type-options"] == "nosniff"
+
+
+def test_starlettes_own_404_and_405_have_the_one_body(client):
+    missing = client.get("/no-such-route")
+    assert missing.status_code == 404
+    assert missing.json() == {"code": "not_found", "message": "Not Found"}
+    wrong = client.get("/prefs")
+    assert wrong.status_code == 405
+    assert wrong.json()["code"] == "method_not_allowed"
+    assert "allow" in wrong.headers  # the handler keeps the exception's headers
+
+
+def test_an_http_exception_keeps_its_status_and_message():
+    from fastapi import HTTPException
+
+    app = FastAPI()
+    register_error_handlers(app)
+
+    @app.get("/gone")
+    async def gone():
+        raise HTTPException(410, detail="That link has expired.")
+
+    resp = TestClient(app).get("/gone")
+    assert resp.status_code == 410
+    assert resp.json() == {"code": "expired", "message": "That link has expired."}

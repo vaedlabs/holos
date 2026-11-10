@@ -84,7 +84,7 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env       # fill this in
 createdb holos_db
-python setup_database.py   # or: alembic upgrade head
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 

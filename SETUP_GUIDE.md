@@ -51,7 +51,7 @@ Generate a JWT secret with `openssl rand -hex 32` if you don't have one.
 
 ```bash
 createdb holos_db
-python setup_database.py  # or: alembic upgrade head
+alembic upgrade head
 ```
 
 ### Start the server
@@ -121,7 +121,7 @@ Then open `http://localhost:3000`, register an account, go through onboarding, a
 - Make sure CORS allows `http://localhost:3000`
 
 **Tables don't exist**
-- `python setup_database.py` or `alembic upgrade head` from `backend/`
+- `alembic upgrade head` from `backend/`
 
 **Agent not responding**
 - Check the relevant API key in `.env`
@@ -135,7 +135,7 @@ Then open `http://localhost:3000`, register an account, go through onboarding, a
 # Backend
 source venv/bin/activate
 uvicorn app.main:app --reload
-python setup_database.py
+alembic upgrade head
 
 # Frontend
 npm run dev
