@@ -34,7 +34,7 @@ from app.dependencies import (
     get_stream_store,
 )
 from app.orchestration import composer as composer_module
-from app.orchestration import worker
+from app.orchestration import coordinator, worker
 from app.orchestration.budget import spend_keys
 from app.orchestration.principal import csrf_token
 from app.orchestration.router import Router
@@ -51,6 +51,7 @@ from app.providers import (
     Breakers,
     FakeProvider,
     LLMResult,
+    ProviderUnavailable,
     ResilientProvider,
     Route,
     Usage,
@@ -301,6 +302,62 @@ async def test_an_account_failure_at_a_coach_says_the_same(store, async_engine):
                                  _payload()))
     assert (events[-1][0], events[-1][1]["code"]) == ("error", "service_unavailable")
     assert len(models.fakes["physical"].calls) == 1  # not retried
+
+
+# A short routing window: these tests time out the router without waiting 5 s
+@pytest.fixture
+def quick_routing(monkeypatch):
+    monkeypatch.setattr(coordinator, "ROUTING_DEADLINE_S", 0.3)
+
+
+async def test_a_router_that_times_out_gets_one_more_try(store, async_engine, quick_routing):
+    """Live, 10 Nov 2026: the first message after 70 idle minutes never connected."""
+    models = Models(router=[Slow(5.0, _route("physical")), _route("physical")],
+                    physical=[_physical("glute_bridge")])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload()))
+    assert ("step", "retry", "router") in [(n, d.get("name"), d.get("detail"))
+                                           for n, d in events]
+    assert [d["agent"] for n, d in events if n == "section_start"] == ["physical"]
+    assert _names(events)[-1] == "done" and len(models.fakes["router"].calls) == 2
+
+
+@pytest.mark.parametrize("second", [Slow(5.0, _route("physical")),
+                                    ProviderUnavailable("down", "openai")])
+async def test_a_router_that_fails_twice_says_holos_couldnt_connect(store, async_engine,
+                                                                   quick_routing, second):
+    models = Models(router=[ProviderUnavailable("down", "openai"), second])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload()))
+    assert events[-1][0] == "error"
+    assert (events[-1][1]["code"], events[-1][1]["message"]) == (
+        "connection", "Holos couldn't connect just now. Your message is still here; tap to "
+        "try again.")
+    assert len(models.fakes["router"].calls) == 2  # never a third
+
+
+@pytest.mark.parametrize("failure, code", [
+    (BadRequest("no", "openai"), "unavailable"),
+    (AccountFailure("bad key", "openai", status=401), "service_unavailable"),
+])
+async def test_a_router_failure_that_wont_pass_isnt_tried_again(store, async_engine,
+                                                               quick_routing, failure, code):
+    models = Models(router=[failure, _route("physical")], physical=[_physical("glute_bridge")])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload()))
+    assert (events[-1][0], events[-1][1]["code"]) == ("error", code)
+    assert len(models.fakes["router"].calls) == 1
+
+
+async def test_no_second_try_when_the_coaches_would_lose_time_to_it(store, async_engine,
+                                                                    quick_routing, monkeypatch):
+    monkeypatch.setattr(coordinator, "AGENT_DEADLINE_S", coordinator.REQUEST_DEADLINE_S)
+    models = Models(router=[ProviderUnavailable("down", "openai"), _route("physical")],
+                    physical=[_physical("glute_bridge")])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload()))
+    assert (events[-1][0], events[-1][1]["code"]) == ("error", "connection")
+    assert len(models.fakes["router"].calls) == 1
 
 
 async def test_coaches_chosen_in_the_app_skip_routing(store, async_engine):

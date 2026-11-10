@@ -10,6 +10,8 @@ time limit (LOGGED_NOTE_S, from measured calls). A failure or a late answer send
 nothing, since the record said it, and so does a bug here (logged with its stack): a
 save must not end in an error.
 Held entries get no sentence: the coach's reply already explained them.
+The model never sees the message, only its language: given "log my walk and suggest a
+light dinner" it answered the dinner too, against the coach (live, 10 Nov 2026).
 """
 
 import logging
@@ -30,11 +32,10 @@ NOTE_CHARS = 300
 PROMPT = """\
 You are Holos, a personal coach for exercise, food and mental wellbeing, talking to \
 someone you know. What they asked you to log has just been saved. Reply with one or two \
-short sentences, at most 200 characters in all, in their language and tone (English, \
-Hindi in Devanagari, or Hinglish, as they write): say in your own words what was logged \
-and when, and add a few warm, specific words as their coach would. If a warning is \
-listed, mention it plainly once and add no praise. No advice, no questions, no links, \
-no emojis."""
+short sentences, at most 200 characters in all, in the language the note names: say in \
+your own words what was logged and when, and add a few warm, specific words as their \
+coach would. If a warning is listed, mention it plainly once and add no praise. No \
+advice, no questions, no links, no emojis."""
 
 
 def note_prompt(message: str, saved: list[StagedWrite], at: datetime, tz: ZoneInfo) -> str:
@@ -44,7 +45,7 @@ def note_prompt(message: str, saved: list[StagedWrite], at: datetime, tz: ZoneIn
                      f"({when_text(write.at or at, tz, at)})")  # "yesterday" as of the turn
         lines += [f"  warning: {warning_text(w)}" for w in write.conflicts]
     style = STYLE_NOTE[writing_style(message)]
-    return f"The person wrote: {message}\n\nSaved:\n" + "\n".join(lines) + f"\n\n({style})"
+    return "Saved:\n" + "\n".join(lines) + f"\n\n({style})"
 
 
 async def logged_note(llm: ResilientProvider, plan: CallPlan, message: str,

@@ -545,7 +545,20 @@ async def test_the_coach_is_told_who_else_is_answering():
     await agent.run(run)
     last = fake.calls[0].messages[-1].text
     assert ("The exercise and mental wellbeing coaches are answering the rest of this message: "
-            "answer only the food part.") in last
+            "answer only the food part. Don't mention them or their part: their answers "
+            "appear next to yours.") in last
+
+
+async def test_the_coach_is_told_not_to_mention_the_one_other_coach():
+    # Live, 10 Nov 2026: "the exercise coach can help with tomorrow's workout"
+    agent, fake = _agent(MentalAgent, _result(MentalReply(
+        kind="answer", summary="ok", items=[], notes=[], source_ids=[], follow_up=None,
+        risk_flag=False)))
+    run = _run(message="breathing for stress and a light workout", profile=NONE)
+    run.others = ("physical",)
+    await agent.run(run)
+    assert ("Don't mention that coach or their part: its answer appears next to yours."
+            in fake.calls[0].messages[-1].text)
 
 
 async def test_the_coach_is_told_the_persons_day_and_time():
@@ -564,7 +577,8 @@ async def test_a_lone_coach_gets_no_other_coaches_note():
         kind="answer", summary="ok", items=[], notes=[], source_ids=[], follow_up=None,
         risk_flag=False)))
     await agent.run(_run(message="can't sleep", profile=NONE))
-    assert "answering the rest" not in fake.calls[0].messages[-1].text
+    last = fake.calls[0].messages[-1].text
+    assert "answering the rest" not in last and "Don't mention" not in last
 
 
 # --- Failure library (Part E #55) ---

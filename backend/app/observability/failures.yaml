@@ -307,6 +307,20 @@ failures:
       - tests/unit/test_router.py::test_hindi_called_another_language_twice_is_an_error
     seen_live: "2026-10-28: Hindi in Devanagari called another language once in 645 calls (Part D)"
 
+  - id: provider.router_unreached
+    layer: provider
+    what: The router times out, stalls, is rate limited or is down, so no coach can be chosen.
+    cause: deadline_waiting
+    handling: One more 5 s routing window, with a `retry` step (detail router), when the coaches would still have their full 60 s after it; never a third. A cap, a busy server, a refused account, a bad request or a malformed reply isn't tried again.
+    person_sees: Their answer, a few seconds later; if both tries fail, "Holos couldn't connect just now. Your message is still here; tap to try again."
+    code: connection
+    tests:
+      - tests/integration/test_chat.py::test_a_router_that_times_out_gets_one_more_try
+      - tests/integration/test_chat.py::test_a_router_that_fails_twice_says_holos_couldnt_connect
+      - tests/integration/test_chat.py::test_a_router_failure_that_wont_pass_isnt_tried_again
+      - tests/integration/test_chat.py::test_no_second_try_when_the_coaches_would_lose_time_to_it
+    seen_live: "2026-11-10: the first message after 70 idle minutes; the first call never connected in 5 s, its backup connected at 4.4 s and ran out of time"
+
   - id: provider.one_coach_fails
     layer: provider
     what: One of several coaches fails.

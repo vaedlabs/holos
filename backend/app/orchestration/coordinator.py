@@ -27,6 +27,7 @@ from app.agents.schemas import (
     AgentName,
     AgentResult,
     ChatPayload,
+    HistoryTurn,
     Usage,
     UserProfile,
 )
@@ -58,6 +59,7 @@ from app.orchestration.composer import (
 )
 from app.orchestration.logged_note import logged_note
 from app.orchestration.principal import Principal
+from app.orchestration.router import RouteDecision
 from app.orchestration.services import Services
 from app.orchestration.staging import (
     Saved,
@@ -130,14 +132,9 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
         job.crisis_recent = await job.store.crisis_active(job.principal.principal_key)
         context = await load_context(job.principal, job.payload, job.sessions)
         profile, history = context.profile, context.history
-        try:
-            decision = await services.router.route(
-                job.payload.message, plan=_plan(job, ROUTER, "router", meters,
-                                                 ROUTING_DEADLINE_S),
-                profile=profile, history=history, has_image=job.image is not None,
-                agents=job.payload.agents)
-        except ProviderError as exc:
-            await _fail(job, error_code(exc), meters)
+        decision = await _route(job, services, profile, history, meters)
+        if isinstance(decision, str):
+            await _fail(job, decision, meters)
             return
         agents = list(decision.agents)
         job.outcome.route = decision.kind
@@ -209,6 +206,32 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
         log.exception("chat request failed: trace=%s cause=bug", job.admitted.trace_id)
         if not c.ended:
             await c.error("unavailable")
+
+
+async def _route(job: ChatJob, services: Services, profile: UserProfile | None,
+                 history: list[HistoryTurn], meters: "_Meters") -> RouteDecision | str:
+    """The router's decision, or the error code. A passing failure (timeout, stall,
+    outage, rate limit) gets one more routing window when the coaches would still have
+    all of theirs after it (live, 10 Nov 2026: the first message after 70 idle minutes
+    didn't connect within 5 s, with 85 s of the request left). Never reaching it is
+    `connection`, not a coach that was unavailable. A cap, a busy server, a refused
+    account, a bad request or a malformed reply (the router retries that itself) isn't
+    tried again."""
+    for attempt in range(2):
+        try:
+            return await services.router.route(
+                job.payload.message, plan=_plan(job, ROUTER, "router", meters,
+                                                 ROUTING_DEADLINE_S),
+                profile=profile, history=history, has_image=job.image is not None,
+                agents=job.payload.agents)
+        except ProviderError as exc:
+            if not exc.retryable:
+                return error_code(exc)
+            left = job.deadline - time.monotonic()
+            if attempt or left < ROUTING_DEADLINE_S + AGENT_DEADLINE_S:
+                return "connection"
+            await job.composer.step("retry", detail="router")
+    raise AssertionError("unreachable")
 
 
 async def _fail(job: ChatJob, code: str, meters: "_Meters") -> None:

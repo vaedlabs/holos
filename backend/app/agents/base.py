@@ -362,10 +362,14 @@ class BaseAgent:
         if run.now:
             note += f" {run.now}"
         if run.others:
+            # Live, 10 Nov 2026: "the exercise coach can help with tomorrow's workout"
             names = " and ".join(AREA[a] for a in run.others)
-            note += (f" The {names} {'coach is' if len(run.others) == 1 else 'coaches are'} "
-                     f"answering the rest of this message: answer only the "
-                     f"{AREA[self.domain]} part.")
+            one = len(run.others) == 1
+            note += (f" The {names} {'coach is' if one else 'coaches are'} answering the "
+                     f"rest of this message: answer only the {AREA[self.domain]} part. "
+                     f"Don't mention {'that coach' if one else 'them'} or their part: "
+                     f"{'its answer appears' if one else 'their answers appear'} next to "
+                     f"yours.")
         if run.crisis_recent and self.domain == "mental":
             note += " " + CRISIS_NOTE
         return note

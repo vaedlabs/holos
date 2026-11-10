@@ -215,7 +215,7 @@ async def test_an_account_turn_commits_its_writes_with_its_messages(store, async
     assert [d["text"] for n, d in events if n == "logged_note"] == [
         "Logged your glute bridges. Strong work today."]
     prompt = models.fakes["summary"].calls[0].messages[-1].text
-    assert "Glute bridge: 3 x 12" in prompt and "log 3x12 glute bridges" in prompt
+    assert "Glute bridge: 3 x 12" in prompt and "log 3x12 glute bridges" not in prompt
     assert await _count(async_engine, "conversation_messages") == 2
 
 

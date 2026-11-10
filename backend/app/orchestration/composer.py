@@ -75,6 +75,9 @@ ERRORS = {
     "interrupted": "Your answer was interrupted. Tap to try again.",
     # The provider refused our account (key or credit): not the person's doing (Part E #55)
     "service_unavailable": "Holos can't reach its AI service right now. Please try again later.",
+    # The router never answered, twice: no coach was asked; the app keeps the message
+    "connection": "Holos couldn't connect just now. Your message is still here; tap to try "
+                  "again.",
 }
 
 

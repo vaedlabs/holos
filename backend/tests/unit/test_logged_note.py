@@ -62,13 +62,23 @@ async def test_the_sentence_may_say_logged():
     text, fake = await _note(_text("Logged your 30-minute walk at 9:30 am. Nice work."))
     assert text == "Logged your 30-minute walk at 9:30 am. Nice work."
     prompt = fake.calls[0].messages[-1].text
-    assert "log my walk" in prompt and "Brisk walking: 30 min (9:30 am)" in prompt
+    assert "Brisk walking: 30 min (9:30 am)" in prompt
 
 
 async def test_the_prompt_lists_each_warning_and_the_persons_language():
     prompt = note_prompt("aaj nashte mein poha khaya", [POHA], AT, INDIA)
     assert "  warning: " in prompt and "peanut" in prompt
     assert "Hinglish" in prompt
+    assert "Devanagari" in note_prompt("आज नाश्ते में पोहा खाया", [POHA], AT, INDIA)
+
+
+async def test_the_message_itself_is_never_in_the_prompt():
+    # Live, 10 Nov 2026: shown "...and suggest a light dinner", it suggested one
+    message = "log my 20 minute walk and suggest a light dinner"
+    _, fake = await _note(_text("Logged your walk."), message=message)
+    call = fake.calls[0]
+    sent = call.messages[-1].text + (call.system or "")
+    assert "dinner" not in sent and "suggest" not in sent
 
 
 async def test_the_sentence_is_gated_like_any_prose():
