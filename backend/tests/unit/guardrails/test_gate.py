@@ -5,7 +5,15 @@ import copy
 import pytest
 
 from app.agents.schemas import MentalReply, NutritionReply, PhysicalReply
-from app.guardrails.gate import MALFORMED_RULE, PHOTO_CAVEAT, UNCHECKED_RULE, gate, gate_text
+from app.guardrails.gate import (
+    MALFORMED_RULE,
+    PHOTO_CAVEAT,
+    UNCHECKED_RULE,
+    gate,
+    gate_text,
+    prose_sentences,
+    read_key,
+)
 from app.guardrails.loader import get_guardrails
 from app.guardrails.types import Profile
 
@@ -280,6 +288,14 @@ def test_links_are_removed(text, expected):
     assert result.content == expected
     assert {s.kind for s in result.scrubbed} == {"link"}
     assert result.action == "allow"  # a link isn't a profile rule: no retry
+
+
+@pytest.mark.parametrize("text", [
+    "Eat dal. Rice is fine too.", "Walk 30 min, e.g. after dinner, around 7 p.m. daily.",
+    "Have 1.5 cups of rice.", "Aim for 3x12 bridges.",
+])
+def test_ordinary_text_is_not_a_link(text):
+    assert gate_text(text, NONE).content == text
 
 
 def test_helpline_domain_stays():
@@ -605,3 +621,49 @@ def test_a_confirm_card_is_only_mentioned_while_an_entry_waits(text):
     assert gate("physical", physical(summary=summary), NONE, logged=walk,
                 held=True).content["summary"] == summary
     assert gate("physical", physical(summary=summary), NONE).content["summary"] == summary
+
+
+# --- The mention reader's answer (Part E #59) ---
+
+
+def _read(sentence: str, *items: str) -> dict[str, tuple[str, ...]]:
+    return {read_key(sentence): items}
+
+
+def test_a_recommendation_the_word_lists_cant_see_is_removed():
+    text = "आज रात 12 स्क्वाट करें। Keep it gentle."
+    assert gate_text(text, KNEE).content == text  # the word lists alone
+    result = gate_text(text, KNEE, read=_read("आज रात 12 स्क्वाट करें।", "bodyweight_squat"))
+    assert result.content == "Keep it gentle."
+    assert "EX-KNEE-01" in rule_ids(result)
+
+
+def test_the_reader_answer_is_judged_by_the_profile_rules():
+    text = "Breathe in and hold your breath for 20 seconds."
+    read = _read(text, "breath_retention")
+    assert gate_text(text, NONE, read=read).content == text  # nothing to protect
+    assert gate_text(text, ASTHMA, read=read).content == ""
+    assert gate_text(text, ASTHMA, read=_read(text, "not_an_item")).content == text
+
+
+def test_an_entry_logged_this_turn_stays_whoever_names_it():
+    reply = {"kind": "log_ack", "summary": "दो रोटी और सब्ज़ी, बढ़िया चुनाव।", "items": [],
+             "notes": [], "source_ids": [], "follow_up": None, "risk_flag": False}
+    roti = {"meal": "dinner", "foods": [{"day": None, "name": "Roti", "ingredients": ["wheat"],
+            "allergen_tags": ["gluten"], "diet_tags": [], "portion": "2", "calories": 200,
+            "note": ""}]}
+    read = _read(reply["summary"], "wheat")
+    gluten = Profile(allergen_tags=("gluten",))
+    kept = gate("nutrition", reply, gluten, logged=[roti], read=read)
+    assert kept.content["summary"] == reply["summary"]
+
+
+def test_a_word_list_and_a_reader_match_make_one_decision():
+    text = "Do 3 sets of squats."
+    result = gate_text(text, KNEE, read=_read(text, "bodyweight_squat"))
+    assert [d.rule_id for d in result.decisions].count("EX-KNEE-01") == 1
+
+
+def test_the_reader_reads_the_sentences_the_gate_judges():
+    text = "Read more at https://x.com today. स्क्वाट करें।\nKeep going."
+    assert prose_sentences(text) == ["Read more at  today.", "स्क्वाट करें।", "Keep going."]

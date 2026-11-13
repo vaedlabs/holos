@@ -43,13 +43,14 @@ failures:
 
   - id: provider.account
     layer: provider
-    what: The provider refuses our account, not the request - the API key is rejected (401/403) or the account is out of credit (OpenAI 429 insufficient_quota).
+    what: The provider refuses our account, not the request - the API key is rejected (401/403) or the account is out of credit (OpenAI 429 insufficient_quota, or mid-stream an error event of type insufficient_quota, code credit_balance_exhausted).
     cause: account
     handling: Not retried; the breaker opens at once for 5 minutes and one ALERT line is logged; a fallback route may still run; new messages are refused at admission until a trial call succeeds.
     person_sees: Holos can't reach its AI service right now. Please try again later.
     code: service_unavailable
     tests:
       - tests/unit/test_openai_stream_errors.py::test_a_rejected_key_or_no_credit_is_an_account_failure
+      - tests/unit/test_openai_stream_errors.py::test_running_out_of_credit_mid_stream_is_an_account_failure
       - tests/contract/test_providers.py::test_a_rejected_key_is_an_account_failure
       - tests/unit/test_resilient.py::test_an_account_failure_opens_the_breaker_at_once_and_alerts
       - tests/unit/test_resilient.py::test_an_account_failure_still_tries_the_fallback
@@ -57,7 +58,7 @@ failures:
       - tests/integration/test_admission.py::test_an_account_failure_refuses_with_its_own_message
       - tests/integration/test_chat.py::test_an_account_failure_says_the_service_is_unreachable
       - tests/integration/test_chat.py::test_an_account_failure_at_a_coach_says_the_same
-    seen_live: null
+    seen_live: "2026-11-11: credit ran out mid-stream (error event, not a 429); mapped as an outage until Part E #59 fixed it"
 
   - id: provider.server_error
     layer: provider
@@ -320,6 +321,20 @@ failures:
       - tests/integration/test_chat.py::test_a_router_failure_that_wont_pass_isnt_tried_again
       - tests/integration/test_chat.py::test_no_second_try_when_the_coaches_would_lose_time_to_it
     seen_live: "2026-11-10: the first message after 70 idle minutes; the first call never connected in 5 s, its backup connected at 4.4 s and ran out of time"
+
+  - id: provider.reader_unavailable
+    layer: provider
+    what: The mention reader (Part E #59) times out, is down or rate limited, or answers malformed JSON twice.
+    cause: deadline_waiting
+    handling: A malformed answer is asked once more. Otherwise the gate checks the reply with its word lists alone, as before the reader; the trace has a reader step with the cause.
+    person_sees: Their answer, checked by the word lists.
+    code: null
+    tests:
+      - tests/unit/test_reader.py::test_a_failed_read_leaves_the_word_lists
+      - tests/unit/test_reader.py::test_a_malformed_answer_is_asked_once_more
+      - tests/unit/test_reader.py::test_twice_malformed_leaves_the_word_lists
+      - tests/integration/test_chat.py::test_without_the_reader_the_word_lists_still_check
+    seen_live: "2026-11-11: JSON followed by commentary, about 1 in 100 reads (prompt measurement)"
 
   - id: provider.one_coach_fails
     layer: provider

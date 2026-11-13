@@ -126,6 +126,8 @@ class OpenAIProvider:
         except openai.APIError as exc:
             # An error event mid-stream (live, 29 Oct 2026: "An error occurred while
             # processing your request. You can retry your request")
+            if _out_of_credit(exc):
+                raise AccountFailure(str(exc), self.name, request_id=ids[0]) from exc
             raise ProviderUnavailable(str(exc), self.name, request_id=ids[0]) from exc
         except ProviderError as exc:
             exc.request_id = exc.request_id or ids[0]  # a stream error or a bad reply
@@ -142,15 +144,30 @@ class OpenAIProvider:
                 if event.type in FINAL_EVENTS:
                     return event.response
                 if event.type in ("response.failed", "error"):
-                    raise ProviderUnavailable(f"stream {event.type}: {_error_text(event)}",
-                                              self.name)
+                    failure = (AccountFailure if _out_of_credit(_event_error(event))
+                               else ProviderUnavailable)
+                    raise failure(f"stream {event.type}: {_error_text(event)}", self.name)
         raise ProviderUnavailable("stream ended without a reply", self.name)
 
 
+def _event_error(event: Any) -> Any:
+    return getattr(event, "error", None) or getattr(getattr(event, "response", None),
+                                                    "error", None)
+
+
 def _error_text(event: Any) -> str:
-    error = getattr(event, "error", None) or getattr(getattr(event, "response", None),
-                                                     "error", None)
+    error = _event_error(event)
     return str(getattr(error, "message", None) or error or getattr(event, "message", ""))[:200]
+
+
+# Out of credit: waiting won't help (Part E #55). Live, 11 Nov 2026, it came mid-stream,
+# not as a 429: an `error` event, type insufficient_quota, code credit_balance_exhausted
+OUT_OF_CREDIT = frozenset({"insufficient_quota", "credit_balance_exhausted",
+                           "billing_hard_limit_reached"})
+
+
+def _out_of_credit(error: Any) -> bool:
+    return bool({getattr(error, "type", None), getattr(error, "code", None)} & OUT_OF_CREDIT)
 
 
 def _to_input(message: Message) -> list[dict[str, Any]]:

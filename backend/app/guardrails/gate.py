@@ -31,7 +31,7 @@ PHOTO_CAVEAT on the reply.
 
 import copy
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
@@ -148,6 +148,9 @@ class _Check:
         self.held = False  # an entry this turn waits for confirmation
         self.logged = False  # the turn logged entries, and none of them waits
         self.after_save = False  # written after the save: "logged" is true
+        # What the mention reader found each sentence recommends (Part E #59): read_key
+        # of the sentence -> catalogue IDs and ingredient names
+        self.read: Mapping[str, Sequence[str]] = {}
         self.version = rules.version
         self.matcher = matcher
         self.profile = profile
@@ -317,21 +320,8 @@ class _Check:
         return cleaned.strip()
 
     def _remove_links(self, text: str, where: str) -> str:
-        def drop(match: re.Match) -> str:
-            found = match.group(0)
-            if found.lower().rstrip(".,;:!?") in self.allowed_domains:
-                return found
-            self.scrubbed.append(Scrub("link", where, found[:200]))
-            return ""
-
-        def label(match: re.Match) -> str:
-            self.scrubbed.append(Scrub("link", where, match.group(0)[:200]))
-            return match.group(1)
-
-        text = MARKDOWN_LINK.sub(label, text)
-        for pattern in (AUTOLINK, URL, EMAIL, BARE_DOMAIN):
-            text = pattern.sub(drop, text)
-        return text
+        return strip_links(text, self.allowed_domains,
+                           lambda found: self.scrubbed.append(Scrub("link", where, found[:200])))
 
     def _sentence_ok(self, sentence: str, where: str) -> bool:
         folded = fold_for_matching(sentence)
@@ -345,11 +335,14 @@ class _Check:
             if match := pattern.search(folded):
                 self.decision(rule.severity.value, rule.id, rule.reason, [match.group(0)])
                 ok = ok and rule.severity != "block"
-        for mention in self.matcher.find(sentence):
-            if mention.negated or mention.entry in self.on_plate:
-                continue
-            for rule in self.entry_hits(mention.entry):
-                self.decision(rule.severity.value, rule.id, rule.reason, [mention.entry.name])
+        found = {m.entry for m in self.matcher.find(sentence) if not m.negated}
+        # The reader's recommended items, for what the word lists can't see: Devanagari,
+        # descriptions, other names (Part E #59)
+        found |= {e for key in self.read.get(read_key(sentence), ())
+                  if (e := self.matcher.entry(key)) is not None}
+        for entry in sorted(found - set(self.on_plate), key=lambda e: e.key):
+            for rule in self.entry_hits(entry):
+                self.decision(rule.severity.value, rule.id, rule.reason, [entry.name])
                 ok = ok and rule.severity != "block"
         return ok
 
@@ -360,6 +353,41 @@ class _Check:
             caveats = (PHOTO_CAVEAT,)
         return GateResult(action, tuple(self.decisions), content, tuple(items),
                           tuple(self.scrubbed), self.malformed, caveats)
+
+
+def strip_links(text: str, allowed: set[str] = frozenset(),
+                removed: Callable[[str], None] = lambda found: None) -> str:
+    """Links out (a markdown link keeps its label), except `allowed` domains."""
+    def drop(match: re.Match) -> str:
+        found = match.group(0)
+        if found.lower().rstrip(".,;:!?") in allowed:
+            return found
+        removed(found)
+        return ""
+
+    def label(match: re.Match) -> str:
+        removed(match.group(0))
+        return match.group(1)
+
+    text = MARKDOWN_LINK.sub(label, text)
+    for pattern in (AUTOLINK, URL, EMAIL, BARE_DOMAIN):
+        text = pattern.sub(drop, text)
+    return text
+
+
+def prose_sentences(text: str) -> list[str]:
+    """The sentences the prose check judges, as the mention reader gets them (Part E
+    #59): links out (helpline domains kept), split as `prose` splits."""
+    allowed = {h.contact.lower() for h in get_guardrails().rules.crisis.helplines
+               if "." in h.contact}
+    parts = SENTENCE_SPLIT.split(strip_links(text, allowed))
+    return [parts[i] for i in range(0, len(parts), 2) if parts[i].strip()]
+
+
+def read_key(sentence: str) -> str:
+    """How a sentence is looked up in the reader's answer: folded, so spacing and case
+    the gate's split leaves don't matter."""
+    return fold_for_matching(sentence)
 
 
 def _new_check(guardrails: Guardrails | None, profile: ProfileLike,
@@ -420,19 +448,22 @@ def gate(
     purpose: Purpose = "plan",
     logged: Sequence[Mapping[str, Any]] = (),
     held: bool = False,
+    read: Mapping[str, Sequence[str]] | None = None,
 ) -> GateResult:
     """Check an agent reply or a write (log_workout, log_meal, log_practice arguments).
     purpose="photo": a nutrition reply about a meal photo (C.14 step 7).
     logged: the entries the person logged this turn (write arguments). Like a photo's
     foods, they are what the person already had, so a sentence naming them stays: live,
     a vegan's paneer log lost its whole acknowledgement (Part E #45).
-    held: one of them waits for the person's confirmation (Part E #52)."""
+    held: one of them waits for the person's confirmation (Part E #52).
+    read: what the mention reader found each sentence recommends (read_key -> items)."""
     if domain not in ITEM_KIND:
         raise ValueError(f"unknown domain '{domain}'")
     if purpose == "photo" and (domain != "nutrition" or "summary" not in reply_or_write):
         raise ValueError("photo mode is for nutrition replies")
     check = _new_check(guardrails, profile, purpose)
     check.held, check.logged = held, bool(logged) and not held
+    check.read = read or {}
     content = copy.deepcopy(dict(reply_or_write))
 
     if "summary" in content:  # a reply
@@ -459,6 +490,7 @@ def gate(
 def gate_text(
     text: str, profile: ProfileLike, guardrails: Guardrails | None = None,
     after_save: bool = False, closing: bool = False,
+    read: Mapping[str, Sequence[str]] | None = None,
 ) -> GateResult:
     """Check free prose that belongs to no one domain, such as the holistic summary.
     after_save: the sentence written once entries were saved (Part E #54 B): it may say
@@ -469,4 +501,5 @@ def gate_text(
     check = _new_check(guardrails, profile)
     check.after_save = after_save
     check.held = check.logged = closing
+    check.read = read or {}
     return check.result(check.prose(text, "summary"), [])

@@ -341,6 +341,11 @@ class Matcher:
                 for m, n in zip(matches, negated, strict=True)
                 if not _is_greeting(folded, m)]
 
+    def entry(self, key: str) -> Entry | None:
+        """An exercise or practice by its ID, or an ingredient by its name."""
+        return (self.exercises.get(key) or self.practices.get(key)
+                or self.terms.get(fold_for_matching(key)))
+
     def ingredients(self, text: str) -> list[Entry]:
         """The known ingredients named in a food name or ingredient. Negation is
         ignored, so "peanut-free sauce" still counts as peanut (fails closed)."""

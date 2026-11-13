@@ -25,7 +25,7 @@ from the catalogue and rules.yaml.
 import asyncio
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Protocol
 
@@ -108,6 +108,11 @@ class Generator(Protocol):
                        schema: type[BaseModel] | None = None) -> LLMResult: ...
 
 
+# The mention reader as a coach gets it (Part E #59): the coordinator builds it
+ReadResult = Mapping[str, Sequence[str]] | None
+Reader = Callable[[list[str]], Awaitable[ReadResult]]
+
+
 @dataclass
 class AgentRun:
     message: str
@@ -125,6 +130,9 @@ class AgentRun:
     # Every gate decision of the run, retries included: the trace stores them all (C.14
     # step 6). The result's `decisions` are the final reply's, which the person sees
     decided: list[schemas.Decision] = field(default_factory=list)
+    # The mention reader (Part E #59): the texts' sentences -> what each recommends, or
+    # None when it failed; None here: no reading (a profile with nothing to protect)
+    read: Reader | None = None
 
 
 @dataclass
@@ -229,7 +237,8 @@ class BaseAgent:
             if result.truncated or not isinstance(result.parsed, self.schema):
                 raise MalformedOutput("reply missing or cut off",
                                       cause="truncated" if result.truncated else None)
-            return self._gate(result.parsed, run, photo, messages)
+            return self._gate(result.parsed, run, photo, messages,
+                              await _read(run, result.parsed))
         raise AssertionError("unreachable: the last round has no tools")
 
     async def _run_tools(self, result: LLMResult, run: AgentRun) -> list[Message]:
@@ -245,12 +254,13 @@ class BaseAgent:
         return list(await asyncio.gather(*(one(c) for c in result.tool_calls)))
 
     def _gate(self, reply: BaseModel, run: AgentRun, photo: bool,
-              messages: list[Message]) -> _Try:
+              messages: list[Message], read: ReadResult = None) -> _Try:
         staged = run.tools.staged_writes
         logged = [w.args.model_dump(mode="json") for w in staged]
         held = bool(staged) and (run.tools.untrusted or any(w.waits for w in staged))
         gated = gate(self.domain, reply.model_dump(mode="json"), run.profile or _NO_PROFILE,
-                     purpose="photo" if photo else "plan", logged=logged, held=held)
+                     purpose="photo" if photo else "plan", logged=logged, held=held,
+                     read=read)
         run.trace.step("gate", self.domain, gated.action)
         run.decided += decisions_of(gated)
         because, why = None, ""
@@ -323,7 +333,8 @@ class BaseAgent:
         if reply is not None:
             content = {**reply.model_dump(mode="json"), "kind": "answer", "items": [],
                        "source_ids": []}
-            told = gate(self.domain, content, run.profile or _NO_PROFILE)
+            told = gate(self.domain, content, run.profile or _NO_PROFILE,
+                        read=await _read(run, reply))
             run.decided += decisions_of(told)
             if told.content.get("summary"):
                 run.trace.step("explain", self.domain, began_ms=began)
@@ -408,6 +419,16 @@ def decisions_of(gated: GateResult) -> list[schemas.Decision]:
                              rules_version=d.rules_version, reason=d.reason,
                              offending_items=list(d.offending_items))
             for d in gated.decisions]
+
+
+async def _read(run: AgentRun, reply: BaseModel) -> ReadResult:
+    """What the reply's prose recommends, by sentence, when the run has a reader."""
+    if run.read is None:
+        return None
+    content = reply.model_dump(mode="json")
+    texts = [content.get("summary"), content.get("follow_up"), *(content.get("notes") or []),
+             *(item.get("note") for item in content.get("items") or [])]
+    return await run.read([t for t in texts if t])
 
 
 def error_code(exc: ProviderError) -> AgentError:

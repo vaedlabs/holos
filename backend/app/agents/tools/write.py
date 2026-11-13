@@ -14,7 +14,7 @@ the usual time, and the entry waits for them to pick it on the card.
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.agents.clock import when_text
 from app.agents.display import item_display
@@ -26,6 +26,9 @@ from app.agents.schemas import (
     WriteKind,
 )
 from app.agents.when import NotLoggable, resolve
+from app.config.limits import ENTRIES_PER_TURN
+from app.guardrails.matcher import get_matcher
+from app.guardrails.types import OTHER_ACTIVITY
 
 from .base import Tool, ToolContext
 
@@ -66,7 +69,32 @@ HELD_TIME = ("Not saved yet: the person didn't say what time, so it waits on the
              "briefly. Don't say it was refused, couldn't be saved, or was logged.")
 
 
+# Part E #59: a model told to log 40 entries in one message saved 40
+TOO_MANY = (f"At most {ENTRIES_PER_TURN} entries can be logged from one message; this one "
+            "wasn't. Tell the person to log the rest in another message.")
+
+
+def _named_exercise(args: BaseModel) -> BaseModel:
+    """An other_activity named after one catalogue exercise is that exercise, so it is
+    checked against the profile like one (Part E #59: "Barbell back squats" went in as
+    "Other activity", unchecked, for a knee injury)."""
+    if not (isinstance(args, LogWorkoutArgs) and args.catalogue_id == OTHER_ACTIVITY):
+        return args
+    found = {m.entry.key for m in get_matcher().find(args.activity or "")
+             if m.entry.kind == "exercise" and not m.negated}
+    if len(found) != 1:
+        return args
+    try:
+        return LogWorkoutArgs.model_validate(
+            {**args.model_dump(), "catalogue_id": found.pop(), "activity": None})
+    except ValidationError:  # e.g. a duration that exercise can't have: left as named
+        return args
+
+
 async def _stage(kind: WriteKind, args: BaseModel, ctx: ToolContext) -> dict[str, Any]:
+    if ctx.entries_in_turn() >= ENTRIES_PER_TURN:
+        return {"status": "refused", "reason": TOO_MANY}
+    args = _named_exercise(args)
     said = ctx.said or datetime.now(UTC)
     try:
         when = resolve(args.when, getattr(args, "meal", None), said, ctx.tz)

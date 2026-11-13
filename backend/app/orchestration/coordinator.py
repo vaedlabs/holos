@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from app.agents.base import AgentRun, error_code
+from app.agents.base import AgentRun, Reader, error_code
 from app.agents.clock import now_note, zone
 from app.agents.display import history_text
 from app.agents.schemas import (
@@ -32,14 +32,14 @@ from app.agents.schemas import (
     UserProfile,
 )
 from app.agents.style import STYLE_NOTE, writing_style
-from app.agents.tools import ToolContext
+from app.agents.tools import ToolContext, TurnEntries
 from app.config.limits import (
     AGENT_DEADLINE_S,
     REQUEST_DEADLINE_S,
     RESERVE_TOKENS_IN,
     ROUTING_DEADLINE_S,
 )
-from app.config.speeds import LOGGED_NOTE, LOGGED_NOTE_S, ROUTER, SUMMARY
+from app.config.speeds import LOGGED_NOTE, LOGGED_NOTE_S, READER, READER_S, ROUTER, SUMMARY
 from app.data.state_store import StateStore
 from app.data.stream_store import RequestEnded
 from app.guardrails.gate import SENTENCE_SPLIT
@@ -59,6 +59,7 @@ from app.orchestration.composer import (
 )
 from app.orchestration.logged_note import logged_note
 from app.orchestration.principal import Principal
+from app.orchestration.reader import Read, needs_reading, read_mentions
 from app.orchestration.router import RouteDecision
 from app.orchestration.services import Services
 from app.orchestration.staging import (
@@ -104,6 +105,7 @@ class ChatJob:
     # When the person said it: the time of their logged entries and Logged lines (#51)
     said: datetime = field(default_factory=lambda: datetime.now(UTC))
     crisis_recent: bool = False  # read once, at the start (C.16)
+    entries: TurnEntries = field(default_factory=TurnEntries)  # all coaches' logs
     outcome: Outcome | None = None  # for the background writer (C.2 stage 15)
 
     def __post_init__(self) -> None:
@@ -144,7 +146,10 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
         results: dict[AgentName, AgentResult] = {}
         untrusted: dict[AgentName, bool] = {}
         if not agents:
-            own = gated(decision.reply or "", profile or NO_PROFILE)
+            reply = decision.reply or ""
+            read = _reader(job, services, profile, meters)
+            own = gated(reply, profile or NO_PROFILE,
+                        read=await read([reply]) if read is not None else None)
             await c.reply(own)
         else:
             results, untrusted = await _coaches(job, services, agents, profile, history,
@@ -234,6 +239,21 @@ async def _route(job: ChatJob, services: Services, profile: UserProfile | None,
     raise AssertionError("unreachable")
 
 
+def _reader(job: ChatJob, services: Services, profile: UserProfile | None,
+            meters: "_Meters") -> Reader | None:
+    """The mention reader for this turn's prose (Part E #59): none without one, or for a
+    profile with nothing to protect. Each read has its own time limit, inside the
+    request's."""
+    if services.reader is None or not needs_reading(profile):
+        return None
+    llm = services.reader
+
+    async def read(texts: list[str]) -> Read | None:
+        return await read_mentions(llm, _plan(job, READER, "reader", meters, READER_S), texts)
+
+    return read
+
+
 async def _fail(job: ChatJob, code: str, meters: "_Meters") -> None:
     """No answer at all: a spend cap is a notice (C.5), anything else an error."""
     c = job.composer
@@ -262,14 +282,15 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
                             trace_id=job.admitted.trace_id, user_id=job.principal.user_id,
                             sessions=job.sessions, gate_write=write_gate(profile),
                             search=services.search, search_keys=job.admitted.search_keys,
-                            said=job.said, tz=zone(job.payload.timezone))
+                            said=job.said, tz=zone(job.payload.timezone), turn=job.entries)
         result = await services.coaches[agent].run(AgentRun(
             message=job.payload.message, profile=profile, history=history, tools=tools,
             now=now_note(zone(job.payload.timezone), job.said),
             deadline=deadline, principal=job.principal.fairness_key,
             meter=meters.get("meal_photo" if photo else agent),
             images=(job.image,) if photo else (), others=tuple(a for a in agents if a != agent),
-            trace=job.trace, crisis_recent=job.crisis_recent))
+            trace=job.trace, crisis_recent=job.crisis_recent,
+            read=_reader(job, services, profile, meters)))
         if caveat and result.reply is not None and result.reply.kind == "plan":
             result.warnings.append(caveat)
         untrusted[agent] = tools.untrusted
@@ -324,7 +345,8 @@ async def _writes(job: ChatJob, services: Services, saved: Saved, hash_: str,
         await c.committed(saved.committed, job.said, tz)
         note = await logged_note(
             services.summary, _plan(job, LOGGED_NOTE, "logged_note", meters, LOGGED_NOTE_S),
-            job.payload.message, [w for w, _ in saved.committed], job.said, tz, profile)
+            job.payload.message, [w for w, _ in saved.committed], job.said, tz, profile,
+            _reader(job, services, profile, meters))
         if note is not None:
             await c.logged_note(note)
     for write, pending in saved.pending:
@@ -369,7 +391,9 @@ async def _summary(job: ChatJob, services: Services, results: dict[AgentName, Ag
     if not reply.text or reply.truncated:
         return None
     fresh = _not_repeated(trim(reply.text.strip(), SUMMARY_CHARS), results)
-    text = gated(fresh, profile or NO_PROFILE, closing=True)
+    read = _reader(job, services, profile, meters)
+    text = gated(fresh, profile or NO_PROFILE, closing=True,
+                 read=await read([fresh]) if read is not None else None)
     return text if text.text else None
 
 

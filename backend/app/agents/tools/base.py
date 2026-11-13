@@ -38,6 +38,16 @@ async def allow_all(kind: WriteKind, args: BaseModel, ctx: "ToolContext") -> Gat
 
 
 @dataclass
+class TurnEntries:
+    """Every coach's tool context in one message, so a cap counts all their entries."""
+
+    contexts: list["ToolContext"] = field(default_factory=list)
+
+    def count(self) -> int:
+        return sum(len(c.staged_writes) for c in self.contexts)
+
+
+@dataclass
 class ToolContext:
     mode: Literal["guest", "account"]
     trace_id: str
@@ -55,6 +65,15 @@ class ToolContext:
     # these (Part E #51); None is the moment the tool runs
     said: datetime | None = None
     tz: ZoneInfo = UTC_ZONE
+    # Shared by the coaches of one message (ENTRIES_PER_TURN); None: this context alone
+    turn: TurnEntries | None = None
+
+    def __post_init__(self) -> None:
+        if self.turn is not None:
+            self.turn.contexts.append(self)
+
+    def entries_in_turn(self) -> int:
+        return self.turn.count() if self.turn is not None else len(self.staged_writes)
 
     def clear_staged(self) -> None:
         """A retry starts without the writes of the failed attempt (Plan C.10 step 6)."""

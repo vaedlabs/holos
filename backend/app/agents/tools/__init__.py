@@ -2,7 +2,7 @@
 
 from app.agents.schemas import AgentName
 
-from .base import GateHook, GateResult, Tool, ToolContext, allow_all
+from .base import GateHook, GateResult, Tool, ToolContext, TurnEntries, allow_all
 from .read import GET_RECENT_LOGS
 from .web_search import WEB_SEARCH, WebSearch, get_web_search
 from .write import LOG_MEAL, LOG_PRACTICE, LOG_WORKOUT
@@ -20,6 +20,7 @@ __all__ = [
     "GateResult",
     "Tool",
     "ToolContext",
+    "TurnEntries",
     "WebSearch",
     "allow_all",
     "get_web_search",

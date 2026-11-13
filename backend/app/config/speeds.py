@@ -44,6 +44,12 @@ SUMMARY = SMALL_FREE_TEXT
 # just past p95: about 1 in 20 sentences is dropped, and the record has said it already.
 LOGGED_NOTE = Speed(1.2, 2.2, 2.4, 4.0)
 LOGGED_NOTE_S = 2.5
+# The mention reader (Part E #59), measured 11 Nov 2026 on 594 reads of 1–4 sentences
+# (prompt version 9, about 6,900 tokens in, nearly all cached). The time limit sits just
+# past p99: a late read leaves the gate its word lists, as before the reader (owner
+# approved, 11 Nov 2026).
+READER = Speed(1.24, 1.80, 2.10, 3.64)
+READER_S = 4.0
 
 # The SDK's own timeout ends up to this much late (Part D); our bound doesn't rely on it
 TIMEOUT_OVERSHOOT_S = 0.5

@@ -218,6 +218,27 @@ async def test_a_slow_call_gets_a_backup_and_the_first_reply_wins():
     assert rp._scheduler.in_use("openai") == 0
 
 
+class SlowMeter(Meter):
+    """A database that takes a while to keep a hold."""
+
+    async def keep(self, hold):
+        await asyncio.sleep(0.2)
+        await super().keep(hold)
+
+
+async def test_a_call_still_keeping_its_hold_when_the_race_ends_keeps_it():
+    """Break suite seed 101 (Part E #59): the first call fails (usage unknown, so its
+    hold is kept), the backup wins while that is still being written, and ending the
+    race cancelled the write: the hold stayed reserved for the rest of the period."""
+    meter = SlowMeter()
+    rp, _, _, _, clock = _make([Slow(0.15, ProviderStalled("silent")),
+                                Slow(0.1, BACKUP_OK)], real_time=True)
+    result = await rp.generate(MSG, plan=_plan(clock, left=3, speed=FAST, meter=meter))
+    assert result.parsed == BACKUP_OK.parsed
+    await asyncio.sleep(0.3)  # the kept hold lands after the reply
+    assert meter.ends() == ["keep", "settle"]
+
+
 async def test_a_call_faster_than_p90_gets_no_backup():
     rp, primary, _, _, clock = _make([Slow(0.02, OK)], real_time=True)
     await rp.generate(MSG, plan=_plan(clock, left=3, speed=FAST))

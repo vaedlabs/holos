@@ -336,7 +336,7 @@ class ResilientProvider:
                 await self._scheduler.acquire(name, plan.principal,
                                               start_by=plan.deadline - plan.speed.p95)
             except BaseException:
-                await self._release(plan, hold)
+                await asyncio.shield(self._release(plan, hold))
                 raise
         except BaseException as exc:
             breaker.end_trial()  # no call was made
@@ -445,6 +445,7 @@ class ResilientProvider:
         streaming = _streams(route)
         options = route.options
         outcome = "keep"  # timed out, cancelled or unparsable: usage unknown
+        usage: Usage | None = None
 
         def speed_sample() -> float:
             # Streaming: time to first output, the start that backups key on
@@ -479,23 +480,20 @@ class ResilientProvider:
                 if plan.kind:
                     self._backups.record_time(plan.kind, speed_sample())
                 raise
-            outcome = "settle"
+            outcome, usage = "settle", result.usage
             if plan.kind:
                 self._backups.record_time(plan.kind, speed_sample())
-            if plan.meter is not None and hold is not None:
-                await plan.meter.settle(hold, options, result.usage)
             return result
         finally:
             self._scheduler.release(name, plan.principal, held_s=self._clock() - started)
-            if outcome == "keep" and race.usage is not None and plan.meter is not None \
-                    and hold is not None:
+            if outcome == "keep" and race.usage is not None:
                 # Lost the race: the same request, so the winner's usage is the best
                 # estimate of what this one was billed (Part E #32)
-                await plan.meter.settle(hold, options, race.usage)
-            elif outcome == "keep":
-                await self._keep(plan, hold)
-            elif outcome == "release":
-                await self._release(plan, hold)
+                outcome, usage = "settle", race.usage
+            # Shielded: a call cancelled while it settles (the race ends while a
+            # timed-out call is keeping its hold) would leave the hold reserved for the
+            # rest of the period (break suite, Part E #59)
+            await asyncio.shield(self._account(plan, hold, options, outcome, usage))
 
     def _progress(self, watch: _Watch, record: Attempt,
                   trace: Trace) -> Callable[[bool], None]:
@@ -558,6 +556,16 @@ class ResilientProvider:
     async def _keep(self, plan: CallPlan, hold: Any | None) -> None:
         if plan.meter is not None and hold is not None:
             await plan.meter.keep(hold)
+
+    async def _account(self, plan: CallPlan, hold: Any | None, options: GenerateOptions,
+                       outcome: str, usage: Usage | None) -> None:
+        """A call's hold, settled at its usage, kept at its maximum or released."""
+        if outcome == "settle" and plan.meter is not None and hold is not None:
+            await plan.meter.settle(hold, options, usage)
+        elif outcome == "keep":
+            await self._keep(plan, hold)
+        elif outcome == "release":
+            await self._release(plan, hold)
 
     def _delay(self, attempt: int, retry_after: float | None) -> float:
         if retry_after is not None:

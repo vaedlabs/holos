@@ -18,6 +18,7 @@ from app.agents.nutrition import NutritionAgent
 from app.agents.physical import PhysicalAgent
 from app.agents.schemas import AgentName
 from app.agents.tools.web_search import WebSearch, get_web_search
+from app.config.limits import MENTION_READER
 from app.orchestration.router import Router
 from app.providers import Backups, Breakers, GenerateOptions, ResilientProvider, Route
 from app.providers.base import LLMProvider
@@ -28,6 +29,9 @@ from app.providers.scheduler import FairScheduler
 ROUTER_OPTIONS = GenerateOptions(model=MODEL, max_output_tokens=300)
 # The multi-coach summary: free text, at most 600 characters (C.3)
 SUMMARY_OPTIONS = GenerateOptions(model=MODEL, max_output_tokens=300)
+# The mention reader (Part E #59): about 35 tokens out per reply measured; a long reply
+# of many sentences needs more
+READER_OPTIONS = GenerateOptions(model=MODEL, max_output_tokens=800)
 COACHES: dict[AgentName, type[BaseAgent]] = {
     "physical": PhysicalAgent, "nutrition": NutritionAgent, "mental": MentalAgent}
 
@@ -39,6 +43,7 @@ class Services:
     summary: ResilientProvider
     search: WebSearch | None
     breaker: CircuitBreaker  # the chat provider's: admission refuses while it is open
+    reader: ResilientProvider | None = None  # None: the gate's word lists alone
 
 
 def build_services(provider: LLMProvider, *, search: WebSearch | None = None,
@@ -57,6 +62,7 @@ def build_services(provider: LLMProvider, *, search: WebSearch | None = None,
         summary=llm(SUMMARY_OPTIONS),
         search=search,
         breaker=breakers[provider.name],
+        reader=llm(READER_OPTIONS) if MENTION_READER else None,
     )
 
 

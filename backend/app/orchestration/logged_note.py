@@ -18,6 +18,7 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from app.agents.base import Reader
 from app.agents.clock import when_text
 from app.agents.schemas import StagedWrite, UserProfile
 from app.agents.style import STYLE_NOTE, writing_style
@@ -50,7 +51,7 @@ def note_prompt(message: str, saved: list[StagedWrite], at: datetime, tz: ZoneIn
 
 async def logged_note(llm: ResilientProvider, plan: CallPlan, message: str,
                       saved: list[StagedWrite], at: datetime, tz: ZoneInfo,
-                      profile: UserProfile | None) -> str | None:
+                      profile: UserProfile | None, read: Reader | None = None) -> str | None:
     try:
         reply = await llm.generate([Turn("user", note_prompt(message, saved, at, tz))],
                                    plan=plan, system=PROMPT)
@@ -61,5 +62,7 @@ async def logged_note(llm: ResilientProvider, plan: CallPlan, message: str,
         return None
     if not reply.text or reply.truncated:
         return None
-    text = gated(reply.text.strip()[:NOTE_CHARS], profile or NO_PROFILE, after_save=True).text
+    text = reply.text.strip()[:NOTE_CHARS]
+    text = gated(text, profile or NO_PROFILE, after_save=True,
+                 read=await read([text]) if read is not None else None).text
     return text or None

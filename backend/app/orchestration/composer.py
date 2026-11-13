@@ -18,7 +18,7 @@ interleave and `seq` follows the order sent.
 import asyncio
 import contextlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
@@ -98,8 +98,9 @@ class Gated:
 
 
 def gated(text: str, profile: UserProfile, after_save: bool = False,
-          closing: bool = False) -> Gated:
-    result = gate_text(text, profile, after_save=after_save, closing=closing)
+          closing: bool = False, read: Mapping[str, Sequence[str]] | None = None) -> Gated:
+    """`read`: the mention reader's answer for `text` (Part E #59), or None."""
+    result = gate_text(text, profile, after_save=after_save, closing=closing, read=read)
     return Gated(result.content.strip(), tuple(decisions_of(result)))
 
 

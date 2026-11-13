@@ -40,6 +40,7 @@ from app.orchestration.principal import csrf_token
 from app.orchestration.router import Router
 from app.orchestration.services import (
     COACHES,
+    READER_OPTIONS,
     ROUTER_OPTIONS,
     SUMMARY_OPTIONS,
     Services,
@@ -117,11 +118,12 @@ def _mental(risk=False):
 class Models:
     """One fake per call kind: parallel coaches each read their own script."""
 
-    def __init__(self, router=(), physical=(), nutrition=(), mental=(), summary=()):
+    def __init__(self, router=(), physical=(), nutrition=(), mental=(), summary=(),
+                 reader=None):
         self.fakes = {name: FakeProvider(list(script), name="openai")
                       for name, script in (("router", router), ("physical", physical),
                                            ("nutrition", nutrition), ("mental", mental),
-                                           ("summary", summary))}
+                                           ("summary", summary), ("reader", reader or ()))}
         breakers = Breakers()
 
         def llm(name, options):
@@ -130,7 +132,9 @@ class Models:
         self.services = Services(
             router=Router(llm("router", ROUTER_OPTIONS)),
             coaches={n: cls(llm(n, cls.options())) for n, cls in COACHES.items()},
-            summary=llm("summary", SUMMARY_OPTIONS), search=None, breaker=breakers["openai"])
+            summary=llm("summary", SUMMARY_OPTIONS), search=None, breaker=breakers["openai"],
+            # None: no reading, as before the reader (Part E #59)
+            reader=llm("reader", READER_OPTIONS) if reader is not None else None)
 
 
 def _app(store, async_engine, models: Models, images=None) -> FastAPI:
@@ -358,6 +362,58 @@ async def test_no_second_try_when_the_coaches_would_lose_time_to_it(store, async
                                  _payload()))
     assert (events[-1][0], events[-1][1]["code"]) == ("error", "connection")
     assert len(models.fakes["router"].calls) == 1
+
+
+# --- The mention reader (Part E #59) ---
+
+
+def _reads(*sentences):
+    from app.orchestration.reader import ReaderMention, ReaderReply, ReaderSentence
+    reply = ReaderReply(sentences=[
+        ReaderSentence(n=n, mentions=[ReaderMention(item=i, stance=st) for i, st in ms])
+        for n, ms in enumerate(sentences, 1)])
+    return _result(reply)
+
+
+def _devanagari_squats():
+    return _result(PhysicalReply(kind="answer", summary="आज रात 12 स्क्वाट करें। Keep it gentle.",
+                                 items=[], notes=[], source_ids=[], follow_up=None,
+                                 risk_flag=False))
+
+
+async def test_the_reader_removes_what_the_word_lists_cant_see(store, async_engine):
+    models = Models(router=[_route("physical")], physical=[_devanagari_squats()] * 3,
+                    reader=[_reads([("bodyweight_squat", "recommends")], [])] * 3)
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("leg workout", guest_history=[], guest_profile={
+                                     "condition_ids": ["knee_ligament_injury"],
+                                     "allergen_tags": [], "diet_tags": [], "notes": ""})))
+    said = " ".join(d["chunk"] for n, d in events if n == "text")
+    assert "स्क्वाट" not in said and "Keep it gentle." in said
+    assert "EX-KNEE-01" in [x["rule_id"] for x in events[-1][1]["trace"]["decisions"]]
+    assert models.fakes["reader"].calls[0].messages[-1].text == (
+        "1. आज रात 12 स्क्वाट करें।\n2. Keep it gentle.")
+
+
+async def test_a_profile_with_nothing_to_protect_is_not_read(store, async_engine):
+    models = Models(router=[_route("physical")], physical=[_devanagari_squats()], reader=[])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("leg workout")))
+    assert events[-1][0] == "done" and models.fakes["reader"].calls == []
+
+
+async def test_without_the_reader_the_word_lists_still_check(store, async_engine, monkeypatch):
+    down = ProviderUnavailable("down", "openai")
+    models = Models(router=[_route("physical")], physical=[_physical("glute_bridge")],
+                    reader=[down] * 6)
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("leg workout", guest_history=[], guest_profile={
+                                     "condition_ids": ["knee_ligament_injury"],
+                                     "allergen_tags": [], "diet_tags": [], "notes": ""})))
+    assert events[-1][0] == "done"
+    assert [d["agent"] for n, d in events if n == "section_start"] == ["physical"]
+    steps = [s["name"] for s in events[-1][1]["trace"]["steps"]]
+    assert "reader" in steps
 
 
 async def test_coaches_chosen_in_the_app_skip_routing(store, async_engine):

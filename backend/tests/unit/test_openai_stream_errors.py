@@ -107,3 +107,14 @@ async def test_a_plain_rate_limit_is_still_retried():
     with pytest.raises(RateLimited) as caught:
         await _generate(_provider(body, 429))
     assert caught.value.retryable
+
+
+async def test_running_out_of_credit_mid_stream_is_an_account_failure():
+    """Live, 11 Nov 2026: the stream began, then an `error` event said the credit was
+    gone; it was retried as an outage, and nobody was told (Part E #55, #59)."""
+    body = _sse(CREATED, {"type": "error", "sequence_number": 1, "error": {
+        "type": "insufficient_quota", "code": "credit_balance_exhausted",
+        "message": "You have no credits remaining. Add credits to continue using the API."}})
+    with pytest.raises(AccountFailure) as caught:
+        await _generate(_provider(body))
+    assert caught.value.cause == "account"

@@ -7,8 +7,9 @@ from sqlalchemy.exc import OperationalError
 
 from app.agents.clock import zone
 from app.agents.schemas import Decision, WriteWarning
-from app.agents.tools import AGENT_TOOLS, GateResult, ToolContext
+from app.agents.tools import AGENT_TOOLS, GateResult, ToolContext, TurnEntries
 from app.agents.tools import write as write_tools
+from app.config.limits import ENTRIES_PER_TURN
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
@@ -141,6 +142,39 @@ async def test_unknown_catalogue_id_is_invalid_and_not_staged(account_ctx):
     out = await TOOLS["log_workout"].run(args, account_ctx)
     assert out["status"] == "invalid_arguments"
     assert account_ctx.staged_writes == []
+
+
+# --- Limits a hostile or confused model can't pass (Part E #59) ---
+
+
+async def test_one_message_logs_at_most_its_cap_across_every_coach():
+    turn = TurnEntries()
+    physical = ToolContext(mode="guest", trace_id="t", turn=turn)
+    nutrition = ToolContext(mode="guest", trace_id="t", turn=turn)
+    for _ in range(ENTRIES_PER_TURN - 1):
+        assert (await TOOLS["log_workout"].run(WRITES["log_workout"][1], physical)
+                )["status"] == "staged"
+    assert (await TOOLS["log_meal"].run(WRITES["log_meal"][1], nutrition))["status"] == "staged"
+    out = await TOOLS["log_workout"].run(WRITES["log_workout"][1], physical)
+    assert out == {"status": "refused", "reason": write_tools.TOO_MANY}
+    assert turn.count() == ENTRIES_PER_TURN
+
+
+@pytest.mark.parametrize("activity, logged", [
+    ("Barbell back squats", "back_squat"),
+    ("pistol squats", "pistol_squat"),
+    ("Archery", "other_activity"),
+    ("Archery, no squats", "other_activity"),
+    ("squats and lunges", "other_activity"),  # two exercises: kept as they named it
+])
+async def test_another_activity_named_after_one_exercise_is_that_exercise(account_ctx,
+                                                                           activity, logged):
+    args = {**WRITES["log_workout"][1], "catalogue_id": "other_activity",
+            "activity": activity}
+    await TOOLS["log_workout"].run(args, account_ctx)
+    [staged] = account_ctx.staged_writes
+    assert staged.args.catalogue_id == logged
+    assert staged.args.activity == (activity if logged == "other_activity" else None)
 
 
 async def test_retry_clears_staged_writes(account_ctx):
