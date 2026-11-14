@@ -36,6 +36,8 @@ def build() -> dict[str, str]:
         "schema/history_turn.json": _schema(schemas.HistoryTurn),
         "schema/trace_view.json": _schema(schemas.TraceView),
         "schema/stream_event.json": schemas.STREAM_EVENT.json_schema(),
+        "schema/history_page.json": _schema(schemas.HistoryPage),
+        "schema/import_payload.json": _schema(schemas.ImportPayload),
     }
     # The exact schemas sent to the providers
     for name, model in schemas.REPLY_MODELS.items():

@@ -441,11 +441,11 @@ async def test_an_account_profile_is_resolved_and_the_turn_saved(store, async_en
     end = [d for n, d in events if n == "section_end"][0]
     assert "We couldn't check this note: 'medications: ibuprofen'" in end["warnings"]
     assert "turn" not in events[-1][1]  # accounts: the server keeps the history
-    rows = await sql(async_engine, "SELECT role, content, agent_type, client_request_id "
-                     "FROM conversation_messages ORDER BY id")
-    assert rows == [("user", "a leg workout", "user", rid),
-                    ("assistant", "Here is your plan.\n1. Glute bridge: 2 x 10", "physical",
-                     None)]
+    rows = await sql(async_engine, "SELECT role, content, agents, client_request_id, "
+                     "trace_id FROM conversation_messages ORDER BY id")
+    assert rows == [("user", "a leg workout", None, rid, None),
+                    ("assistant", "Here is your plan.\n1. Glute bridge: 2 x 10", ["physical"],
+                     None, events[0][1]["trace_id"])]
     # The next turn's history is that conversation
     models2 = Models(router=[_route("physical")], physical=[_physical("glute_bridge")])
     await _post(_app(store, async_engine, models2), me, _payload("make it easier"))

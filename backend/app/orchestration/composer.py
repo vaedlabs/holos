@@ -29,6 +29,7 @@ from app.agents.clock import UTC_ZONE, when_text
 from app.agents.display import history_text, item_display, keep_lines
 from app.agents.schemas import (
     EVENT_DATA,
+    SHOWN,
     TERMINAL_EVENTS,
     AgentName,
     AgentResult,
@@ -117,6 +118,8 @@ class Composer:
     # Progress the trace reported, waiting to go out ahead of whatever is sent next
     _queued: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
     _flush: asyncio.Task | None = None
+    # What the person was shown, for the history (C.5 History, Part E #61)
+    _shown: list[dict[str, Any]] = field(default_factory=list)
 
     # --- Opening and progress ---
 
@@ -269,6 +272,11 @@ class Composer:
     def ended(self) -> bool:
         return self._ended
 
+    @property
+    def shown(self) -> list[dict[str, Any]]:
+        """The content events sent so far, in order, without `seq` and `trace_id`."""
+        return list(self._shown)
+
     # --- Sending ---
 
     async def _text(self, text: Gated, fields: dict[str, Any]) -> None:
@@ -298,6 +306,9 @@ class Composer:
                         if k in model.model_fields_set}
                 batch.append((data["seq"], name, data))
             await self.sink.emit(batch, final)
+            self._shown += [{"event": name, "data": {k: v for k, v in data.items()
+                                                     if k not in ("seq", "trace_id")}}
+                            for _, name, data in batch if name in SHOWN]
             self._seq += len(batch)
             self._last_sent = self.clock()
             self._ended = final

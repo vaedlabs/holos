@@ -2,6 +2,7 @@
 
     turn = await load_context(principal, payload, sessions)   # profile, history, unchecked
     await save_turn(principal, sessions, payload, assistant_turn)   # accounts only
+    await save_display(sessions, user_id, trace_id, composer.shown)  # before `done`
     resolved = await load_profile(sessions, user_id)         # an account's, alone
 
 Guest: both come from the payload, and nothing is stored on the server. Account: the
@@ -13,20 +14,20 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agents.schemas import AgentName, ChatPayload, HistoryTurn, UserProfile
 from app.data.repositories.messages import MessageRepository
 from app.data.repositories.profile import ProfileRepository
+from app.data.state_store import card_states
+from app.models import ConversationMessage
 from app.orchestration.principal import Principal
 from app.storage.profile import Resolved, resolve_profile, with_note_terms
 
 HISTORY_TURNS = 6
 TURN_CHARS = 2000
 AGENTS: tuple[AgentName, ...] = ("physical", "nutrition", "mental")
-# The old app's agent_type values
-_OLD_AGENTS = {"physical-fitness": "physical", "mental-fitness": "mental",
-               "nutrition": "nutrition"}
 
 Sessions = async_sessionmaker[AsyncSession]
 
@@ -62,8 +63,7 @@ async def _resolved(session: AsyncSession, user_id: int) -> Resolved:
 def _turn(row) -> HistoryTurn:
     agents = None
     if row.role == "assistant":
-        names = [_OLD_AGENTS.get(a.strip(), a.strip()) for a in (row.agent_type or "").split(",")]
-        agents = [a for a in AGENTS if a in names] or None
+        agents = [a for a in AGENTS if a in (row.agents or ())] or None
     return HistoryTurn(role=row.role, content=(row.content or "")[:TURN_CHARS], agents=agents,
                        ts=row.created_at)
 
@@ -71,15 +71,33 @@ def _turn(row) -> HistoryTurn:
 async def save_turn[T](principal: Principal, sessions: Sessions,
                        client_request_id: uuid.UUID, message: str, turn: HistoryTurn,
                        also: Callable[[AsyncSession], Awaitable[T]] | None = None,
-                       image_key: str | None = None) -> T | None:
-    """The person's message and what they saw, in one transaction (C.2 stage 13), with
-    `also` (the turn's writes) in the same one. The message carries
+                       image_key: str | None = None, trace_id: str | None = None
+                       ) -> T | None:
+    """The person's message and the answer's history text, in one transaction (C.2
+    stage 13), with `also` (the turn's writes) in the same one. The message carries
     `client_request_id`: its unique key is the second lock against a request answered
-    twice (C.5)."""
+    twice (C.5). What the person saw follows with `save_display`."""
     async with sessions() as session, session.begin():
         messages = MessageRepository(session, principal.user_id)
-        await messages.add("user", message, agent_type="user", image_path=image_key,
+        await messages.add("user", message, image_path=image_key,
                            client_request_id=client_request_id)
-        await messages.add("assistant", turn.content,
-                           agent_type=",".join(turn.agents or []) or "holos")
+        await messages.add("assistant", turn.content, agents=turn.agents, trace_id=trace_id)
         return await also(session) if also is not None else None
+
+
+async def save_display(sessions: Sessions, user_id: int, trace_id: str,
+                       shown: list[dict]) -> None:
+    """What the person saw (C.5 History), after the turn's last card and before `done`.
+    Each held entry's card takes its entry's state under the entry's row lock, the lock
+    a decision takes first, so a Confirm tapped meanwhile is never lost (C.17)."""
+    ids = [e["data"]["write_id"] for e in shown if e["event"] == "pending_write"]
+    async with sessions() as session, session.begin():
+        states = await card_states(await session.connection(), user_id, ids)
+        display = [{**e, "data": {**e["data"], "state": states[e["data"]["write_id"]]}}
+                   if e["event"] == "pending_write" else e for e in shown]
+        await session.execute(
+            update(ConversationMessage)
+            .where(ConversationMessage.user_id == user_id,
+                   ConversationMessage.trace_id == trace_id,
+                   ConversationMessage.role == "assistant")
+            .values(display=display))

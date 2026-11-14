@@ -127,8 +127,7 @@ async def _photo_message(async_engine, user_id: int, images) -> str:
     key = image_key(user_id)
     await images.put(key, b"jpg")
     await sql(async_engine, "INSERT INTO conversation_messages (user_id, role, content, "
-              "agent_type, image_path) VALUES (:u, 'user', 'is this ok?', 'user', :k)",
-              u=user_id, k=key)
+              "image_path) VALUES (:u, 'user', 'is this ok?', :k)", u=user_id, k=key)
     return key
 
 

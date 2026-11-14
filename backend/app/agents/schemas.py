@@ -599,6 +599,9 @@ class TraceView(_Model):
 
 
 class _EventData(_Model):
+    """The envelope every event has. What an event shows the person is its `…Shown`
+    model, which a saved turn keeps without the envelope (C.5 History, Part E #61)."""
+
     seq: int = Field(ge=0)
     trace_id: str = Field(max_length=64)
 
@@ -617,19 +620,27 @@ class StepData(_EventData):
     detail: str | None = Field(default=None, max_length=200)
 
 
-class SectionStartData(_EventData):
+class SectionStartShown(_Model):
     agent: AgentName
     kind: ReplyKind
 
 
-class ItemData(_EventData):
+class SectionStartData(SectionStartShown, _EventData):
+    pass
+
+
+class ItemShown(_Model):
     agent: AgentName
     item: ExerciseItem | FoodItem | PracticeItem
     display: str = Field(max_length=300)
     caveats: list[str] = []
 
 
-class TextData(_EventData):
+class ItemData(ItemShown, _EventData):
+    pass
+
+
+class TextShown(_Model):
     """One coach's text, the multi-coach summary, or neither: Holos's own reply."""
 
     agent: AgentName | None = None
@@ -643,17 +654,29 @@ class TextData(_EventData):
         return self
 
 
-class SourcesData(_EventData):
+class TextData(TextShown, _EventData):
+    __doc__ = TextShown.__doc__
+
+
+class SourcesShown(_Model):
     agent: AgentName
     sources: list[Source] = Field(min_length=1, max_length=5)
 
 
-class SectionEndData(_EventData):
+class SourcesData(SourcesShown, _EventData):
+    pass
+
+
+class SectionEndShown(_Model):
     agent: AgentName
     removed_count: int = Field(ge=0)
     decisions: list[Decision] = []
     warnings: list[Annotated[str, Field(max_length=400)]] = []
     error: AgentError | None = None  # the coach failed: no section_start came before
+
+
+class SectionEndData(SectionEndShown, _EventData):
+    pass
 
 
 class ConfirmWrite(_Model):
@@ -675,22 +698,13 @@ class ImportLog(_Model):
     at: datetime
 
 
-class ImportPayload(_Model):
-    """POST /account/import (C.18). Logs are read one by one (ImportLog)."""
-
-    import_id: UUID
-    profile: UserProfile | None = None
-    history: list[HistoryTurn] = Field(default=[], max_length=IMPORT_TURNS)
-    logs: list[dict[str, Any]] = Field(default=[], max_length=IMPORT_LOG_ENTRIES)
-
-
 class ProfileNotes(_Model):
     """POST /profile/check: a guest's notes, checked and not stored (Part E #42)."""
 
     notes: str = Field(max_length=1000)
 
 
-class PendingWriteData(_EventData):
+class PendingWriteShown(_Model):
     summary: str = Field(max_length=300)
     # What to confirm: each conflict as text, and the attributes the person may say they
     # left out (Part E #45); empty when only a web search holds the write
@@ -716,6 +730,19 @@ class PendingWriteData(_EventData):
         return self
 
 
+class PendingWriteData(PendingWriteShown, _EventData):
+    pass
+
+
+# A held entry's card in a saved turn (C.17 "Cards in history", Part E #61): `closed` is a
+# guest's card still waiting at import, which the account can't confirm
+CardState = Literal["waiting", "logged", "discarded", "blocked", "replaced", "closed"]
+
+
+class HistoryCard(PendingWriteShown):
+    state: CardState = "waiting"
+
+
 class CommittedWrite(_Model):
     kind: WriteKind
     summary: str = Field(max_length=300)  # "Logged: Breakfast: Poha · 8:15 pm"
@@ -725,15 +752,23 @@ class CommittedWrite(_Model):
     warnings: list[Annotated[str, Field(max_length=300)]] = []  # as logged, left-outs too
 
 
-class CommittedData(_EventData):
+class CommittedShown(_Model):
     writes: list[CommittedWrite] = Field(min_length=1)
 
 
-class LoggedNoteData(_EventData):
+class CommittedData(CommittedShown, _EventData):
+    pass
+
+
+class LoggedNoteShown(_Model):
     """After `committed`: one sentence from the coach about what was just saved (owner,
     Part E #54 B). Optional: when it fails or is late, the record has said it."""
 
     text: str = Field(min_length=1, max_length=300)
+
+
+class LoggedNoteData(LoggedNoteShown, _EventData):
+    __doc__ = LoggedNoteShown.__doc__
 
 
 class Helpline(_Model):
@@ -742,14 +777,22 @@ class Helpline(_Model):
     contact: str
 
 
-class CrisisData(_EventData):
+class CrisisShown(_Model):
     text: str
     helplines: list[Helpline] = Field(min_length=1)
 
 
-class NoticeData(_EventData):
+class CrisisData(CrisisShown, _EventData):
+    pass
+
+
+class NoticeShown(_Model):
     code: Literal["cap_reached", "search_off", "partial_result", "month_budget_used"]
     message: str = Field(max_length=300)
+
+
+class NoticeData(NoticeShown, _EventData):
+    pass
 
 
 class ErrorData(_EventData):
@@ -797,6 +840,76 @@ StreamEvent = Annotated[
     reduce(operator.or_, EVENT_MODELS.values()), Field(discriminator="event")
 ]
 STREAM_EVENT = TypeAdapter(StreamEvent)
+
+
+# --- History (C.5 History, C.21, Part E #61) ---
+
+# What a saved turn keeps: the events that show the person something, in the order sent,
+# without the envelope; a held entry's card with its state
+SHOWN: dict[str, type[_Model]] = {
+    "section_start": SectionStartShown,
+    "text": TextShown,
+    "item": ItemShown,
+    "sources": SourcesShown,
+    "section_end": SectionEndShown,
+    "pending_write": HistoryCard,
+    "committed": CommittedShown,
+    "logged_note": LoggedNoteShown,
+    "crisis": CrisisShown,
+    "notice": NoticeShown,
+}
+DISPLAY_EVENTS = 200  # per turn: three week plans (65 items) and their text fit
+
+
+def _shown(name: str, data: type[_Model]) -> type[_Model]:
+    return type(
+        f"Shown{name.title().replace('_', '')}Event",
+        (_Model,),
+        {"__annotations__": {"event": Literal[name], "data": data}},
+    )
+
+
+ShownEvent = Annotated[
+    reduce(operator.or_, (_shown(n, d) for n, d in SHOWN.items())), Field(discriminator="event")
+]
+DISPLAY = TypeAdapter(list[ShownEvent])
+
+
+class HistoryMessage(_Model):
+    id: int
+    role: Literal["user", "assistant"]
+    text: str  # the person's message, or the models' history text (C.5)
+    agents: list[AgentName] | None = None  # who answered; null for Holos's own reply
+    display: list[ShownEvent] | None = Field(default=None, max_length=DISPLAY_EVENTS)
+    photo: str | None = None  # /conversation/images/{name}
+    at: datetime
+
+
+class HistoryPage(_Model):
+    messages: list[HistoryMessage]
+    before: int | None = None  # the oldest message here, for the next page; null: no more
+
+
+class ImportTurn(HistoryTurn):
+    """A guest's turn as the browser kept it: an answer may carry what the person saw
+    (C.18 "Import history", Part E #61)."""
+
+    display: list[ShownEvent] | None = Field(default=None, max_length=DISPLAY_EVENTS)
+
+    @model_validator(mode="after")
+    def _display_on_assistant_only(self):
+        if self.role == "user" and self.display is not None:
+            raise ValueError("display is only set on assistant turns")
+        return self
+
+
+class ImportPayload(_Model):
+    """POST /account/import (C.18). Logs are read one by one (ImportLog)."""
+
+    import_id: UUID
+    profile: UserProfile | None = None
+    history: list[ImportTurn] = Field(default=[], max_length=IMPORT_TURNS)
+    logs: list[dict[str, Any]] = Field(default=[], max_length=IMPORT_LOG_ENTRIES)
 
 
 # --- Provider schema ---

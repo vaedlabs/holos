@@ -56,10 +56,8 @@ async def import_guest(sessions: Sessions, user_id: int,
 
         messages = MessageRepository(session, user_id)
         for turn in payload.history:
-            agents = ",".join(turn.agents or [])
-            await messages.add(turn.role, turn.content,
-                               agent_type="user" if turn.role == "user" else agents or "holos",
-                               created_at=turn.ts)
+            await messages.add(turn.role, turn.content, agents=turn.agents,
+                               display=_shown(turn.display), created_at=turn.ts)
 
         skipped, review, logged = [], [], 0
         for index, raw in enumerate(payload.logs):
@@ -95,6 +93,18 @@ def _read(raw: dict) -> tuple[ImportLog | None, str]:
     if entry.at > datetime.now(UTC) + FUTURE_SLACK:
         return None, "this entry is dated in the future"
     return entry, ""
+
+
+def _shown(display: list | None) -> list[dict] | None:
+    """A guest's answer as they saw it; a card still waiting can't be confirmed on the
+    account (C.18 "Import history")."""
+    if display is None:
+        return None
+    shown = [e.model_dump(mode="json", exclude_unset=True) for e in display]
+    for e in shown:
+        if e["event"] == "pending_write" and e["data"].get("state", "waiting") == "waiting":
+            e["data"]["state"] = "closed"
+    return shown
 
 
 def _rewarned(write: StagedWrite, now: list) -> tuple[StagedWrite, list]:

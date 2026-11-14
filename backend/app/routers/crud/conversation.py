@@ -1,7 +1,7 @@
 """The account's chat history and its photos. The chat stream saves both (P4.7); a
 photo arrives with its message.
 
-    GET    /conversation/messages?agent_type=   → the history, oldest first
+    GET    /conversation/messages?before=&limit= → a page of the history (C.21)
     GET    /conversation/images/{name}          → one of the account's photos
     DELETE /conversation/messages               → the history and its photos
 
@@ -10,15 +10,17 @@ pool. The clear removes messages in one transaction and photos after it; a photo
 fails to go is queued for the job (deletion_queue, C.18).
 """
 
-import json
 import logging
 import re
 
-from fastapi import APIRouter, Depends, Response, status
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Depends, Query, Response, status
+from pydantic import ValidationError
+from sqlalchemy import delete, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session
 
+from app.agents.schemas import DISPLAY, HistoryMessage, HistoryPage
+from app.config.limits import HISTORY_PAGE, HISTORY_PAGE_MAX
 from app.dependencies import (
     get_current_user,
     get_database,
@@ -31,11 +33,6 @@ from app.models.conversation_message import ConversationMessage
 from app.models.user import User
 from app.orchestration.principal import Principal
 from app.routers.errors import ApiError
-from app.schemas.conversation import (
-    AgentType,
-    ConversationHistoryResponse,
-    ConversationMessageResponse,
-)
 from app.storage.deletion import delete_or_queue
 from app.storage.images import ImageStore, user_prefix
 
@@ -47,34 +44,53 @@ IMAGE_FILENAME = re.compile(r"\d+_[0-9a-f]{8}\.jpg")  # images/{id}_{8 hex}.jpg,
 IMAGE_NAME = re.compile(r"[0-9a-f]{32}\.jpg")  # users/{id}/{uuid hex}.jpg (P4.9)
 
 
-def _parse_warnings(warnings_json: str | None) -> list | None:
-    """Warnings are stored as JSON; missing or malformed gives None."""
-    if not warnings_json:
-        return None
-    try:
-        return json.loads(warnings_json)
-    except json.JSONDecodeError:
-        log.warning("Could not parse warnings JSON: %s", warnings_json)
-        return None
-
-
-@router.get("/messages", response_model=ConversationHistoryResponse)
+@router.get("/messages", response_model=HistoryPage)
 def get_conversation_history(
-    agent_type: AgentType | None = None,
+    before: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=HISTORY_PAGE, ge=1, le=HISTORY_PAGE_MAX),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_database),
-):
-    query = db.query(ConversationMessage).filter(
-        ConversationMessage.user_id == current_user.id)
-    if agent_type:
-        query = query.filter(ConversationMessage.agent_type == agent_type)
-    messages = query.order_by(ConversationMessage.created_at.asc()).all()
-    return ConversationHistoryResponse(messages=[
-        ConversationMessageResponse(
-            id=msg.id, role=msg.role, content=msg.content,
-            warnings=_parse_warnings(msg.warnings), image_path=msg.image_path,
-            agent_type=msg.agent_type, created_at=msg.created_at)
-        for msg in messages])
+) -> HistoryPage:
+    """The messages just older than `before`, or the newest, oldest first (C.21). In
+    time order, so an imported turn sits at its own time."""
+    mine = ConversationMessage.user_id == current_user.id
+    at = tuple_(ConversationMessage.created_at, ConversationMessage.id)
+    query = select(ConversationMessage).where(mine)
+    if before is not None:
+        edge = db.execute(select(ConversationMessage.created_at, ConversationMessage.id)
+                          .where(mine, ConversationMessage.id == before)).one_or_none()
+        if edge is None:
+            raise ApiError(404, "not_found", "There is no such message.")
+        query = query.where(at < tuple_(edge.created_at, edge.id))
+    rows = list(db.scalars(query.order_by(ConversationMessage.created_at.desc(),
+                                          ConversationMessage.id.desc()).limit(limit + 1)))
+    page = rows[:limit][::-1]
+    return HistoryPage(messages=[_message(r) for r in page],
+                       before=page[0].id if len(rows) > limit else None)
+
+
+def _message(row: ConversationMessage) -> HistoryMessage:
+    return HistoryMessage(id=row.id, role=row.role, text=row.content,
+                          agents=row.agents or None, display=_display(row),
+                          photo=_photo(row.image_path), at=row.created_at)
+
+
+def _display(row: ConversationMessage) -> list | None:
+    """What the person saw; one that no longer validates shows as the text (C.21)."""
+    if row.display is None:
+        return None
+    try:
+        return DISPLAY.validate_python(row.display)
+    except ValidationError:
+        log.warning("history display no longer valid: message=%s", row.id)
+        return None
+
+
+def _photo(key: str | None) -> str | None:
+    name = (key or "").rsplit("/", 1)[-1]
+    if IMAGE_NAME.fullmatch(name) or IMAGE_FILENAME.fullmatch(name):
+        return f"/conversation/images/{name}"
+    return None
 
 
 @router.get("/images/{name}")

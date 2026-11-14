@@ -167,6 +167,44 @@ def test_the_old_agent_log_is_dropped_and_comes_back_as_it_was(fresh):
         assert conn.execute(text("SELECT count(*) FROM agent_execution_logs")).scalar() == 0
 
 
+# Every agent_type the old app and P4.7 saved, and what each answer's coaches become
+AGENT_TYPES = [("user", "user", None), ("assistant", "holos", None),
+               ("assistant", "coordinator", None), ("assistant", "physical", ["physical"]),
+               ("assistant", "physical-fitness", ["physical"]),
+               ("assistant", "mental-fitness", ["mental"]),
+               ("assistant", "nutrition,mental", ["nutrition", "mental"]),
+               ("assistant", "mental, physical", ["physical", "mental"]),
+               ("assistant", "physical,nutrition,mental", ["physical", "nutrition", "mental"])]
+
+
+def test_who_answered_becomes_a_list_and_comes_back(fresh):
+    """4b5c6d7e8f96 (Part E #61): `agents` replaces the comma list, old names mapped; the
+    downgrade writes the comma list back as P4.7 wrote it."""
+    alembic("upgrade", "3a4b5c6d7e85")
+    before = _shape(fresh, "conversation_messages")
+    with fresh.begin() as conn:
+        conn.execute(text("INSERT INTO users (id, email, username, password_hash) "
+                          "VALUES (1, 'a@x.io', 'a', 'h')"))
+        for role, agent_type, _ in AGENT_TYPES:
+            conn.execute(text("INSERT INTO conversation_messages (user_id, role, content, "
+                              "agent_type, warnings) VALUES (1, :r, 'x', :a, '[\"old\"]')"),
+                         {"r": role, "a": agent_type})
+    alembic("upgrade", "head")
+    with fresh.connect() as conn:
+        assert [r[0] for r in conn.execute(text(
+            "SELECT agents FROM conversation_messages ORDER BY id"))] == [
+            agents for _, _, agents in AGENT_TYPES]
+    alembic("downgrade", "3a4b5c6d7e85")
+    # The columns come back at the end of the table: Postgres can't place them
+    after = _shape(fresh, "conversation_messages")
+    assert (sorted(after[0]), after[1:]) == (sorted(before[0]), before[1:])
+    with fresh.connect() as conn:
+        assert [r[0] for r in conn.execute(text(
+            "SELECT agent_type FROM conversation_messages ORDER BY id"))] == [
+            "user", "holos", "holos", "physical", "physical", "mental", "nutrition,mental",
+            "physical,mental", "physical,nutrition,mental"]
+
+
 def test_schema_matches_models(migrated):
     with migrated.connect() as conn:
         diff = compare_metadata(
@@ -231,6 +269,8 @@ def _value(table: sa.Table, column: sa.Column, user_id: int):
         return True
     if isinstance(kind, sa.JSON):
         return {}
+    if isinstance(kind, sa.ARRAY):
+        return [f"{table.name}-{column.name}"]
     if isinstance(kind, sa.Numeric) and not isinstance(kind, sa.Float):
         return Decimal("0")
     if isinstance(kind, sa.Float):

@@ -72,7 +72,7 @@ from app.orchestration.staging import (
 )
 from app.providers import CallPlan, ImageInput, ProviderError, Turn
 from app.providers.base import trim
-from app.storage.context import Sessions, load_context, save_turn
+from app.storage.context import Sessions, load_context, save_display, save_turn
 from app.storage.images import ImageStore, image_key
 from app.storage.profile import unchecked_caveat
 
@@ -188,12 +188,15 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
             try:
                 saved = await save_turn(job.principal, job.sessions,
                                         job.payload.client_request_id, job.payload.message,
-                                        turn, also, image_key=key)
+                                        turn, also, image_key=key,
+                                        trace_id=job.admitted.trace_id)
             except BaseException:
                 if key is not None:  # no message points at it: don't leave it behind
                     await _forget_image(job, key)
                 raise
         await _writes(job, services, saved, hash_, profile, meters)
+        if job.principal.user_id is not None:
+            await _save_display(job)
         decisions = [d for r in results.values() for d in r.decisions]
         decisions += [*(own.decisions if own else ()), *(summary.decisions if summary else ())]
         sources = [s for r in results.values() for s in r.sources]
@@ -356,6 +359,16 @@ async def _writes(job: ChatJob, services: Services, saved: Saved, hash_: str,
             await c.pending_write(write, at=write.at or pending.at,
                                   write_id=str(pending.write_id))
     await _count_activities(job, saved)
+
+
+async def _save_display(job: ChatJob) -> None:
+    """What the person saw, for the history, after the last card (C.17 "Cards in
+    history"). A failure is only logged: the turn then shows as its text."""
+    try:
+        await save_display(job.sessions, job.principal.user_id, job.admitted.trace_id,
+                           job.composer.shown)
+    except Exception:
+        log.warning("display not saved: trace=%s", job.admitted.trace_id, exc_info=True)
 
 
 async def _count_activities(job: ChatJob, saved: Saved) -> None:

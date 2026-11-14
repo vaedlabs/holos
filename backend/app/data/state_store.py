@@ -14,7 +14,7 @@ import json
 import random
 import secrets
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -575,13 +575,13 @@ class StateStore:
             reason = await regate(payload)
             if reason is not None:
                 blocked = {"code": "blocked", "message": f"Not logged: {reason}"}
-                await _decide(conn, write_id, "discarded", 409, blocked)
+                await _decide(conn, user_id, row, write_id, "discarded", 409, blocked)
                 return ConfirmResult(409, blocked)
 
             async with AsyncSession(bind=conn) as session:
                 body = await commit(session, payload)
                 await session.flush()
-            await _decide(conn, write_id, "committed", 200, body)
+            await _decide(conn, user_id, row, write_id, "committed", 200, body)
             return ConfirmResult(200, body)
 
     async def discard_write(self, write_id: uuid.UUID, user_id: int) -> ConfirmResult:
@@ -595,14 +595,14 @@ class StateStore:
                 return ConfirmResult(409, {"code": "logged",
                                            "message": "This entry is already logged."})
             if row["status"] == "pending":
-                await _decide(conn, write_id, "discarded", 409, DISCARDED)
+                await _decide(conn, user_id, row, write_id, "discarded", 409, DISCARDED)
         return ConfirmResult(200, {"discarded": True})
 
     @staticmethod
     async def _decidable(conn: AsyncConnection, write_id: uuid.UUID, user_id: int):
         return (await conn.execute(
-            text("SELECT kind, payload, status, result, created_at FROM pending_writes "
-                 "WHERE id = :id AND user_id = :uid FOR UPDATE"),
+            text("SELECT kind, payload, status, result, created_at, trace_id "
+                 "FROM pending_writes WHERE id = :id AND user_id = :uid FOR UPDATE"),
             {"id": write_id, "uid": user_id},
         )).mappings().one_or_none()
 
@@ -646,9 +646,13 @@ REPLACED = {"code": "replaced", "message": "A newer entry replaced this one. "
             "Please log it again if you still want it."}
 
 
-async def _decide(conn: AsyncConnection, write_id: uuid.UUID, status: str, status_code: int,
+async def _decide(conn: AsyncConnection, user_id: int, row: Mapping[str, Any],
+                  write_id: uuid.UUID, status: str, status_code: int,
                   body: dict[str, Any]) -> None:
-    """The entry's answer, kept a day for repeat taps; a discarded entry's content goes."""
+    """The entry's answer, kept a day for repeat taps; a discarded entry's content goes.
+    Its card in the history follows (C.17 "Cards in history")."""
+    await mark_cards(conn, user_id, [(row["trace_id"], str(write_id),
+                                      card_state(status, body))])
     await conn.execute(
         text("UPDATE pending_writes SET status = :status, result = CAST(:result AS json), "
              "confirmed_at = now(), expires_at = now() + :kept, payload = CASE "
@@ -666,13 +670,15 @@ async def stage_pending(
     transaction: a chat turn stages it with the turn's messages. It has no time limit;
     it replaces the waiting entries of its kind from earlier turns, so one turn's entries
     of each kind wait (owner, 7 Nov 2026, Part E #50)."""
-    await conn.execute(
+    replaced = (await conn.execute(
         text("UPDATE pending_writes SET status = 'discarded', result = CAST(:result AS json), "
              "confirmed_at = now(), expires_at = now() + :kept, payload = CAST('{}' AS json) "
              "WHERE user_id = :uid AND kind = :kind AND status = 'pending' "
-             "AND trace_id <> :trace"),
+             "AND trace_id <> :trace RETURNING id, trace_id"),
         {"result": _json({"status_code": 410, "body": REPLACED}),
-         "kept": limits.DECIDED_WRITE_KEPT, "uid": user_id, "kind": kind, "trace": trace_id})
+         "kept": limits.DECIDED_WRITE_KEPT, "uid": user_id, "kind": kind, "trace": trace_id},
+    )).all()
+    await mark_cards(conn, user_id, [(r.trace_id, str(r.id), "replaced") for r in replaced])
     row = (await conn.execute(
         text(
             "INSERT INTO pending_writes (id, user_id, kind, payload, profile_hash, "
@@ -683,6 +689,50 @@ async def stage_pending(
          "hash": profile_hash, "trace": trace_id},
     )).one()
     return Pending(row.id, row.created_at)
+
+
+def card_state(status: str, body: Mapping[str, Any] | None) -> str:
+    """A held entry's card in the history, from its decision (C.17 "Cards in history")."""
+    if status == "pending":
+        return "waiting"
+    if status == "committed":
+        return "logged"
+    code = (body or {}).get("code")
+    return code if code in ("discarded", "blocked", "replaced") else "discarded"
+
+
+async def card_states(conn: AsyncConnection, user_id: int, write_ids: list[str]
+                      ) -> dict[str, str]:
+    """Each entry's card state, holding its row lock until the caller commits; one that's
+    gone can't be confirmed any more."""
+    rows = (await conn.execute(
+        text("SELECT id, status, result FROM pending_writes "
+             "WHERE user_id = :uid AND id = ANY(:ids) FOR UPDATE"),
+        {"uid": user_id, "ids": [uuid.UUID(i) for i in write_ids]})).all()
+    found = {str(r.id): card_state(r.status, (r.result or {}).get("body")) for r in rows}
+    return {i: found.get(i, "closed") for i in write_ids}
+
+
+async def mark_cards(conn: AsyncConnection, user_id: int,
+                     marks: list[tuple[str, str, str]]) -> None:
+    """Set held entries' cards, as (trace_id, write_id, state), in the turns that showed
+    them. A turn whose display isn't saved yet takes the state when it is."""
+    by_turn: dict[str, dict[str, str]] = {}
+    for trace_id, write_id, state in marks:
+        by_turn.setdefault(trace_id, {})[write_id] = state
+    for trace_id, states in by_turn.items():
+        row = (await conn.execute(
+            text("SELECT id, display FROM conversation_messages WHERE user_id = :uid "
+                 "AND trace_id = :trace AND role = 'assistant' AND display IS NOT NULL "
+                 "FOR UPDATE"), {"uid": user_id, "trace": trace_id})).one_or_none()
+        if row is None:
+            continue
+        display = [{**e, "data": {**e["data"], "state": states[e["data"]["write_id"]]}}
+                   if e["event"] == "pending_write" and e["data"].get("write_id") in states
+                   else e for e in row.display]
+        await conn.execute(
+            text("UPDATE conversation_messages SET display = CAST(:d AS json) WHERE id = :id"),
+            {"d": _json(display), "id": row.id})
 
 
 def _json(value: Any) -> str:

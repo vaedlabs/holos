@@ -15,15 +15,17 @@ class MessageRepository(UserScopedRepository):
         self,
         role: str,
         content: str,
-        agent_type: str = "coordinator",
-        warnings: str | None = None,
+        agents: list[str] | None = None,
         image_path: str | None = None,
         client_request_id: uuid.UUID | None = None,
+        trace_id: str | None = None,
+        display: list[dict] | None = None,
         created_at: datetime | None = None,  # an imported turn keeps its time
     ) -> ConversationMessage:
         row = ConversationMessage(
-            user_id=self._user_id, role=role, content=content, agent_type=agent_type,
-            warnings=warnings, image_path=image_path, client_request_id=client_request_id,
+            user_id=self._user_id, role=role, content=content, agents=agents,
+            image_path=image_path, client_request_id=client_request_id, trace_id=trace_id,
+            display=display,
         )
         if created_at is not None:
             row.created_at = created_at
