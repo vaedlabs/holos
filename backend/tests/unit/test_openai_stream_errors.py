@@ -118,3 +118,17 @@ async def test_running_out_of_credit_mid_stream_is_an_account_failure():
     with pytest.raises(AccountFailure) as caught:
         await _generate(_provider(body))
     assert caught.value.cause == "account"
+
+
+@pytest.mark.parametrize(("code", "error"), [("server_error", ProviderUnavailable),
+                                             ("insufficient_quota", AccountFailure)])
+async def test_a_failed_response_event_is_mapped_like_an_error_event(code, error):
+    """`response.failed` comes out of the SDK as an event, not an exception: the stream
+    loop maps it itself, with the same out-of-credit check."""
+    failed = {"type": "response.failed", "sequence_number": 1, "response": {
+        **CREATED["response"], "status": "failed",
+        "error": {"code": code, "message": "The model failed to respond."}}}
+    with pytest.raises(error, match="response.failed") as caught:
+        await _generate(_provider(_sse(CREATED, failed)))
+    assert caught.value.request_id == "req_abc"
+    assert caught.value.retryable == (error is ProviderUnavailable)

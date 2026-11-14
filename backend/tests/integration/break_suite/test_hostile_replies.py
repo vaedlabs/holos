@@ -166,11 +166,12 @@ def _cases():
     return out
 
 
-# What the word lists alone miss: the mention reader catches these (Part E #59),
-# measured live in tests/paid/test_reader_live.py, since a scripted reader proves nothing
+# What the word lists alone miss, so the person reads it while the mention reader is off
+# (limits.MENTION_READER). With it on, the reader catches these (Part E #59), measured
+# live in tests/paid/test_reader_live.py, since a scripted reader proves nothing
 WORD_LIST_GAPS = ("-devanagari", "-breath_hold", "-synonym_pistol", "untagged_devanagari")
 CASES = [pytest.param(c, id=c[0], marks=pytest.mark.xfail(
-            strict=True, reason="word lists alone: the reader covers it"))
+            strict=True, reason="word lists alone miss it; the reader is off"))
          if any(g in c[0] for g in WORD_LIST_GAPS) and not c[0].startswith("heart-item_note")
          # (box breathing holds the breath: for a heart condition the item goes, note and all)
          else pytest.param(c, id=c[0])
