@@ -5,10 +5,13 @@ can be activated again. Who deactivates, and why, is still the owner's decision.
 import pytest
 import pytest_asyncio
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.data.state_store import StateStore
+from app.dependencies import get_current_user
 from app.orchestration.passwords import get_password_hash
 from app.orchestration.principal import Principal
+from app.routers.errors import ApiError
 from app.storage.images import LocalImageStore
 
 from .accounts import account_app, call
@@ -54,6 +57,21 @@ async def test_a_session_of_an_account_switched_off_directly_is_refused(store, a
     await sql(async_engine, "UPDATE users SET is_active = false WHERE id = :u", u=me.user_id)
     assert await store.touch_session(me.raw_session_id) is None
     assert (await call(app, me, "GET", "/profile/check")).status_code == 401
+
+
+@pytest.mark.parametrize(("change", "status", "code"), [
+    ("UPDATE users SET is_active = false WHERE id = :u", 403, "inactive"),
+    ("DELETE FROM users WHERE id = :u", 401, "no_session"),
+])
+async def test_an_account_switched_off_after_its_session_was_read_gets_nothing(
+        store, async_engine, change, status, code):
+    """A request whose session passed just before the change: the account routes still
+    refuse it when they load the user."""
+    me = await account(store, async_engine)
+    await sql(async_engine, change, u=me.user_id)
+    with pytest.raises(ApiError) as caught:
+        await get_current_user(me, async_sessionmaker(async_engine))
+    assert (caught.value.status, caught.value.code) == (status, code)
 
 
 async def test_an_inactive_account_cant_sign_in_until_activated(store, async_engine, app):

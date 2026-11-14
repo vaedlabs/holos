@@ -861,6 +861,28 @@ async def test_a_clean_log_has_no_warnings_in_its_row(store, async_engine):
     assert await sql(async_engine, "SELECT warnings FROM nutrition_logs") == [(None,)]
 
 
+@pytest.mark.parametrize(("moods", "note", "row"), [
+    ((2, 4), "before bed", ("2", "4", "before bed")),
+    ((None, None), "", (None, None, None)),  # not said: nothing made up
+])
+async def test_a_logged_practice_keeps_its_moods_and_note(store, async_engine, moods, note,
+                                                          row):
+    me = await account(store, async_engine)
+    practice = {"catalogue_id": "body_scan", "duration_min": 10, "mood_before": moods[0],
+                "mood_after": moods[1], "note": note}
+    models = Models(router=[_route("mental")], mental=[
+        _calls(("log_practice", practice)),
+        _result(MentalReply(kind="log_ack", summary="Well done.", items=[], notes=[],
+                            source_ids=[], follow_up=None, risk_flag=False))])
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("did a 10 minute body scan")))
+    await _settled()
+    assert "committed" in _names(events)
+    assert await sql(async_engine, "SELECT activity_type, duration_minutes, mood_before, "
+                     "mood_after, notes, warnings FROM mental_fitness_logs") == [
+        ("body_scan", 10.0, *row, None)]
+
+
 async def test_unchecked_ingredients_are_recorded_but_ask_nothing(store, async_engine):
     me = await account(store, async_engine)
     await sql(async_engine, "INSERT INTO user_preferences (user_id, dietary_restrictions) "

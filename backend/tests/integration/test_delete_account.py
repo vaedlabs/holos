@@ -123,6 +123,44 @@ async def test_a_failed_image_delete_is_queued_and_the_job_clears_it(store, asyn
     assert await images.get(key) is None
 
 
+async def _photo_message(async_engine, user_id: int, images) -> str:
+    key = image_key(user_id)
+    await images.put(key, b"jpg")
+    await sql(async_engine, "INSERT INTO conversation_messages (user_id, role, content, "
+              "agent_type, image_path) VALUES (:u, 'user', 'is this ok?', 'user', :k)",
+              u=user_id, k=key)
+    return key
+
+
+async def test_clearing_the_chat_deletes_its_photos(store, async_engine, tmp_path):
+    images = LocalImageStore(tmp_path)
+    me = await account(store, async_engine)
+    other = await account(store, async_engine, email="other@example.com")
+    mine = await _photo_message(async_engine, me.user_id, images)
+    theirs = await _photo_message(async_engine, other.user_id, images)
+    response = await call(account_app(store, async_engine, images), me, "DELETE",
+                          "/conversation/messages")
+    assert response.status_code == 204
+    assert await sql(async_engine, "SELECT user_id FROM conversation_messages") == [
+        (other.user_id,)]
+    assert await images.get(mine) is None and await images.get(theirs) == b"jpg"
+
+
+async def test_a_photo_that_cant_be_deleted_on_clearing_is_queued(store, async_engine,
+                                                                  tmp_path):
+    images = Flaky(tmp_path, fails=1)
+    me = await account(store, async_engine)
+    key = await _photo_message(async_engine, me.user_id, images)
+    response = await call(account_app(store, async_engine, images), me, "DELETE",
+                          "/conversation/messages")
+    # The messages are gone at once; only the photo waits for the job
+    assert response.status_code == 204
+    assert await sql(async_engine, "SELECT count(*) FROM conversation_messages") == [(0,)]
+    assert await sql(async_engine, "SELECT prefix FROM deletion_queue") == [(key,)]
+    assert await retry_deletions(async_engine, images) == 1
+    assert await images.get(key) is None
+
+
 async def test_a_guest_cant_delete_an_account(store, async_engine, tmp_path):
     from .test_admission import guest
     response = await call(account_app(store, async_engine, LocalImageStore(tmp_path)),

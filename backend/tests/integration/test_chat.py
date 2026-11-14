@@ -786,3 +786,29 @@ async def test_a_request_past_its_hard_limit_stops_its_coaches(store, async_engi
     assert events[-1][0] == "error"
     await asyncio.sleep(1.2)
     assert answered == []
+
+
+async def test_a_bug_in_a_request_ends_its_stream_and_frees_its_slot(store, async_engine,
+                                                                    monkeypatch, caplog):
+    """Whatever escapes the turn, the person gets the error, not a stream left open, and
+    can send again."""
+    real = worker.run_chat
+
+    async def broken(job, services):
+        raise RuntimeError("a bug")
+
+    monkeypatch.setattr(worker, "run_chat", broken)
+    me = await guest(store)
+    # Bounded: without the error event the stream would stay open
+    response = await asyncio.wait_for(_post(_app(store, async_engine, Models()), me,
+                                            _payload()), 10)
+    events = _events(response)
+    await _settled()
+    assert events[-1] == ("error", {**events[-1][1], "code": "unavailable"})
+    assert await sql(async_engine, "SELECT count(*) FROM inflight_leases") == [(0,)]
+    assert any("cause=bug" in r.getMessage() for r in caplog.records)
+
+    monkeypatch.setattr(worker, "run_chat", real)
+    models = Models(router=[_route("physical")], physical=[_physical("plank")])
+    assert _names(_events(await _post(_app(store, async_engine, models), me,
+                                      _payload())))[-1] == "done"
