@@ -579,6 +579,64 @@ def test_a_logged_exercise_may_be_named_in_the_reply():
     assert result.content["summary"].startswith("Back squats")
 
 
+# --- A logged entry recommended again (Part E #62) ---
+
+
+def _workout(cid):
+    return [{"catalogue_id": cid, "sets": 3, "reps": 10, "duration_s": None, "note": ""}]
+
+
+PEANUT = Profile(allergen_tags=("peanut",))
+HEART = Profile(condition_ids=("heart_condition",))
+SQUATS_LOGGED, JUMPS_LOGGED = _workout("back_squat"), _workout("jump_squat")
+PANEER_LOGGED = [{"meal": "dinner", "foods": [PANEER]}]
+CHIKKI = food("Peanut chikki", ["peanut", "jaggery"], ["peanut"])
+CHIKKI_LOGGED = [{"meal": "snack", "foods": [CHIKKI]}]
+BOX_LOGGED = [{"catalogue_id": "box_breathing", "duration_min": 5, "mood_before": None,
+               "mood_after": None, "note": ""}]
+
+
+@pytest.mark.parametrize(("domain", "profile", "logged", "said"), [
+    ("physical", KNEE, SQUATS_LOGGED, "Keep doing back squats 3 times a week."),
+    ("physical", KNEE, SQUATS_LOGGED, "Do back squats again tomorrow."),
+    ("physical", KNEE, SQUATS_LOGGED, "Kal se roz back squats karo."),
+    ("nutrition", VEGAN, PANEER_LOGGED, "Have paneer again tomorrow for protein."),
+    ("nutrition", VEGAN, PANEER_LOGGED, "Make paneer a staple in your dinners."),
+    ("nutrition", PEANUT, CHIKKI_LOGGED, "Peanut chikki is a great snack to have daily."),
+    ("nutrition", PEANUT, CHIKKI_LOGGED, "Peanut chikki phir se kha sakte ho."),
+    ("mental", HEART, BOX_LOGGED, "Try box breathing every night before bed."),
+])
+def test_a_logged_entry_recommended_again_is_removed(domain, profile, logged, said):
+    result = gate(domain, reply(summary=f"Well done. {said}"), profile, logged=logged,
+                  held=True)
+    assert result.content["summary"] == "Well done."
+
+
+# Said live (12 Nov 2026 set), about the entry just logged: each stays
+@pytest.mark.parametrize(("domain", "profile", "logged", "said"), [
+    ("physical", KNEE, SQUATS_LOGGED,
+     "Back squats (3 sets of 10) put high load on your knee ligament injury."),
+    ("physical", KNEE, JUMPS_LOGGED,
+     "Aaj ke 3 jump squats mein knee ligament injury ke saath high knee load aur impact hai."),
+    ("nutrition", VEGAN, PANEER_LOGGED, "Paneer is protein-rich, but it isn't vegan."),
+    ("nutrition", PEANUT, CHIKKI_LOGGED,
+     "Agar peanut khane ke baad saans mein dikkat, gale/chehre ki sujan ya chakkar ho, "
+     "turant emergency help lo."),
+    ("mental", HEART, BOX_LOGGED, "Box breathing for 5 minutes before bed involves breath "
+                                  "holds, which conflicts with your heart condition."),
+])
+def test_what_was_logged_may_still_be_named(domain, profile, logged, said):
+    result = gate(domain, reply(summary=said), profile, logged=logged, held=True)
+    assert result.content["summary"] == said
+
+
+def test_a_photos_food_recommended_again_is_removed():
+    reply_ = meal(CHIKKI, kind="answer",
+                  summary="This looks like peanut chikki. Have peanut chikki again tomorrow.")
+    result = gate("nutrition", reply_, PEANUT, purpose="photo")
+    assert result.content["summary"] == "This looks like peanut chikki."
+
+
 # --- A held entry (Part E #52) ---
 
 

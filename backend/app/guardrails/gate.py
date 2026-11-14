@@ -24,9 +24,9 @@ A meal photo shows food the user already has (owner, Part E #31): an item confli
 a warning naming it ("Likely contains gluten, which is in your allergies"), never a
 block, so it is neither retried nor removed. Prose is gated as for a plan, except that
 naming a food that is one of the photo's own items describes the plate, not a
-recommendation ("This looks like a chicken sandwich"); any other conflicting food
-in the prose is removed as usual. A user with allergies or a diet also gets
-PHOTO_CAVEAT on the reply.
+recommendation ("This looks like a chicken sandwich"), unless the sentence looks ahead
+("have it again tomorrow"); any other conflicting food in the prose is removed as usual.
+A user with allergies or a diet also gets PHOTO_CAVEAT on the reply.
 """
 
 import copy
@@ -119,6 +119,18 @@ REFUSAL_CLAIM = re.compile(
 CARD_CLAIM = re.compile(
     r"^(?=.*(?:\bconfirm|कन्फर्म|पुष्टि))"
     r"(?=.*(?:\bcards?\b|\ba?wait|\bbelow\b|\bneeche\b|कार्ड|इंतज़ार|इंतजार|नीचे))")
+# A logged entry or a photo's own food may be named: it is what the person had (Part E
+# #31, #45). A sentence that also looks ahead recommends it, so it is checked like any
+# other (Part E #62: "Keep doing back squats" passed for a knee injury). Measured on 16
+# live sentences naming a logged item: none looks ahead. Bare "kal" is yesterday too.
+LOOKS_AHEAD = re.compile(
+    r"\b(?:again|keep|keeps|tomorrow|next (?:time|week|session|meal|day)|more often"
+    r"|more of|daily|every (?:day|morning|evening|night|week)|each (?:day|week)|regularly"
+    r"|routine|continue|carry on|stick (?:with|to)|times a (?:day|week)|per week|repeat"
+    r"|habit|staple|try|phir|phirse|dobara|roz|rozana|har din|kal se|kal bhi"
+    r"|karte (?:raho|rahiye|rahein)|khate (?:raho|rahiye|rahein)|jaari rakh\w*)\b"
+    r"|(?<!\w)(?:फिर|दोबारा|रोज़|रोज|रोजाना|हर दिन|कल से|कल भी)"
+)
 
 
 def _as_list(value: Any) -> list:
@@ -340,7 +352,8 @@ class _Check:
         # descriptions, other names (Part E #59)
         found |= {e for key in self.read.get(read_key(sentence), ())
                   if (e := self.matcher.entry(key)) is not None}
-        for entry in sorted(found - set(self.on_plate), key=lambda e: e.key):
+        exempt = set() if LOOKS_AHEAD.search(folded) else self.on_plate
+        for entry in sorted(found - exempt, key=lambda e: e.key):
             for rule in self.entry_hits(entry):
                 self.decision(rule.severity.value, rule.id, rule.reason, [entry.name])
                 ok = ok and rule.severity != "block"
@@ -454,7 +467,8 @@ def gate(
     purpose="photo": a nutrition reply about a meal photo (C.14 step 7).
     logged: the entries the person logged this turn (write arguments). Like a photo's
     foods, they are what the person already had, so a sentence naming them stays: live,
-    a vegan's paneer log lost its whole acknowledgement (Part E #45).
+    a vegan's paneer log lost its whole acknowledgement (Part E #45). A sentence that
+    looks ahead ("keep doing them") is checked as usual (Part E #62).
     held: one of them waits for the person's confirmation (Part E #52).
     read: what the mention reader found each sentence recommends (read_key -> items)."""
     if domain not in ITEM_KIND:
