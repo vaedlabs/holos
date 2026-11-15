@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { api, setToken } from '@/lib/api'
+import { signIn } from '@/lib/api'
 import { useRedirectIfAuthenticated } from '@/hooks/useAuth'
 import Silk from '@/components/Silk'
 
@@ -50,8 +51,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await api.login(email, password)
-      setToken(response.access_token)
+      await signIn(email, password)
       router.push('/dashboard')
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.')
@@ -161,7 +161,8 @@ export default function LoginPage() {
           </button>
         </form>
         <p style={{ marginTop: '1.5rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.9)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
-          Don&apos;t have an account? <a href="/register" style={{ color: '#00d4ff', textDecoration: 'none', fontWeight: '600', textShadow: '0 0 8px rgba(0, 212, 255, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3)' }}>Register here</a>
+          Accounts are by invite: open the link you were sent. Or{' '}
+          <Link href="/" style={{ color: '#00d4ff', textDecoration: 'none', fontWeight: '600' }}>try Holos as a guest</Link>.
         </p>
       </div>
     </div>

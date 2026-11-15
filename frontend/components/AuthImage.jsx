@@ -1,15 +1,14 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { getToken, API_URL } from '@/lib/api'
+import { API_URL } from '@/lib/api'
 
 /**
- * Renders an authenticated image from the conversation images endpoint.
- * Uses fetch() with the Bearer token to get the image data, converts it
- * to a blob URL, and renders a standard <img>. The blob URL is revoked
- * when the component unmounts.
+ * One of the account's photos (Plan C.8): fetched with the session cookie, shown from a
+ * blob URL that is revoked when the component unmounts.
  *
  * Props:
- *   imagePath  - relative path stored in DB, e.g. "images/{user_id}_{uuid}.jpg"
+ *   imagePath  - the history's `photo` ("/conversation/images/{name}"), or an old
+ *                stored path ("images/{name}")
  *   style      - optional inline styles forwarded to <img>
  *   alt        - alt text
  */
@@ -20,15 +19,11 @@ export default function AuthImage({ imagePath, style, alt = 'Uploaded image' }) 
   useEffect(() => {
     if (!imagePath) return
 
-    const token = getToken()
-    if (!token) return
-
-    // imagePath is like "images/{filename}" — the endpoint expects just the filename
-    const filename = imagePath.replace(/^images\//, '')
+    const name = imagePath.split('/').pop()
 
     let cancelled = false
-    fetch(`${API_URL}/conversation/images/${encodeURIComponent(filename)}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    fetch(`${API_URL}/conversation/images/${encodeURIComponent(name)}`, {
+      credentials: 'include',
     })
       .then(r => (r.ok ? r.blob() : null))
       .then(blob => {

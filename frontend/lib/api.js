@@ -1,410 +1,187 @@
 /**
- * API client for backend communication
+ * The API client (Plan C.6, P5.1): cookie sessions and the CSRF token.
+ *
+ *   await startGuest(turnstileToken)          // a guest session
+ *   await signIn(email, password)             // an account session
+ *   const session = await currentSession()    // {mode, csrf_token, expires_at} or null
+ *   await api.getMedicalHistory()             // any route; errors throw ApiError
+ *
+ * The session lives in an HttpOnly cookie the browser sends with `credentials:
+ * 'include'`. State-changing requests also send X-CSRF-Token: the token arrives with the
+ * session and is kept in memory only; a new tab asks GET /session/csrf. A 403
+ * `bad_csrf` fetches the token again and retries once. Every error is the server's
+ * `{code, message}` body, shown to the person as it is.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-/**
- * Get auth token from localStorage
- */
-function getToken() {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    // Clean token - remove quotes and whitespace if present
-    if (token) {
-      return token.trim().replace(/^["']|["']$/g, '');
-    }
-    return null;
-  }
-  return null;
+const SAFE = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+// When the body says nothing (a proxy's error page, a dropped connection)
+const FALLBACK = {
+  network: "Holos can't be reached right now. Check your connection and try again.",
+  401: 'Your session has ended. Please sign in again.',
+  403: "This request wasn't allowed. Please reload the page.",
+  404: "That isn't here any more.",
+  413: 'That is too large to send.',
+  429: "You've reached the limit for now. Please try again later.",
+  500: 'Something went wrong. Please try again.',
+  503: 'Holos is busy right now. Please try again in a moment.',
 }
 
-/**
- * Set auth token in localStorage
- */
-function setToken(token) {
-  if (typeof window !== 'undefined') {
-    // Ensure token is a string and clean (no extra quotes)
-    const cleanToken = String(token).trim().replace(/^["']|["']$/g, '');
-    localStorage.setItem('token', cleanToken);
-    // Only log in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Token stored (first 30 chars):', cleanToken.substring(0, 30) + '...');
-    }
-  }
-}
-
-/**
- * Remove auth token from localStorage
- */
-function removeToken() {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('token');
+export class ApiError extends Error {
+  constructor(status, code, message, retryAfter = null, details = null) {
+    super(message)
+    this.status = status
+    this.code = code
+    this.retryAfter = retryAfter
+    this.details = details
   }
 }
 
-/**
- * Returns true for fetch/network errors (connection refused, CORS, etc.)
- */
-function isNetworkError(error) {
-  return (
-    error.name === 'TypeError' ||
-    error.message?.includes('fetch') ||
-    error.message === 'Failed to fetch' ||
-    error.message?.includes('Cannot connect')
-  );
+let csrf = null
+
+/** Keep the token a session start, sign-in or GET /session/csrf returned. */
+export function rememberSession(body) {
+  csrf = body?.csrf_token ?? null
+  return body
 }
 
-/**
- * Standard user-facing message when the backend is unreachable
- */
-function networkErrorMessage() {
-  return `Cannot connect to backend server at ${API_URL}. Please make sure:\n1. The backend server is running\n2. CORS is properly configured\n3. The API URL is correct`;
+export function forgetSession() {
+  csrf = null
 }
 
-/**
- * Make API request with authentication
- */
-async function apiRequest(endpoint, options = {}) {
-  const token = getToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  if (token) {
-    // Ensure token is clean (no extra quotes or whitespace)
-    const cleanToken = token.trim().replace(/^["']|["']$/g, '');
-    headers['Authorization'] = `Bearer ${cleanToken}`;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Token being sent (first 30 chars):', cleanToken.substring(0, 30) + '...');
-      console.log('Token length:', cleanToken.length);
-    }
-  } else {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('No token found for request to:', endpoint);
-    }
-  }
-
-  const config = {
-    ...options,
-    headers,
-  };
-
+/** The server's error body as an ApiError; a fallback message when it has none. */
+export async function errorOf(response) {
+  let body = null
   try {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Making request to:', `${API_URL}${endpoint}`);
-    }
-
-    let response;
-    try {
-      response = await fetch(`${API_URL}${endpoint}`, config);
-    } catch (fetchError) {
-      // Catch network errors (CORS, connection refused, etc.)
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Fetch error:', fetchError);
-      }
-      if (isNetworkError(fetchError)) {
-        throw new Error(networkErrorMessage());
-      }
-      throw fetchError;
-    }
-    
-    // Handle network errors
-    if (!response) {
-      throw new Error('Network error: Could not connect to server. Make sure the backend is running at ' + API_URL);
-    }
-    
-    // Handle non-JSON responses (e.g., 204 No Content)
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      // For successful non-JSON responses (like 204), return null
-      return null;
-    }
-
-    // Try to parse JSON, but handle empty responses gracefully
-    let data;
-    try {
-      const text = await response.text();
-      if (!text || text.trim() === '') {
-        // Empty response body
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return null;
-      }
-      data = JSON.parse(text);
-    } catch (parseError) {
-      // If JSON parsing fails but response is OK, return null
-      if (response.ok) {
-        return null;
-      }
-      // If response is not OK, throw error
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    if (!response.ok) {
-      // Handle authentication errors - redirect to login (but not if we're already on login page)
-      if (response.status === 401) {
-        // Don't redirect if we're already trying to login (prevents page refresh on incorrect credentials)
-        if (endpoint !== '/auth/login' && typeof window !== 'undefined') {
-          console.error('401 Unauthorized error - redirecting to login');
-          removeToken();
-          window.location.href = '/login';
-        }
-      }
-      
-      // Handle error message extraction - FastAPI validation errors can be objects or arrays
-      let errorMessage = `HTTP error! status: ${response.status}`;
-      
-      if (data) {
-        if (typeof data.detail === 'string') {
-          errorMessage = data.detail;
-        } else if (Array.isArray(data.detail)) {
-          // Handle validation error arrays: [{"loc": ["field"], "msg": "error", "type": "type"}]
-          const messages = data.detail.map(err => {
-            if (typeof err === 'string') return err;
-            if (err.msg) return `${err.loc?.join('.') || 'Field'}: ${err.msg}`;
-            return JSON.stringify(err);
-          });
-          errorMessage = messages.join(', ');
-        } else if (typeof data.detail === 'object' && data.detail !== null) {
-          // Handle object errors - try to extract meaningful message
-          if (data.detail.msg) {
-            errorMessage = data.detail.msg;
-          } else if (data.detail.message) {
-            errorMessage = data.detail.message;
-          } else {
-            errorMessage = JSON.stringify(data.detail);
-          }
-        } else if (typeof data.message === 'string') {
-          errorMessage = data.message;
-        } else if (data.message) {
-          errorMessage = String(data.message);
-        }
-      }
-      
-      throw new Error(errorMessage);
-    }
-
-    return data;
-  } catch (error) {
-    if (isNetworkError(error)) {
-      // Re-use already-formatted message if present, otherwise create one
-      throw new Error(
-        error.message?.includes('Cannot connect') ? error.message : networkErrorMessage()
-      );
-    }
-    throw error;
+    body = await response.json()
+  } catch {
+    body = null
   }
+  const retryAfter = body?.retry_after ?? (Number(response.headers.get('retry-after')) || null)
+  const message = typeof body?.message === 'string' && body.message
+    ? body.message
+    : FALLBACK[response.status] || FALLBACK[response.status >= 500 ? 500 : 403]
+  return new ApiError(response.status, body?.code || `http_${response.status}`, message,
+                      retryAfter, body?.details ?? null)
+}
+
+export async function csrfToken(fetchImpl = fetch) {
+  if (csrf === null) {
+    try {
+      const response = await fetchImpl(`${API_URL}/session/csrf`, { credentials: 'include' })
+      if (response.ok) rememberSession(await response.json())
+    } catch {
+      // no session, or no network: the request itself says which
+    }
+  }
+  return csrf
 }
 
 /**
- * API methods
+ * One request. `body` is sent as JSON, or as is when it is FormData; the result is the
+ * JSON body, or null for 204. `raw: true` returns the Response (images, streams).
  */
+export async function request(path, { method = 'GET', body, headers = {}, raw = false,
+                                      fetchImpl = fetch, retried = false,
+                                      withCsrf = !SAFE.has(method) } = {}) {
+  const sent = { ...headers }
+  if (withCsrf) {
+    const token = await csrfToken(fetchImpl)
+    if (token) sent['X-CSRF-Token'] = token
+  }
+  let payload = body
+  if (body !== undefined && !(body instanceof FormData)) {
+    sent['Content-Type'] = 'application/json'
+    payload = JSON.stringify(body)
+  }
+  let response
+  try {
+    response = await fetchImpl(`${API_URL}${path}`, { method, headers: sent, body: payload,
+                                                     credentials: 'include' })
+  } catch {
+    throw new ApiError(0, 'network', FALLBACK.network)
+  }
+  if (!response.ok) {
+    const error = await errorOf(response)
+    if (error.code === 'bad_csrf' && !retried) {
+      forgetSession()
+      return request(path, { method, body, headers, raw, fetchImpl, retried: true, withCsrf })
+    }
+    if (error.status === 401) forgetSession()
+    throw error
+  }
+  if (raw) return response
+  if (response.status === 204) return null
+  return (response.headers.get('content-type') || '').includes('application/json')
+    ? response.json()
+    : null
+}
+
+// --- Sessions (C.6) ---
+// Starting a session needs no CSRF token: the server checks the Origin instead
+
+/** The current session, or null when there is none (401). */
+export async function currentSession(fetchImpl = fetch) {
+  try {
+    return rememberSession(await request('/session/csrf', { fetchImpl }))
+  } catch (error) {
+    if (error.status === 401) return null
+    throw error
+  }
+}
+
+export async function startGuest(turnstileToken, fetchImpl = fetch) {
+  return rememberSession(await request('/session/start', {
+    method: 'POST', body: { turnstile_token: turnstileToken }, fetchImpl, withCsrf: false }))
+}
+
+export async function signIn(email, password, fetchImpl = fetch) {
+  return rememberSession(await request('/auth/login', {
+    method: 'POST', body: { email, password }, fetchImpl, withCsrf: false }))
+}
+
+export async function acceptInvite(token, email, password, consent, fetchImpl = fetch) {
+  return rememberSession(await request('/invites/accept', {
+    method: 'POST', body: { token, email, password, consent }, fetchImpl, withCsrf: false }))
+}
+
+/** Ends this session; the person is signed out even when the server can't be reached. */
+export async function signOut(fetchImpl = fetch) {
+  try {
+    await request('/auth/logout', { method: 'POST', fetchImpl })
+  } catch {
+    // already gone, or offline: the cookie ends with the session anyway
+  } finally {
+    forgetSession()
+  }
+}
+
+// --- The account's data ---
+
 export const api = {
-  // Auth
-  register: (email, username, password) =>
-    apiRequest('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, username, password }),
-    }),
+  getMedicalHistory: () => request('/medical/history'),
+  updateMedicalHistory: (data) => request('/medical/history', { method: 'POST', body: data }),
+  getUserPreferences: () => request('/preferences'),
+  updateUserPreferences: (data) => request('/preferences', { method: 'POST', body: data }),
 
-  login: (email, password) =>
-    apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
-
-  // Medical History
-  getMedicalHistory: () =>
-    apiRequest('/medical/history', {
-      method: 'GET',
-    }),
-
-  updateMedicalHistory: (data) =>
-    apiRequest('/medical/history', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  // User Preferences
-  getUserPreferences: () =>
-    apiRequest('/preferences', {
-      method: 'GET',
-    }),
-
-  updateUserPreferences: (data) =>
-    apiRequest('/preferences', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  // Agents
-  chatWithAgent: (message, agentType = 'physical-fitness', imageBase64 = null) =>
-    apiRequest(`/agents/${agentType}/chat`, {
-      method: 'POST',
-      body: JSON.stringify({ 
-        message, 
-        agent_type: agentType,
-        image_base64: imageBase64 
-      }),
-    }),
-
-  /**
-   * Stream chat with coordinator agent using Server-Sent Events (SSE)
-   * @param {string} message - User message
-   * @param {string|null} imageBase64 - Optional base64 image
-   * @param {Function} onStep - Callback for step updates: (stepText: string) => void
-   * @param {Function} onResponse - Callback for final response: (response: object) => void
-   * @param {Function} onError - Callback for errors: (error: string) => void
-   * @returns {Promise<void>}
-   */
-  chatWithCoordinatorAgentStream: async (message, imageBase64 = null, onStep, onResponse, onError) => {
-    const token = getToken();
-    if (!token) {
-      onError('Not authenticated');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/agents/coordinator/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          message,
-          agent_type: 'coordinator',
-          image_base64: imageBase64,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Failed to get response' }));
-        onError(errorData.detail || `HTTP ${response.status}`);
-        return;
-      }
-
-      // Read SSE stream
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6)); // Remove 'data: ' prefix
-              
-              if (data.type === 'step') {
-                onStep(data.data);
-              } else if (data.type === 'response') {
-                onResponse(data.data);
-              } else if (data.type === 'error') {
-                onError(data.data.error || 'Unknown error');
-              }
-            } catch (e) {
-              console.error('Failed to parse SSE data:', e, line);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Streaming error:', error);
-      onError(error.message || 'Failed to connect to server');
-    }
+  // A page of the history (C.21), the newest without `before`
+  getConversationHistory: ({ before } = {}) =>
+    request(`/conversation/messages${Number.isInteger(before) ? `?before=${before}` : ''}`),
+  clearConversationHistory: () => request('/conversation/messages', { method: 'DELETE' }),
+  deleteAccount: async () => {
+    await request('/auth/delete-account', { method: 'DELETE' })
+    forgetSession()
   },
 
-  // Conversation History
-  getConversationHistory: (agentType = null) => {
-    const url = agentType 
-      ? `/conversation/messages?agent_type=${agentType}`
-      : '/conversation/messages'
-    return apiRequest(url, {
-      method: 'GET',
-    })
-  },
-
-  saveMessage: (role, content, warnings = null, imagePath = null, agentType = 'coordinator') =>
-    apiRequest('/conversation/messages', {
-      method: 'POST',
-      body: JSON.stringify({ role, content, warnings, image_path: imagePath, agent_type: agentType }),
-    }),
-
-  uploadImage: async (imageBase64) => {
-    let response
-    try {
-      response = await fetch(`${API_URL}/conversation/upload-image`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()?.trim().replace(/^["']|["']$/g, '')}`,
-        },
-        body: JSON.stringify({ image_base64: imageBase64 }),
-      })
-    } catch (fetchErr) {
-      throw new Error(isNetworkError(fetchErr) ? networkErrorMessage() : fetchErr.message)
-    }
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}))
-      throw new Error(body.detail || body.error || `Upload failed (HTTP ${response.status})`)
-    }
-    return response.json()
-  },
-
-  clearConversationHistory: () =>
-    apiRequest('/conversation/messages', {
-      method: 'DELETE',
-    }),
-
-  deleteAccount: () =>
-    apiRequest('/auth/delete-account', {
-      method: 'DELETE',
-    }),
-
-  // Logs
   getWorkoutLogs: (limit = 10, offset = 0) =>
-    apiRequest(`/logs/workouts?limit=${limit}&offset=${offset}`, {
-      method: 'GET',
-    }),
-  
+    request(`/logs/workouts?limit=${limit}&offset=${offset}`),
   getNutritionLogs: (limit = 10, offset = 0) =>
-    apiRequest(`/logs/nutrition?limit=${limit}&offset=${offset}`, {
-      method: 'GET',
-    }),
-  
+    request(`/logs/nutrition?limit=${limit}&offset=${offset}`),
   getMentalFitnessLogs: (limit = 10, offset = 0) =>
-    apiRequest(`/logs/mental-fitness?limit=${limit}&offset=${offset}`, {
-      method: 'GET',
-    }),
-
-  deleteWorkoutLog: (logId) =>
-    apiRequest(`/logs/workouts/${logId}`, {
-      method: 'DELETE',
-    }),
-
-  deleteNutritionLog: (logId) =>
-    apiRequest(`/logs/nutrition/${logId}`, {
-      method: 'DELETE',
-    }),
-
-  deleteMentalFitnessLog: (logId) =>
-    apiRequest(`/logs/mental-fitness/${logId}`, {
-      method: 'DELETE',
-    }),
-};
-
-export { getToken, setToken, removeToken, API_URL };
-
+    request(`/logs/mental-fitness?limit=${limit}&offset=${offset}`),
+  deleteWorkoutLog: (id) => request(`/logs/workouts/${id}`, { method: 'DELETE' }),
+  deleteNutritionLog: (id) => request(`/logs/nutrition/${id}`, { method: 'DELETE' }),
+  deleteMentalFitnessLog: (id) => request(`/logs/mental-fitness/${id}`, { method: 'DELETE' }),
+}

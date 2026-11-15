@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api, removeToken } from '@/lib/api'
+import { api, signOut } from '@/lib/api'
 import MedicalHistoryForm from '@/components/MedicalHistoryForm'
 import { useRequireAuth } from '@/hooks/useAuth'
 
@@ -76,8 +76,8 @@ export default function MedicalHistoryPage() {
     }
   }
 
-  const handleLogout = () => {
-    removeToken()
+  const handleLogout = async () => {
+    await signOut()
     router.push('/login')
   }
 

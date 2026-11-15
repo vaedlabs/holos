@@ -2,74 +2,51 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getToken, removeToken } from '@/lib/api'
+import { currentSession } from '@/lib/api'
 
 /**
- * True if a login token is stored and has not expired. An expired token is removed,
- * so pages don't redirect to the dashboard only to get a 401 there.
+ * Who is here (Plan C.6): the session the cookie names, read from GET /session/csrf
+ * (`{mode, csrf_token, expires_at}`), or null. The cookie is HttpOnly, so the page can't
+ * look at it; asking the server is also the only way to know it hasn't ended.
  */
-export function hasValidToken() {
-  const token = getToken()
-  if (!token) return false
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-    if (payload.exp && payload.exp * 1000 <= Date.now()) {
-      removeToken()
-      return false
-    }
-    return true
-  } catch {
-    removeToken() // not a readable token
-    return false
-  }
-}
-
-/**
- * Hook to protect routes that require authentication
- * Redirects to login if user is not authenticated
- */
-export function useRequireAuth() {
-  const router = useRouter()
-  const [mounted, setMounted] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+export function useSession() {
+  const [state, setState] = useState({ loading: true, session: null })
 
   useEffect(() => {
-    setMounted(true)
+    let live = true
+    currentSession()
+      .then((session) => live && setState({ loading: false, session }))
+      .catch(() => live && setState({ loading: false, session: null }))
+    return () => { live = false }
   }, [])
 
-  useEffect(() => {
-    if (!mounted) return
-    
-    if (!hasValidToken()) {
-      router.push('/login')
-      return
-    }
-    setIsAuthenticated(true)
-  }, [mounted, router])
-
-  return { mounted, isAuthenticated }
+  return state
 }
 
 /**
- * Hook to redirect authenticated users away from auth pages (login/register)
- * Redirects to dashboard if user is already logged in
+ * Pages for an account (the profile, preferences, logs): no session, or a guest's,
+ * goes to sign-in. `{guest: true}` lets a guest in too (the chat).
  */
+export function useRequireAuth({ guest = false } = {}) {
+  const router = useRouter()
+  const { loading, session } = useSession()
+  const allowed = !!session && (guest || session.mode === 'account')
+
+  useEffect(() => {
+    if (!loading && !allowed) router.push('/login')
+  }, [loading, allowed, router])
+
+  return { mounted: !loading, isAuthenticated: allowed, session }
+}
+
+/** The sign-in pages: someone already signed in goes to the chat. */
 export function useRedirectIfAuthenticated() {
   const router = useRouter()
-  const [mounted, setMounted] = useState(false)
+  const { loading, session } = useSession()
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    if (session?.mode === 'account') router.push('/dashboard')
+  }, [session, router])
 
-  useEffect(() => {
-    if (!mounted) return
-    
-    if (hasValidToken()) {
-      router.push('/dashboard')
-    }
-  }, [mounted, router])
-
-  return { mounted }
+  return { mounted: !loading && session?.mode !== 'account' }
 }
-

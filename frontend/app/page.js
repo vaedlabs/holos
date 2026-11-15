@@ -1,8 +1,38 @@
 'use client'
 
+import { useCallback, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Silk from '@/components/Silk'
+import Turnstile from '@/components/Turnstile'
+import { startGuest } from '@/lib/api'
+
+// The managed widget first; the interactive one when the server asks for it (C.12)
+const SITE_KEYS = {
+  managed: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+  interactive: process.env.NEXT_PUBLIC_TURNSTILE_INTERACTIVE_SITE_KEY,
+}
 
 export default function Home() {
+  const router = useRouter()
+  const [checking, setChecking] = useState(null) // null, 'managed' or 'interactive'
+  const [error, setError] = useState('')
+  const reset = useRef(null)
+
+  const onToken = useCallback(async (token) => {
+    setError('')
+    try {
+      await startGuest(token)
+      router.push('/dashboard')
+    } catch (err) {
+      if (err.code === 'turnstile_interactive') {
+        setChecking('interactive')
+      } else {
+        reset.current?.() // a token is used once: a new check for the next try
+      }
+      setError(err.message)
+    }
+  }, [router])
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -51,13 +81,23 @@ export default function Home() {
           justifyContent: 'center', 
           flexWrap: 'wrap' 
         }}>
-          <a href="/login" className="btn btn-primary" style={{ textDecoration: 'none', minWidth: '120px' }}>
-            Login
-          </a>
-          <a href="/register" className="btn btn-outline" style={{ textDecoration: 'none', minWidth: '120px' }}>
-            Register
+          <button type="button" className="btn btn-primary" style={{ minWidth: '120px' }}
+                  onClick={() => setChecking((now) => now || 'managed')}>
+            Try Holos as a guest
+          </button>
+          <a href="/login" className="btn btn-outline" style={{ textDecoration: 'none', minWidth: '120px' }}>
+            Sign in
           </a>
         </div>
+        {checking && (
+          <div style={{ marginTop: 'var(--spacing-lg)', display: 'flex', justifyContent: 'center' }}>
+            <Turnstile key={checking} siteKey={SITE_KEYS[checking]} onToken={onToken}
+                       onError={setError} resetRef={reset} />
+          </div>
+        )}
+        {error && (
+          <div className="alert alert-error" style={{ marginTop: 'var(--spacing-md)' }}>{error}</div>
+        )}
       </div>
     </div>
   )

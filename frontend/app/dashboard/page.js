@@ -4,14 +4,15 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { api, removeToken } from '@/lib/api'
+import { api, signOut } from '@/lib/api'
 import MedicalWarning from '@/components/MedicalWarning'
 import AuthImage from '@/components/AuthImage'
 import { useRequireAuth } from '@/hooks/useAuth'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { mounted, isAuthenticated } = useRequireAuth()
+  // Guests chat too (P5.3 rebuilds this page on the new stream)
+  const { mounted, isAuthenticated } = useRequireAuth({ guest: true })
   const [messages, setMessages] = useState([])
   const [inputMessage, setInputMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -315,7 +316,7 @@ export default function DashboardPage() {
             // If it's an auth error, redirect to login after showing error
             if (errorMessage.includes('Authentication failed') || errorMessage.includes('401') || errorMessage.includes('Not authenticated')) {
               setTimeout(() => {
-                removeToken()
+                signOut()
                 router.push('/login')
               }, 2000)
             }
@@ -353,7 +354,7 @@ export default function DashboardPage() {
       // If it's an auth error, redirect to login after showing error
       if (errorMessage.includes('Authentication failed') || errorMessage.includes('401') || errorMessage.includes('Not authenticated')) {
         setTimeout(() => {
-          removeToken()
+          signOut()
           router.push('/login')
         }, 2000) // Give user time to see the error
       }
@@ -366,8 +367,8 @@ export default function DashboardPage() {
     }
   }
 
-  const handleLogout = () => {
-    removeToken()
+  const handleLogout = async () => {
+    await signOut()
     router.push('/login')
   }
 

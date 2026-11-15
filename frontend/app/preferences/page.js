@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api, removeToken } from '@/lib/api'
+import { api, signOut } from '@/lib/api'
 import ButtonSelector from '@/components/ButtonSelector'
 import { useRequireAuth } from '@/hooks/useAuth'
 
@@ -175,7 +175,7 @@ export default function PreferencesPage() {
     setError('')
     try {
       await api.deleteAccount()
-      removeToken()
+      signOut()
       alert('Account deleted successfully.')
       router.push('/login')
     } catch (err) {
@@ -184,8 +184,8 @@ export default function PreferencesPage() {
     }
   }
 
-  const handleLogout = () => {
-    removeToken()
+  const handleLogout = async () => {
+    await signOut()
     router.push('/login')
   }
 
