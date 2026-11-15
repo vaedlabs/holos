@@ -66,10 +66,12 @@ def _sample(name: str) -> list[dict]:
     return [json.loads(line) for line in (STREAMS / f"{name}.jsonl").read_text().splitlines()]
 
 
-def _done_inputs(sample: list[dict]) -> tuple[TraceView, Usage, HistoryTurn | None]:
+def _done_inputs(sample: list[dict]) -> tuple:
+    """A guest's `done` carries the exchange: the signed answer and the message."""
     data = sample[-1]["data"]
     turn = HistoryTurn(**data["turn"]) if "turn" in data else None
-    return TraceView(**data["trace"]), Usage(**data["usage"]), turn
+    said = HistoryTurn(**data["said"]) if "said" in data else None
+    return TraceView(**data["trace"]), Usage(**data["usage"]), turn, said
 
 
 def _reply(model, kind="plan", summary="", items=(), notes=(), follow_up=None):

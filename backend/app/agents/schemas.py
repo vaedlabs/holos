@@ -444,16 +444,26 @@ def _unique(agents: list[str] | None) -> None:
         raise ValueError("agents must not repeat")
 
 
+HEX64 = r"^[0-9a-f]{64}$"
+
+
 class HistoryTurn(_Model):
     role: Literal["user", "assistant"]
     content: str = Field(max_length=2000)
     agents: list[AgentName] | None = Field(default=None, max_length=3)  # who answered
     ts: datetime
+    # A guest's answer, signed by the server with the message before it (Part E #63):
+    # `sig` over both turns, what was shown (`shown`, a digest) and `prev`, the exchange
+    # before; the browser can't change any of it unseen
+    sig: str | None = Field(default=None, pattern=HEX64)
+    prev: str | None = Field(default=None, pattern=HEX64)
+    shown: str | None = Field(default=None, pattern=HEX64)
 
     @model_validator(mode="after")
     def _agents_on_assistant_only(self):
-        if self.role == "user" and self.agents is not None:
-            raise ValueError("agents are only set on assistant turns")
+        if self.role == "user" and (self.agents is not None or self.sig or self.prev
+                                    or self.shown):
+            raise ValueError("agents and signatures are only set on assistant turns")
         _unique(self.agents)
         return self
 
@@ -804,7 +814,10 @@ class ErrorData(_EventData):
 class DoneData(_EventData):
     trace: TraceView
     usage: Usage
-    turn: HistoryTurn | None = None  # guest mode
+    # Guest mode: the exchange to keep, the person's message as the server took it and
+    # the signed answer (Part E #63)
+    said: HistoryTurn | None = None
+    turn: HistoryTurn | None = None
 
 
 def _event(name: str, data: type[_EventData]) -> type[_Model]:

@@ -73,6 +73,7 @@ from app.orchestration.staging import (
 from app.providers import CallPlan, ImageInput, ProviderError, Turn
 from app.providers.base import trim
 from app.storage.context import Sessions, load_context, save_display, save_turn
+from app.storage.guest_history import signed
 from app.storage.images import ImageStore, image_key
 from app.storage.profile import unchecked_caveat
 
@@ -204,8 +205,12 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
         job.outcome.decisions = [*(d for r in results.values() for d in r.decided),
                                  *(own.decisions if own else ()),
                                  *(summary.decisions if summary else ())]
+        said = None
+        if job.principal.user_id is None:  # the browser keeps it: signed (Part E #63)
+            said = HistoryTurn(role="user", content=job.payload.message, ts=job.said)
+            turn = signed(said, turn, c.shown, context.chain)
         await c.done(trace_view(job.trace, decision.kind, agents, decisions, sources,
-                                meters.usage()), meters.usage(), turn)
+                                meters.usage()), meters.usage(), turn, said)
         # Honest (C.5): only when every coach it chose answered, or Holos answered itself
         job.outcome.success = all(results[a].reply is not None for a in agents)
     except RequestEnded:

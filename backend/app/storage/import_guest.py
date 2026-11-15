@@ -7,7 +7,11 @@ in to, in one transaction.
 - Profile: what the guest's profile names is added to the account's saved text, in the
   words the account's profile resolution reads back (every catalogue term round-trips,
   Part D); nothing the account already says is removed. Over-matching is the safe way.
-- History: the turns in order, with their times.
+- History: the turns in order, with their times. The browser kept them, so only the
+  unbroken signed run ending at the newest exchange comes in; anything older than a
+  change is refused and listed (`history_refused`, Part E #63). What comes in is also
+  gated again against the account profile, which may be stricter than the guest's: a
+  blocked item goes, and source links go.
 - Logs: each entry is read and gated again against the account profile, now updated.
   An entry that can't be read is skipped and listed. A conflict is never a reason to
   skip: the entry is what the person did. Its browser warnings keep their left-out
@@ -27,12 +31,15 @@ from sqlalchemy import text
 
 from app.agents.schemas import ImportLog, ImportPayload, StagedWrite, UserProfile
 from app.data.repositories import MessageRepository, ProfileRepository
+from app.guardrails.gate import gate, gate_text
 from app.guardrails.loader import get_guardrails
 from app.orchestration.staging import check_write, refusal, warning_text, warnings_of
 from app.storage.context import Sessions
+from app.storage.guest_history import verified_import
 from app.storage.logs import insert_log
 from app.storage.profile import resolve_profile
 
+CHANGED = "This part of the conversation was changed outside Holos, so it wasn't imported."
 FUTURE_SLACK = timedelta(days=1)  # a phone's clock may run ahead; more is a bad entry
 
 
@@ -55,9 +62,12 @@ async def import_guest(sessions: Sessions, user_id: int,
                                   await profiles.get_preferences()).profile
 
         messages = MessageRepository(session, user_id)
-        for turn in payload.history:
-            await messages.add(turn.role, turn.content, agents=turn.agents,
-                               display=_shown(turn.display), created_at=turn.ts)
+        start, refused = verified_import(payload.history)
+        for turn in payload.history[start:]:
+            content = (_said(turn.content, profile) if turn.role == "assistant"
+                       else turn.content)
+            await messages.add(turn.role, content, agents=turn.agents,
+                               display=_shown(turn.display, profile), created_at=turn.ts)
 
         skipped, review, logged = [], [], 0
         for index, raw in enumerate(payload.logs):
@@ -76,8 +86,9 @@ async def import_guest(sessions: Sessions, user_id: int,
             if new:
                 review.append({"index": index, "warnings": [warning_text(w) for w in new]})
 
-        result = {"imported": {"history": len(payload.history), "logs": logged},
-                  "skipped": skipped, "review": review}
+        result = {"imported": {"history": len(payload.history) - start, "logs": logged},
+                  "skipped": skipped, "review": review,
+                  "history_refused": [{"index": i, "reason": CHANGED} for i in refused]}
         await session.execute(text(
             "UPDATE account_imports SET result = CAST(:r AS json) "
             "WHERE user_id = :u AND import_id = :i"),
@@ -95,15 +106,37 @@ def _read(raw: dict) -> tuple[ImportLog | None, str]:
     return entry, ""
 
 
-def _shown(display: list | None) -> list[dict] | None:
-    """A guest's answer as they saw it; a card still waiting can't be confirmed on the
-    account (C.18 "Import history")."""
+def _said(text: str, profile: UserProfile) -> str:
+    """An answer's prose, gated again: the browser kept it. Written after the fact, so
+    "logged" stays true where it was."""
+    return gate_text(text, profile, after_save=True).content
+
+
+def _shown(display: list | None, profile: UserProfile) -> list[dict] | None:
+    """A guest's answer as they saw it, checked again against the account profile; a
+    card still waiting can't be confirmed on the account (C.18 "Import history")."""
     if display is None:
         return None
-    shown = [e.model_dump(mode="json", exclude_unset=True) for e in display]
-    for e in shown:
-        if e["event"] == "pending_write" and e["data"].get("state", "waiting") == "waiting":
-            e["data"]["state"] = "closed"
+    shown = []
+    for e in (e.model_dump(mode="json", exclude_unset=True) for e in display):
+        name, data = e["event"], e["data"]
+        if name == "sources":  # a link the browser sent can't be told from a real one
+            continue
+        if name == "text" or name == "logged_note":
+            key = "chunk" if name == "text" else "text"
+            data[key] = _said(data[key], profile)
+            if not data[key]:
+                continue
+        if name == "item":
+            reply = {"kind": "plan", "summary": "", "items": [data["item"]], "notes": [],
+                     "source_ids": [], "follow_up": None, "risk_flag": False}
+            checked = gate(data["agent"], reply, profile)
+            if checked.items[0].action == "block":
+                continue
+            data["item"] = checked.content["items"][0]  # its note gated too
+        if name == "pending_write" and data.get("state", "waiting") == "waiting":
+            data["state"] = "closed"
+        shown.append(e)
     return shown
 
 

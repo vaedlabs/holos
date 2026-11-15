@@ -312,6 +312,17 @@
     "DoneData": {
       "additionalProperties": false,
       "properties": {
+        "said": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HistoryTurn"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "seq": {
           "minimum": 0,
           "title": "Seq",
@@ -821,6 +832,19 @@
           "title": "Content",
           "type": "string"
         },
+        "prev": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prev"
+        },
         "role": {
           "enum": [
             "user",
@@ -828,6 +852,32 @@
           ],
           "title": "Role",
           "type": "string"
+        },
+        "shown": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shown"
+        },
+        "sig": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sig"
         },
         "ts": {
           "format": "date-time",

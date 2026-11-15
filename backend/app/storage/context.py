@@ -5,7 +5,8 @@
     await save_display(sessions, user_id, trace_id, composer.shown)  # before `done`
     resolved = await load_profile(sessions, user_id)         # an account's, alone
 
-Guest: both come from the payload, and nothing is stored on the server. Account: the
+Guest: both come from the payload, and nothing is stored on the server; only the
+history's signed, unchanged exchanges are used (Part E #63). Account: the
 saved profile resolved to IDs (`storage.profile`) and the last 6 messages, through
 user-scoped repositories that take the user from the session, never from the request.
 """
@@ -23,6 +24,7 @@ from app.data.repositories.profile import ProfileRepository
 from app.data.state_store import card_states
 from app.models import ConversationMessage
 from app.orchestration.principal import Principal
+from app.storage.guest_history import verified
 from app.storage.profile import Resolved, resolve_profile, with_note_terms
 
 HISTORY_TURNS = 6
@@ -37,13 +39,15 @@ class TurnContext:
     profile: UserProfile | None
     history: list[HistoryTurn]
     unchecked: tuple[str, ...] = ()  # health text the gate can't check (C.8)
+    chain: str | None = None  # a guest's newest signed exchange (Part E #63)
 
 
 async def load_context(principal: Principal, payload: ChatPayload, sessions: Sessions | None
                        ) -> TurnContext:
     if principal.user_id is None:
-        return TurnContext(with_note_terms(payload.guest_profile),
-                           list(payload.guest_history or []))
+        # Only the signed exchanges the browser left unchanged (Part E #63)
+        history, chain = verified(list(payload.guest_history or []))
+        return TurnContext(with_note_terms(payload.guest_profile), history, chain=chain)
     async with sessions() as session:
         resolved = await _resolved(session, principal.user_id)
         rows = await MessageRepository(session, principal.user_id).recent(HISTORY_TURNS)

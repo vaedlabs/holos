@@ -18,6 +18,7 @@ from app.storage.context import load_context
 from app.storage.images import LocalImageStore
 
 from .accounts import account_app, call
+from .guest_turns import signed_history
 from .test_admission import PASSWORD, account, guest, sql
 from .test_writes import BRIDGES, DAL, POHA, SQUATS
 
@@ -45,9 +46,8 @@ def _log(kind, args, at=NOW, warnings=()):
 
 def _body(**kw):
     return {"import_id": str(kw.pop("import_id", uuid.uuid4())), "profile": GUEST,
-            "history": [{"role": "user", "content": "a leg workout", "ts": NOW.isoformat()},
-                        {"role": "assistant", "content": "Here is your plan.",
-                         "agents": ["physical"], "ts": (NOW + timedelta(seconds=5)).isoformat()}],
+            "history": signed_history(("a leg workout", "Here is your plan.", ["physical"],
+                                       None, NOW)),
             "logs": [_log("workout", BRIDGES)], **kw}
 
 
@@ -60,7 +60,7 @@ async def test_a_guests_data_becomes_the_accounts(app, store, async_engine):
     response = await _import(app, me, _body())
     assert response.status_code == 200
     assert response.json() == {"imported": {"history": 2, "logs": 1}, "skipped": [],
-                               "review": []}
+                               "review": [], "history_refused": []}
     # The profile as text the account's resolution reads back to the same tags
     context = await load_context(me, None, app.dependency_overrides[get_db_sessions]())
     assert context.profile.condition_ids == ["knee_ligament_injury"]

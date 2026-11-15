@@ -254,12 +254,16 @@ class Composer:
 
     # --- The end ---
 
-    async def done(self, view: TraceView, usage: Usage, turn: HistoryTurn | None = None
-                   ) -> None:
+    async def done(self, view: TraceView, usage: Usage, turn: HistoryTurn | None = None,
+                   said: HistoryTurn | None = None) -> None:
+        """A guest's exchange goes with it, for the browser to keep: the message as the
+        server took it (`said`) and the signed answer (Part E #63)."""
         fields: dict[str, Any] = {"trace": view.model_dump(mode="json"),
                                   "usage": usage.model_dump(mode="json")}
         if turn is not None and self.mode == "guest":
             fields["turn"] = turn.model_dump(mode="json")
+            if said is not None:
+                fields["said"] = said.model_dump(mode="json")
         await self._send([("done", fields)])
 
     async def error(self, code: str, retry_after: int | None = None) -> None:
