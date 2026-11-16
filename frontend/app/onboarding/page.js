@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import MedicalHistoryForm from '@/components/MedicalHistoryForm'
+import HealthProfile from '@/components/HealthProfile'
 import ButtonSelector from '@/components/ButtonSelector'
 import { useRequireAuth } from '@/hooks/useAuth'
 
@@ -16,13 +16,11 @@ export default function OnboardingPage() {
     gender: '',
     lifestyle: '',
   })
-  const [medicalData, setMedicalData] = useState({})
   const [preferencesData, setPreferencesData] = useState({
     goals: '',
     exercise_types: '',
     activity_level: '',
     location: '',
-    dietary_restrictions: '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -33,18 +31,9 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (!mounted || !isAuthenticated) return
     let cancelled = false
-    Promise.allSettled([api.getMedicalHistory(), api.getUserPreferences()]).then(
-      ([medical, prefs]) => {
+    Promise.allSettled([api.getUserPreferences()]).then(
+      ([prefs]) => {
         if (cancelled) return
-        if (medical.status === 'fulfilled' && medical.value) {
-          const m = medical.value
-          setMedicalData({
-            conditions: m.conditions || '',
-            limitations: m.limitations || '',
-            medications: m.medications || '',
-            notes: m.notes || '',
-          })
-        }
         if (prefs.status === 'fulfilled' && prefs.value) {
           const p = prefs.value
           setDemographicsData({
@@ -57,7 +46,6 @@ export default function OnboardingPage() {
             exercise_types: p.exercise_types || '',
             activity_level: p.activity_level || '',
             location: p.location || '',
-            dietary_restrictions: p.dietary_restrictions || '',
           })
         }
         setLoaded(true)
@@ -108,11 +96,6 @@ export default function OnboardingPage() {
     }))
   }
 
-  const handleMedicalSubmit = (data) => {
-    setMedicalData(data)
-    setStep(2)
-  }
-
   const handlePreferencesSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -125,11 +108,6 @@ export default function OnboardingPage() {
       validationErrors.location = 'Location must be less than 100 characters'
     }
     
-    // Dietary restrictions validation (if provided, should be reasonable length)
-    if (preferencesData.dietary_restrictions && preferencesData.dietary_restrictions.length > 200) {
-      validationErrors.dietary_restrictions = 'Dietary restrictions must be less than 200 characters'
-    }
-    
     if (Object.keys(validationErrors).length > 0) {
       setError(Object.values(validationErrors)[0])
       return
@@ -138,14 +116,11 @@ export default function OnboardingPage() {
     setLoading(true)
 
     try {
-      // Save medical history (even if empty, create the record)
-      await api.updateMedicalHistory(medicalData)
-
       // Save user preferences (including demographics)
-      await api.updateUserPreferences({
-        ...preferencesData,
-        ...demographicsData,
-      })
+      // A field left empty is "not given" (null), never "" (age can't be "")
+      const answers = { ...preferencesData, ...demographicsData }
+      await api.updateUserPreferences(Object.fromEntries(
+        Object.entries(answers).map(([key, value]) => [key, value === '' ? null : value])))
 
       router.push('/dashboard')
     } catch (err) {
@@ -206,7 +181,7 @@ export default function OnboardingPage() {
                   border: step >= 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.2)'
                 }}
               >
-                Step 1: Medical History
+                Step 1: Health
               </div>
               <div
                 style={{
@@ -324,11 +299,11 @@ export default function OnboardingPage() {
 
           {step === 1 && (
             <div>
-              <h2 style={{ color: 'var(--text-light)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>Medical History</h2>
+              <h2 style={{ color: 'var(--text-light)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>Your health</h2>
               <p style={{ marginBottom: 'var(--spacing-lg)', color: 'rgba(255, 255, 255, 0.9)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                 This information helps us recommend safe exercises for you.
               </p>
-              <MedicalHistoryForm onSubmit={handleMedicalSubmit} initialData={medicalData} />
+              <HealthProfile mode="account" onSaved={() => setStep(2)} />
             </div>
           )}
 
@@ -419,35 +394,6 @@ export default function OnboardingPage() {
                 className="form-input"
               />
             </div>
-            <ButtonSelector
-              label="Dietary Restrictions"
-              options={[
-                'Vegetarian',
-                'Vegan',
-                'Gluten-Free',
-                'Dairy-Free',
-                'Nut-Free',
-                'Pescatarian',
-                'Keto',
-                'Paleo',
-                'Low-Carb',
-                'Low-Fat',
-                'Halal',
-                'Kosher',
-                'No Red Meat',
-                'No Pork',
-                'Sugar-Free'
-              ]}
-              value={preferencesData.dietary_restrictions}
-              onChange={(value) => setPreferencesData(prev => ({ ...prev, dietary_restrictions: value }))}
-              placeholder="Type other dietary restrictions (comma-separated)..."
-              conflicts={{
-                'Vegan': ['Non-vegetarian', 'Pescatarian', 'Vegetarian'],
-                'Vegetarian': ['Non-vegetarian', 'Pescatarian'],
-                'Pescatarian': ['Vegan', 'Vegetarian', 'Non-vegetarian'],
-                'Non-vegetarian': ['Vegan', 'Vegetarian', 'Pescatarian']
-              }}
-            />
               {error && (
                 <div className="alert alert-error" style={{ 
                   backgroundColor: 'rgba(255, 68, 68, 0.2)', 

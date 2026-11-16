@@ -25,7 +25,6 @@ export default function PreferencesPage() {
     exercise_types: '',
     activity_level: '',
     location: '',
-    dietary_restrictions: '',
     age: '',
     gender: '',
     lifestyle: '',
@@ -60,7 +59,6 @@ export default function PreferencesPage() {
         exercise_types: data.exercise_types || '',
         activity_level: data.activity_level || '',
         location: data.location || '',
-        dietary_restrictions: data.dietary_restrictions || '',
         age: data.age || '',
         gender: data.gender || '',
         lifestyle: data.lifestyle || '',
@@ -117,10 +115,6 @@ export default function PreferencesPage() {
       validationErrors.location = 'Location must be less than 100 characters'
     }
     
-    // Dietary restrictions validation (if provided, should be reasonable length)
-    if (formData.dietary_restrictions && formData.dietary_restrictions.length > 200) {
-      validationErrors.dietary_restrictions = 'Dietary restrictions must be less than 200 characters'
-    }
     
     if (Object.keys(validationErrors).length > 0) {
       setError(Object.values(validationErrors)[0])
@@ -288,7 +282,7 @@ export default function PreferencesPage() {
               }}>
               <button
                 onClick={() => {
-                  router.push('/medical')
+                  router.push('/profile')
                   setMenuOpen(false)
                 }}
                 style={{
@@ -315,7 +309,7 @@ export default function PreferencesPage() {
                   e.target.style.WebkitBackdropFilter = 'none'
                 }}
               >
-                Medical History
+                Health profile
               </button>
               <button
                 onClick={() => {
@@ -552,35 +546,6 @@ export default function PreferencesPage() {
                   className="form-input"
                 />
               </div>
-              <ButtonSelector
-                label="Dietary Restrictions"
-                options={[
-                  'Vegetarian',
-                  'Vegan',
-                  'Gluten-Free',
-                  'Dairy-Free',
-                  'Nut-Free',
-                  'Pescatarian',
-                  'Keto',
-                  'Paleo',
-                  'Low-Carb',
-                  'Low-Fat',
-                  'Halal',
-                  'Kosher',
-                  'No Red Meat',
-                  'No Pork',
-                  'Sugar-Free'
-                ]}
-                value={formData.dietary_restrictions}
-                onChange={(value) => setFormData(prev => ({ ...prev, dietary_restrictions: value }))}
-                placeholder="Type other dietary restrictions (comma-separated)..."
-                conflicts={{
-                  'Vegan': ['Non-vegetarian', 'Pescatarian', 'Vegetarian'],
-                  'Vegetarian': ['Non-vegetarian', 'Pescatarian'],
-                  'Pescatarian': ['Vegan', 'Vegetarian', 'Non-vegetarian'],
-                  'Non-vegetarian': ['Vegan', 'Vegetarian', 'Pescatarian']
-                }}
-              />
               <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>
                 <button
                   type="submit"
@@ -680,18 +645,8 @@ export default function PreferencesPage() {
                     </div>
                   )}
 
-                  {preferences.dietary_restrictions && (
-                    <div>
-                      <h3 style={{ marginBottom: 'var(--spacing-sm)', color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.875rem', textTransform: 'uppercase', fontWeight: '600', letterSpacing: '0.5px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
-                        Dietary Restrictions
-                      </h3>
-                      <p className="glassmorphism" style={{ margin: 0, padding: 'var(--spacing-md)', borderRadius: 'var(--border-radius)', color: 'var(--text-light)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
-                        {preferences.dietary_restrictions}
-                      </p>
-                    </div>
-                  )}
 
-                  {!preferences.goals && !preferences.exercise_types && !preferences.activity_level && !preferences.location && !preferences.dietary_restrictions && !preferences.age && !preferences.gender && !preferences.lifestyle && (
+                  {!preferences.goals && !preferences.exercise_types && !preferences.activity_level && !preferences.location && !preferences.age && !preferences.gender && !preferences.lifestyle && (
                     <div style={{ textAlign: 'center', padding: 'var(--spacing-2xl)', color: 'rgba(255, 255, 255, 0.9)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
                       <p style={{ marginBottom: 'var(--spacing-md)' }}>No preferences recorded yet.</p>
                       <button

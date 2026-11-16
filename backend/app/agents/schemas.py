@@ -715,6 +715,8 @@ class ProfileNotes(_Model):
 
 
 class PendingWriteShown(_Model):
+    # Which coach's section the card sits in (P5.3); null in turns saved before it
+    kind: WriteKind | None = None
     summary: str = Field(max_length=300)
     # What to confirm: each conflict as text, and the attributes the person may say they
     # left out (Part E #45); empty when only a web search holds the write

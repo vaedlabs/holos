@@ -3,7 +3,7 @@
     python -m app.contracts.generate           # write the files
     python -m app.contracts.generate --check   # exit 1 if the committed files differ
 
-Only contracts/schema/ and contracts/crisis.json are generated. The sample
+Only contracts/schema/, contracts/crisis.json and contracts/catalogue.json are generated. The sample
 streams and crisis cases next to them are written by hand.
 """
 
@@ -46,6 +46,8 @@ def build() -> dict[str, str]:
     for name, model in schemas.TOOL_ARG_MODELS.items():
         files[f"schema/llm/tool_{name}.json"] = schemas.llm_json_schema(model)
 
+    files["catalogue.json"] = catalogue_contract()
+
     rules = get_guardrails().rules
     crisis = rules.crisis
     files["crisis.json"] = {
@@ -59,6 +61,26 @@ def build() -> dict[str, str]:
         "helplines": [h.model_dump() for h in crisis.helplines],
     }
     return {path: _dump(data) for path, data in files.items()}
+
+
+def catalogue_contract() -> dict:
+    """The profile pickers (P5.3, Part E #42): each condition, allergy and diet the gate
+    knows, its name, and the words an account saves for it (`save`), which the profile
+    resolution reads back as the same ID (C.8; the import writes the same words)."""
+    catalogue = get_guardrails().catalogue
+    terms = catalogue.profile_terms
+
+    def named(words: list[str]) -> str:
+        return words[0][:1].upper() + words[0][1:]
+
+    return {
+        "version": catalogue.version,
+        "conditions": [{"id": c.id, "name": c.name, "save": c.name}
+                       for c in catalogue.conditions],
+        "allergens": [{"id": str(a), "name": named(w), "save": f"{w[0]} allergy"}
+                      for a, w in terms.allergens.items()],
+        "diets": [{"id": str(d), "name": named(w), "save": w[0]} for d, w in terms.diets.items()],
+    }
 
 
 def main(argv: list[str]) -> int:

@@ -1,0 +1,244 @@
+{
+  "allergens": [
+    {
+      "id": "peanut",
+      "name": "Peanut",
+      "save": "peanut allergy"
+    },
+    {
+      "id": "tree_nut",
+      "name": "Tree nut",
+      "save": "tree nut allergy"
+    },
+    {
+      "id": "milk",
+      "name": "Milk",
+      "save": "milk allergy"
+    },
+    {
+      "id": "egg",
+      "name": "Egg",
+      "save": "egg allergy"
+    },
+    {
+      "id": "fish",
+      "name": "Fish",
+      "save": "fish allergy"
+    },
+    {
+      "id": "crustacean",
+      "name": "Shellfish",
+      "save": "shellfish allergy"
+    },
+    {
+      "id": "mollusc",
+      "name": "Mollusc",
+      "save": "mollusc allergy"
+    },
+    {
+      "id": "soy",
+      "name": "Soy",
+      "save": "soy allergy"
+    },
+    {
+      "id": "gluten",
+      "name": "Gluten",
+      "save": "gluten allergy"
+    },
+    {
+      "id": "sesame",
+      "name": "Sesame",
+      "save": "sesame allergy"
+    },
+    {
+      "id": "mustard",
+      "name": "Mustard",
+      "save": "mustard allergy"
+    },
+    {
+      "id": "celery",
+      "name": "Celery",
+      "save": "celery allergy"
+    },
+    {
+      "id": "lupin",
+      "name": "Lupin",
+      "save": "lupin allergy"
+    },
+    {
+      "id": "sulphites",
+      "name": "Sulphites",
+      "save": "sulphites allergy"
+    }
+  ],
+  "conditions": [
+    {
+      "id": "knee_ligament_injury",
+      "name": "Knee ligament injury",
+      "save": "Knee ligament injury"
+    },
+    {
+      "id": "knee_injury",
+      "name": "Knee injury or pain",
+      "save": "Knee injury or pain"
+    },
+    {
+      "id": "lower_back_injury",
+      "name": "Lower back injury",
+      "save": "Lower back injury"
+    },
+    {
+      "id": "back_pain",
+      "name": "Back pain",
+      "save": "Back pain"
+    },
+    {
+      "id": "shoulder_injury",
+      "name": "Shoulder injury",
+      "save": "Shoulder injury"
+    },
+    {
+      "id": "shoulder_pain",
+      "name": "Shoulder pain",
+      "save": "Shoulder pain"
+    },
+    {
+      "id": "wrist_injury",
+      "name": "Wrist injury or pain",
+      "save": "Wrist injury or pain"
+    },
+    {
+      "id": "ankle_injury",
+      "name": "Ankle injury or pain",
+      "save": "Ankle injury or pain"
+    },
+    {
+      "id": "neck_injury",
+      "name": "Neck injury or pain",
+      "save": "Neck injury or pain"
+    },
+    {
+      "id": "heart_condition",
+      "name": "Heart condition",
+      "save": "Heart condition"
+    },
+    {
+      "id": "arrhythmia",
+      "name": "Arrhythmia",
+      "save": "Arrhythmia"
+    },
+    {
+      "id": "hypertension",
+      "name": "High blood pressure",
+      "save": "High blood pressure"
+    },
+    {
+      "id": "osteoporosis",
+      "name": "Osteoporosis",
+      "save": "Osteoporosis"
+    },
+    {
+      "id": "arthritis",
+      "name": "Arthritis",
+      "save": "Arthritis"
+    },
+    {
+      "id": "asthma",
+      "name": "Asthma",
+      "save": "Asthma"
+    },
+    {
+      "id": "copd",
+      "name": "COPD",
+      "save": "COPD"
+    },
+    {
+      "id": "pregnancy",
+      "name": "Pregnancy",
+      "save": "Pregnancy"
+    },
+    {
+      "id": "hernia",
+      "name": "Hernia",
+      "save": "Hernia"
+    },
+    {
+      "id": "diabetes",
+      "name": "Diabetes",
+      "save": "Diabetes"
+    },
+    {
+      "id": "anxiety",
+      "name": "Anxiety",
+      "save": "Anxiety"
+    },
+    {
+      "id": "panic_disorder",
+      "name": "Panic attacks",
+      "save": "Panic attacks"
+    },
+    {
+      "id": "depression",
+      "name": "Depression",
+      "save": "Depression"
+    },
+    {
+      "id": "insomnia",
+      "name": "Insomnia",
+      "save": "Insomnia"
+    },
+    {
+      "id": "ptsd",
+      "name": "PTSD",
+      "save": "PTSD"
+    },
+    {
+      "id": "epilepsy",
+      "name": "Epilepsy",
+      "save": "Epilepsy"
+    }
+  ],
+  "diets": [
+    {
+      "id": "vegan",
+      "name": "Vegan",
+      "save": "vegan"
+    },
+    {
+      "id": "vegetarian",
+      "name": "Vegetarian",
+      "save": "vegetarian"
+    },
+    {
+      "id": "eggetarian",
+      "name": "Eggetarian",
+      "save": "eggetarian"
+    },
+    {
+      "id": "jain",
+      "name": "Jain",
+      "save": "jain"
+    },
+    {
+      "id": "halal",
+      "name": "Halal",
+      "save": "halal"
+    },
+    {
+      "id": "kosher",
+      "name": "Kosher",
+      "save": "kosher"
+    },
+    {
+      "id": "pescatarian",
+      "name": "Pescatarian",
+      "save": "pescatarian"
+    },
+    {
+      "id": "lactose_free",
+      "name": "Lactose free",
+      "save": "lactose free"
+    }
+  ],
+  "version": 6
+}

@@ -755,3 +755,15 @@ def test_a_word_list_and_a_reader_match_make_one_decision():
 def test_the_reader_reads_the_sentences_the_gate_judges():
     text = "Read more at https://x.com today. स्क्वाट करें।\nKeep going."
     assert prose_sentences(text) == ["Read more at  today.", "स्क्वाट करें।", "Keep going."]
+
+
+# --- A Markdown table in the prose (P5.3): each row is checked like a sentence ---
+
+
+def test_a_table_row_naming_a_blocked_food_goes_alone():
+    table = ("| Food | Protein per 100 g |\n|---|---|\n| Peanut butter | 25 g |\n"
+             "| Tofu | 15 g |\n| Chana | 9 g |")
+    kept = gate_text(table, PEANUT).content
+    assert "Peanut" not in kept
+    assert kept.splitlines() == ["| Food | Protein per 100 g |", "|---|---|", "| Tofu | 15 g |",
+                                 "| Chana | 9 g |"]

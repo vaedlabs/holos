@@ -230,7 +230,8 @@ class Composer:
         """A write that waits for the person's confirmation (C.17), with when it happened
         and a meal's meal, which the confirm card asks for again (Part E #50); a time the
         person didn't give is marked, for them to pick (Part E #51)."""
-        fields: dict[str, Any] = {"summary": summarise(write.kind, write.args)[:300],
+        fields: dict[str, Any] = {"kind": write.kind,
+                                  "summary": summarise(write.kind, write.args)[:300],
                                   "warnings": [warning_text(w) for w in write.conflicts],
                                   "attributes": confirm_attributes(write), "at": at,
                                   "meal": getattr(write.args, "meal", None),

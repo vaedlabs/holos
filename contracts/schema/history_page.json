@@ -578,6 +578,23 @@
           ],
           "default": null
         },
+        "kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "workout",
+                "meal",
+                "practice"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kind"
+        },
         "meal": {
           "anyOf": [
             {
