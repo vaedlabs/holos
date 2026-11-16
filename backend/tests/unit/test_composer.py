@@ -371,6 +371,22 @@ async def test_still_working_after_eight_quiet_seconds(monkeypatch):
     await asyncio.wait_for(watcher, 1)  # it stops at the end
 
 
+async def test_a_still_working_that_loses_its_race_to_the_end_is_dropped(monkeypatch):
+    """CI, break suite seed 79: it saw the stream open, then the answer ended while it
+    waited for the lock; its step raised StreamEnded, and the worker's cleanup with it."""
+    monkeypatch.setattr(composer_module, "STILL_WORKING_S", 0)
+    sink = Recorder()
+    c = Composer("t", "guest", sink)
+    await c.accepted(1)
+    async with c._lock:  # both wait for it: the end first, then the still_working
+        ending = asyncio.create_task(c.error("busy"))
+        await asyncio.sleep(0)
+        watcher = asyncio.create_task(c.still_working())
+        await asyncio.sleep(0)
+    await asyncio.wait_for(asyncio.gather(ending, watcher), 1)  # no StreamEnded
+    assert [e[1] for e in sink.events] == ["accepted", "error"]
+
+
 # --- Writes, helplines ---
 
 

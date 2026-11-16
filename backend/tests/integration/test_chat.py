@@ -653,6 +653,29 @@ async def test_a_long_request_keeps_its_lease_and_says_it_is_still_working(
     assert len(renewed) >= 3
 
 
+async def test_a_failed_helper_never_keeps_the_lease_or_the_trace(store, async_engine,
+                                                                  monkeypatch):
+    """CI, break suite seed 79: the still_working task died with StreamEnded, and the
+    cleanup that awaited it stopped before freeing the lease and writing the trace."""
+    async def broken(self):
+        raise composer_module.StreamEnded("still_working after the end")
+
+    monkeypatch.setattr(composer_module.Composer, "still_working", broken)
+    models = Models(router=[_route("physical")], physical=[_physical("plank")])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload()))
+    await _settled()
+    assert _names(events)[-1] == "done"
+    assert await sql(async_engine, "SELECT count(*) FROM inflight_leases") == [(0,)]
+    trace_id = events[-1][1]["trace_id"]
+    for _ in range(100):  # written after the response
+        if await sql(async_engine, "SELECT 1 FROM traces WHERE trace_id = :t", t=trace_id):
+            break
+        await asyncio.sleep(0.02)
+    else:
+        raise AssertionError("no trace stored")
+
+
 def test_the_crisis_note_is_guidance_for_the_coach_only():
     # Never sent to the person: it reaches the model inside the per-turn note
     assert isinstance(CRISIS_NOTE, str) and issubclass(BaseAgent, object)

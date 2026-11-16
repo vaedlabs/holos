@@ -168,7 +168,12 @@ class Composer:
             if wait > 0:
                 await asyncio.sleep(wait)
                 continue
-            await self.step("still_working")
+            try:
+                await self.step("still_working")
+            except StreamEnded:
+                # The answer ended while this waited for the lock: progress after the end
+                # is dropped, like a late flush (found in CI, break suite seed 79)
+                return
 
     # --- Content ---
 

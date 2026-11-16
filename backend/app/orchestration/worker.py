@@ -85,11 +85,17 @@ async def run_job(job: ChatJob, services: Services, streams: StreamStore,
             with contextlib.suppress(Exception):
                 await c.error("unavailable")
     finally:
+        # A helper that failed is logged; it never keeps the lease or the trace back
+        # (a "still working" that lost its race to the end did, found in CI)
         for task in (beat, watch):
             if task is not None:
                 task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
+                try:
                     await task
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    log.exception("chat helper failed: trace=%s cause=bug", trace_id)
         await job.admitted.release()
         record(job.store.engine, job.outcome)  # after the response; never delays it
 
