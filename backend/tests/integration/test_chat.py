@@ -482,7 +482,9 @@ async def test_an_account_profile_is_resolved_and_the_turn_saved(store, async_en
     models2 = Models(router=[_route("physical")], physical=[_physical("glute_bridge")])
     await _post(_app(store, async_engine, models2), me, _payload("make it easier"))
     history = [m.text for m in models2.fakes["physical"].calls[0].messages]
-    assert "a leg workout" in history and any("Glute bridge" in t for t in history)
+    # The person's earlier turn, dated and marked answered (Part E #65)
+    assert any(t.endswith("· already answered] a leg workout") for t in history)
+    assert any("Glute bridge" in t for t in history)
     # The router sees who answered, so a follow-up goes back to that coach (C.15)
     routed = [m.text for m in models2.fakes["router"].calls[0].messages]
     assert any(t.startswith("[physical] Here is your plan.") for t in routed)
@@ -707,7 +709,7 @@ async def test_a_photo_goes_to_the_food_coach_with_the_image(store, async_engine
     events = _events(await _post(_app(store, async_engine, models), await guest(store),
                                  _payload("is this ok?"), image=out.getvalue()))
     assert [d["agent"] for n, d in events if n == "section_start"] == ["nutrition"]
-    images = models.fakes["nutrition"].calls[0].messages[-1].images
+    images = models.fakes["nutrition"].calls[0].messages[-2].images  # last: Holos's note
     assert len(images) == 1 and images[0].data[:2] == b"\xff\xd8"  # the cleaned JPEG
     assert models.fakes["router"].calls == []  # a photo goes to nutrition directly
 

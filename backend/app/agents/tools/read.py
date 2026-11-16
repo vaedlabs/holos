@@ -1,5 +1,6 @@
 """get_recent_logs (Plan C.10). Profile and history are already in the prompt (C.8)."""
 
+import json
 import logging
 from typing import Any
 
@@ -43,12 +44,28 @@ async def get_recent_logs(args: GetRecentLogsArgs, ctx: ToolContext) -> dict[str
     except (OperationalError, InterfaceError, PoolTimeout):
         log.warning("recent logs unavailable: trace=%s", ctx.trace_id)
         return {"status": "unavailable"}
+    ctx.read_logs += [_had(args.kind, r) for r in rows]
     return {
         "entries": [
             {"date": getattr(r, date_field).isoformat(), **{f: getattr(r, f) for f in fields}}
             for r in rows
         ]
     }
+
+
+def _had(kind: str, row: Any) -> dict[str, Any]:
+    """A row as the gate reads a logged entry, with what the person left out of a meal."""
+    if kind == "workout":
+        return {"catalogue_id": row.exercise_type}
+    if kind == "practice":
+        return {"catalogue_id": row.activity_type}
+    try:
+        foods = json.loads(row.foods or "[]")
+    except ValueError:
+        foods = []
+    left_out = sorted({a for w in row.warnings or [] if isinstance(w, dict) and w.get("left_out")
+                       for a in w.get("attributes", [])})
+    return {"foods": foods if isinstance(foods, list) else [], "left_out": left_out}
 
 
 GET_RECENT_LOGS = Tool(

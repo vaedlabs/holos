@@ -373,6 +373,7 @@ def _call_agent(call: str) -> AgentName | None:
 
 
 def _tool_status(outcome: str) -> str:
+    outcome = outcome.split(":")[0]  # "refused:writes_off": the code stays on the trace
     if outcome in TOOL_STATUSES:
         return outcome
     return "unavailable" if "unavailable" in outcome else "error"

@@ -61,6 +61,26 @@ async def test_recent_logs_own_newest_first_within_days(sessions, two_users):
     assert meals == {"entries": []}  # Bob's meal is not Alice's
 
 
+
+async def test_recent_logs_are_kept_for_the_gate(sessions, two_users):
+    """What the coach read is what the person had (Part E #65), less what they left out."""
+    _, bob = two_users
+    async with sessions() as s:
+        s.add_all([
+            WorkoutLog(user_id=bob, exercise_type="leg_press"),
+            NutritionLog(user_id=bob, meal_type="breakfast",
+                         foods=json.dumps([{"name": "Poha", "ingredients": ["poha", "peanut"]}]),
+                         warnings=[{"kind": "conflict", "item": "Poha", "rule_id": "DI-ALG-01",
+                                    "attributes": ["peanut"], "reason": "r", "left_out": True}]),
+        ])
+        await s.commit()
+    ctx = ToolContext(mode="account", trace_id="t", user_id=bob, sessions=sessions)
+    await TOOLS["get_recent_logs"].run({"kind": "workout", "days": 14}, ctx)
+    await TOOLS["get_recent_logs"].run({"kind": "meal", "days": 14}, ctx)
+    assert {"catalogue_id": "leg_press"} in ctx.read_logs
+    poha = next(e for e in ctx.read_logs if e.get("foods") and e["foods"][0]["name"] == "Poha")
+    assert poha["left_out"] == ["peanut"]
+
 async def test_writes_never_commit(sessions, two_users, async_engine):
     alice, _ = two_users
     ctx = ToolContext(mode="account", trace_id="t", user_id=alice, sessions=sessions)

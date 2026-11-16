@@ -72,6 +72,15 @@ HELD_TIME = ("Not saved yet: the person didn't say what time, so it waits on the
 # Part E #59: a model told to log 40 entries in one message saved 40
 TOO_MANY = (f"At most {ENTRIES_PER_TURN} entries can be logged from one message; this one "
             "wasn't. Tell the person to log the rest in another message.")
+# Part E #65: a retry re-logged an entry the person had asked for the turn before
+WRITES_OFF = ("Nothing can be logged in this step. Anything already logged this turn is "
+              "kept; don't log it again or say it was logged.")
+
+
+def _refused(code: str, reason: str) -> dict[str, Any]:
+    """`code` for the trace and the failure library (Plan C.10 tools), `reason` for the
+    coach."""
+    return {"status": "refused", "code": code, "reason": reason}
 
 
 def _named_exercise(args: BaseModel) -> BaseModel:
@@ -92,18 +101,20 @@ def _named_exercise(args: BaseModel) -> BaseModel:
 
 
 async def _stage(kind: WriteKind, args: BaseModel, ctx: ToolContext) -> dict[str, Any]:
+    if ctx.writes == "off":
+        return _refused("writes_off", WRITES_OFF)
     if ctx.entries_in_turn() >= ENTRIES_PER_TURN:
-        return {"status": "refused", "reason": TOO_MANY}
+        return _refused("too_many", TOO_MANY)
     args = _named_exercise(args)
     said = ctx.said or datetime.now(UTC)
     try:
         when = resolve(args.when, getattr(args, "meal", None), said, ctx.tz)
     except NotLoggable as exc:
-        return {"status": "refused", "reason": str(exc)}
+        return _refused("time_out_of_range", str(exc))
     gate = await ctx.gate_write(kind, args, ctx)
     ctx.decisions.extend(gate.decisions)
     if not gate.allowed:
-        return {"status": "refused", "reason": gate.reason or "Not allowed for your profile"}
+        return _refused("not_allowed", gate.reason or "Not allowed for your profile")
     args = gate.args or args
     write = StagedWrite(kind=kind, args=args, warnings=list(gate.warnings),
                         at=None if when.at == said else when.at, time_guessed=when.guessed)

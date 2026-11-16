@@ -532,6 +532,32 @@ failures:
       - tests/integration/test_writes.py::test_a_time_ahead_of_now_logs_nothing_and_the_coach_says_so
     seen_live: null
 
+  - id: tools.writes_off
+    layer: tools
+    what: A log tool is called by a call that doesn't answer the person's message (a retry, the explain call).
+    cause: none
+    handling: Refused with code writes_off, nothing staged; the request carries no write tools in the first place, this is the backstop. The first try's entries are kept (Part E #65).
+    person_sees: Their answer; an entry from their message is logged once.
+    code: null
+    tests:
+      - tests/unit/tools/test_write_and_read_tools.py::test_with_writes_off_nothing_is_staged_or_gated
+      - tests/unit/agents/test_base.py::test_a_retry_that_calls_a_log_tool_anyway_logs_nothing
+      - tests/unit/agents/test_base.py::test_a_retry_keeps_the_first_trys_entry_and_cant_log
+    seen_live: "2026-11-15: a log-claim retry logged poha a second time (2 of 7 turns, Part E #65)"
+
+  - id: tools.log_claim_unbacked
+    layer: safety
+    what: A coach's reply says it logged something and nothing was saved or held.
+    cause: none
+    handling: The claim is removed (write_claim) and the reply gets one retry with writes off, which rewords a report of an earlier entry and can't log; if the retry still claims, or there is no time for it, trace step log_claim_unbacked and the code's NOT_LOGGED line in the coach's section, never the safety explanation (Part E #65).
+    person_sees: "Their answer, with an earlier entry described in plain words; if the retry still claims: Nothing was saved. If you meant to log something, say \"log it\"."
+    code: null
+    tests:
+      - tests/unit/agents/test_base.py::test_a_logged_claim_with_nothing_saved_is_reworded_by_a_retry_that_cant_log
+      - tests/unit/agents/test_base.py::test_a_retry_that_still_says_logged_tells_the_person_nothing_was_saved
+      - tests/unit/agents/test_base.py::test_a_reply_that_only_said_logged_gets_no_safety_explanation
+    seen_live: "2026-10-25: the old Gemini nutrition agent didn't call its log tool (Part E #12); 2026-11-15: 10 of 19 true reports of earlier entries were told nothing was saved (D050 (b))"
+
   - id: tools.recent_logs_down
     layer: tools
     what: The database can't answer the recent-logs tool.

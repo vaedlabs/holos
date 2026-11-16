@@ -142,7 +142,10 @@ def _to_steps(message: Message) -> list[dict[str, Any]]:
     if isinstance(message, Turn):
         if message.role == "assistant":
             return [{"type": "model_output", "content": [{"type": "text", "text": message.text}]}]
-        content: list[dict[str, Any]] = [{"type": "text", "text": message.text}]
+        text = message.text
+        if message.role == "holos":  # no developer turn mid-conversation (until P4.14)
+            text = f"Holos check (not from the person): {text}"
+        content: list[dict[str, Any]] = [{"type": "text", "text": text}]
         for image in message.images:
             content.append({"type": "image", "mime_type": image.mime_type,
                             "data": base64.b64encode(image.data).decode()})

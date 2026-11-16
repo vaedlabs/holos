@@ -10,9 +10,12 @@ from the catalogue and rules.yaml.
    reply in the schema. A call with tools keeps the final call's reserve (its p95 +
    the timeout overshoot) on the deadline; without time for both, the call goes
    straight to the reply.
-3. The gate (C.14; photo mode for a meal photo). A blocked item, a malformed reply, or
-   a "logged" claim without a staged write (Part E #12) gets one retry with the
-   reasons, if the reserve is left; the retry starts without the first try's writes.
+3. The gate (C.14; photo mode for a meal photo). A blocked item or a malformed reply
+   gets one retry with the reasons, if the reserve is left. The retry keeps the first
+   try's writes and can't log: only the call answering the person's message may (C.17,
+   Part E #65). A "logged" claim with nothing saved is removed and gets the same retry,
+   to reword a report of an earlier entry; if the retry still claims, or there is no
+   time for it, the code's own NOT_LOGGED line says nothing was saved.
 4. Then blocked items are dropped ("N removed for your safety"). None left: the coach
    is told what was removed and why, and writes the reply itself without items (Part
    E #38); only if that fails too, the domain's fixed reply. A provider failure gives
@@ -32,6 +35,7 @@ from typing import ClassVar, Protocol
 from pydantic import BaseModel
 
 from app.agents import schemas
+from app.agents.clock import when_text
 from app.agents.prefix import prefix
 from app.agents.schemas import (
     AgentError,
@@ -87,9 +91,17 @@ UNSAFE_FALLBACK = {
 }
 REMOVED_NOTE = "{n} {items} removed for your safety"
 AREA = {"physical": "exercise", "nutrition": "food", "mental": "mental wellbeing"}
-LOG_RETRY = ("You said something was logged or saved, but no log tool returned "
-             "\"staged\". If the person asked to log something, call the log tool; "
-             "otherwise don't say it was logged.")
+# The coach said it logged something and nothing was saved (Part E #65). Live, 10 of 19
+# follow-ups were true reports of earlier entries ("your poha is logged"), so the retry
+# rewords them; it can't log (writes off), so it can't re-log either
+LOG_CLAIM_RETRY = ("Nothing was saved in this turn, and nothing can be saved now. If your "
+                   "reply reports an entry the person logged earlier, say what they had or "
+                   "did and when, without the words logged, saved, recorded or noted. If "
+                   "they asked to log something in this message, say it wasn't saved and "
+                   "ask them to send it again. Don't apologise or mention this check.")
+# The retry still said "logged", or there was no time for it: the person is told, so a
+# log they asked for is never missed silently
+NOT_LOGGED = "Nothing was saved. If you meant to log something, say \"log it\"."
 # Prompt guidance, not wording for the person (C.16)
 CRISIS_NOTE = ("This person recently wrote something that suggested they may be in "
                "distress. Be especially gentle and supportive, don't push, and say that "
@@ -140,8 +152,9 @@ class _Try:
     reply: BaseModel | None = None
     gated: GateResult | None = None
     retry_because: str | None = None
-    why: str = ""  # the retry's category for the trace: blocked, log_claim, a cause
+    why: str = ""  # the retry's category for the trace: blocked, a cause
     messages: list[Message] = field(default_factory=list)
+    unbacked: bool = False  # a "logged" claim removed with nothing saved (Part E #65)
 
 
 class BaseAgent:
@@ -158,6 +171,8 @@ class BaseAgent:
         self.tools = {t.name: t for t in AGENT_TOOLS[self.domain]}
         self.specs = [ToolSpec(t.name, t.description, llm_json_schema(t.args_model))
                       for t in self.tools.values()]
+        # With writes off (C.17): the request carries no write tools at all
+        self.read_specs = [s for s in self.specs if self.tools[s.name].kind != "write"]
         self.system = prefix(self.domain, self.guidance)
 
     @classmethod
@@ -195,7 +210,8 @@ class BaseAgent:
         last: _Try | None = None
         for attempt in range(2):
             if attempt:
-                run.tools.clear_staged()
+                # Holos's own check: it keeps the first try's writes and can't log
+                run.tools.writes = "off"
                 run.trace.step("retry", self.domain, detail=last.why)
             began = self.clock()
             try:
@@ -207,7 +223,7 @@ class BaseAgent:
             if (current.retry_because is None or attempt
                     or not self._room_to_retry(run, self.clock() - began, speed)):
                 break
-            messages = [*current.messages, Turn("user", current.retry_because)]
+            messages = [*current.messages, Turn("holos", current.retry_because)]
         if last.gated is None:
             raise MalformedOutput("no valid reply after the retry", cause=last.why or None)
         return await self._finish(last, run, speed)
@@ -220,6 +236,7 @@ class BaseAgent:
         give instead."""
         messages = list(messages)
         reserve = reply_speed.p95 + TIMEOUT_OVERSHOOT_S
+        specs = self.specs if run.tools.writes == "allowed" else self.read_specs
         for round_ in range(TOOL_ROUNDS + 1):
             left = run.deadline - self.clock()
             tools = round_ < TOOL_ROUNDS and left >= speed.p95 + reserve
@@ -227,7 +244,7 @@ class BaseAgent:
                             speed=reply_speed, principal=run.principal, meter=run.meter,
                             kind="meal_photo" if photo else self.domain, trace=run.trace)
             result = await self.llm.generate(messages, plan=plan, system=self.system,
-                                             tools=self.specs if tools else None,
+                                             tools=specs if tools and specs else None,
                                              schema=self.schema)
             if result.turn is not None:
                 messages.append(result.turn)
@@ -248,7 +265,10 @@ class BaseAgent:
             output = (await tool.run(call.arguments, run.tools) if tool is not None
                       else {"status": "unknown_tool"})
             status = output.get("status", "ok") if isinstance(output, dict) else "ok"
-            run.trace.step("tool_call", self.domain, str(status), call.name, began)
+            code = output.get("code") if isinstance(output, dict) else None
+            # "refused:writes_off": the code is countable on the stored trace (C.10)
+            outcome = f"{status}:{code}" if code else str(status)
+            run.trace.step("tool_call", self.domain, outcome, call.name, began)
             return ToolResult(call.id, call.name, output)
 
         return list(await asyncio.gather(*(one(c) for c in result.tool_calls)))
@@ -260,10 +280,12 @@ class BaseAgent:
         held = bool(staged) and (run.tools.untrusted or any(w.waits for w in staged))
         gated = gate(self.domain, reply.model_dump(mode="json"), run.profile or _NO_PROFILE,
                      purpose="photo" if photo else "plan", logged=logged, held=held,
-                     read=read)
+                     read=read, had=run.tools.read_logs)
         run.trace.step("gate", self.domain, gated.action)
         run.decided += decisions_of(gated)
         because, why = None, ""
+        unbacked = (any(s.kind == "write_claim" for s in gated.scrubbed)
+                    and not run.tools.staged_writes)
         if gated.needs_retry:
             # The whole reply: live, a week plan's retry came back with only the swaps
             # and the rest of the week was lost (3 of 9 retries, Part E #38)
@@ -272,10 +294,11 @@ class BaseAgent:
                        "reply again: keep every other item as it was and replace only "
                        "these with safe alternatives from the catalogue.")
             why = "blocked"
-        elif (any(s.kind == "write_claim" for s in gated.scrubbed)
-              and not run.tools.staged_writes):
-            because, why = LOG_RETRY, "log_claim"
-        return _Try(reply, gated, because, why, messages)
+            if unbacked:
+                because += " " + LOG_CLAIM_RETRY
+        elif unbacked:
+            because, why = LOG_CLAIM_RETRY, "log_claim"
+        return _Try(reply, gated, because, why, messages, unbacked)
 
     # --- The result ---
 
@@ -287,6 +310,9 @@ class BaseAgent:
                                                          gated.items, strict=True)
                 if verdict.index not in blocked]
         warnings = list(gated.caveats)
+        if last.unbacked and not run.tools.staged_writes:
+            run.trace.step("log_claim_unbacked", self.domain)
+            warnings.append(NOT_LOGGED)
         if blocked:
             reasons = sorted({d.reason for d in gated.decisions if d.action == "block"})
             n = len(blocked)
@@ -297,9 +323,13 @@ class BaseAgent:
         content["items"] = [item for item, _ in kept]
         known = {s.id for s in run.tools.sources}
         content["source_ids"] = [i for i in content.get("source_ids", []) if i in known]
-        if not content.get("summary") and not content["items"] and not run.tools.staged_writes:
+        only_claims = last.unbacked and not any(d.action == "block" for d in gated.decisions)
+        if (not content.get("summary") and not content["items"] and not run.tools.staged_writes
+                and not only_claims):
             # Every sentence was unsafe. With a staged write the summary may be empty:
-            # the "logged" confirmation comes from the commit result (C.17)
+            # the "logged" confirmation comes from the commit result (C.17). With only
+            # "logged" claims removed, NOT_LOGGED says so: the explain call would give
+            # the profile as the reason, even to a guest without one (Part E #65)
             return await self._explain(last, run, speed, warnings, "every sentence")
         return AgentResult(
             reply=self.schema.model_validate(content),
@@ -318,12 +348,13 @@ class BaseAgent:
         gated = last.gated
         began = run.trace.ms()
         reply = None
+        run.tools.writes = "off"  # no tools on this call; the backstop all the same
         if self._time_left(run, speed):
             note = EXPLAIN.format(what=what, reasons=_blocked(gated) or "unsafe content")
             plan = CallPlan(deadline=run.deadline, speed=speed, principal=run.principal,
                             meter=run.meter, kind=self.domain, trace=run.trace)
             try:
-                result = await self.llm.generate([*last.messages, Turn("user", note)],
+                result = await self.llm.generate([*last.messages, Turn("holos", note)],
                                                  plan=plan, system=self.system,
                                                  schema=self.schema)
                 if isinstance(result.parsed, self.schema) and not result.truncated:
@@ -357,13 +388,22 @@ class BaseAgent:
     # --- Helpers ---
 
     def _messages(self, run: AgentRun) -> list[Message]:
-        """Profile, then history, then the message (C.9 prompt order)."""
-        messages: list[Message] = [Turn("user", _profile_text(run.profile)),
-                                   Turn("assistant", "Noted.")]
+        """Profile, then history, then the message (C.9 prompt order), each from whoever
+        wrote it (Part E #65): Holos's text in its own role, the person's earlier turns
+        dated and marked answered, so a log they asked for then isn't logged again."""
+        messages: list[Message] = [Turn("holos", _profile_text(run.profile))]
+        if run.profile is not None and run.profile.notes.strip():
+            # The person's own words: never in Holos's role (Part E #62 (3))
+            messages += [Turn("user", f"My profile notes: {run.profile.notes.strip()}"),
+                         Turn("assistant", "Noted.")]
+        said = run.tools.said
         for turn in run.history:
-            messages.append(Turn(turn.role, turn.content))
-        messages.append(Turn("user", f"{run.message}\n\n({self._note(run)})",
-                             tuple(run.images)))
+            text = turn.content
+            if turn.role == "user":
+                text = f"[{when_text(turn.ts, run.tools.tz, said)} · already answered] {text}"
+            messages.append(Turn(turn.role, text))
+        messages.append(Turn("user", run.message, tuple(run.images)))
+        messages.append(Turn("holos", self._note(run)))
         return messages
 
     def _note(self, run: AgentRun) -> str:
@@ -397,16 +437,16 @@ class BaseAgent:
 
 _NO_PROFILE = UserProfile(condition_ids=[], allergen_tags=[], diet_tags=[], notes="")
 def _profile_text(profile: UserProfile | None) -> str:
+    """The checked fields only, from fixed lists; the person's free notes go in their
+    own turn (C.9)."""
     if profile is None:
-        return "My profile: none yet (a guest)."
+        return "The person's profile: none yet (a guest)."
     lines = [
         f"conditions: {', '.join(profile.condition_ids) or 'none'}",
         f"allergies: {', '.join(profile.allergen_tags) or 'none'}",
         f"diet: {', '.join(profile.diet_tags) or 'none'}",
     ]
-    if profile.notes.strip():
-        lines.append(f"my notes: {profile.notes.strip()}")
-    return "My profile. " + "; ".join(lines) + "."
+    return "The person's profile. " + "; ".join(lines) + "."
 
 
 def _blocked(gated: GateResult) -> str:

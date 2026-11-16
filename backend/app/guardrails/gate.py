@@ -442,10 +442,14 @@ def _plate(check: _Check, items: Any) -> set[Entry]:
 
 
 def _already_had(check: _Check, logged: Sequence[Mapping[str, Any]]) -> set[Entry]:
+    """`left_out`: allergens or diet conflicts the person didn't have (the peanuts picked
+    out of the poha): those stay checked."""
     had: set[Entry] = set()
     for entry in logged:
         if "foods" in entry:
-            had |= _plate(check, entry["foods"])
+            skip = set(entry.get("left_out") or ())
+            had |= {e for e in _plate(check, entry["foods"])
+                    if not skip & (e.allergens | e.diet_conflicts)}
         cid = entry.get("catalogue_id")
         for table in (check.matcher.exercises, check.matcher.practices):
             if cid in table:
@@ -462,6 +466,7 @@ def gate(
     logged: Sequence[Mapping[str, Any]] = (),
     held: bool = False,
     read: Mapping[str, Sequence[str]] | None = None,
+    had: Sequence[Mapping[str, Any]] = (),
 ) -> GateResult:
     """Check an agent reply or a write (log_workout, log_meal, log_practice arguments).
     purpose="photo": a nutrition reply about a meal photo (C.14 step 7).
@@ -470,7 +475,9 @@ def gate(
     a vegan's paneer log lost its whole acknowledgement (Part E #45). A sentence that
     looks ahead ("keep doing them") is checked as usual (Part E #62).
     held: one of them waits for the person's confirmation (Part E #52).
-    read: what the mention reader found each sentence recommends (read_key -> items)."""
+    read: what the mention reader found each sentence recommends (read_key -> items).
+    had: entries the coach read from the person's logs, named like `logged` ones (Part E
+    #65: "how's my week" lost every sentence naming a logged leg press)."""
     if domain not in ITEM_KIND:
         raise ValueError(f"unknown domain '{domain}'")
     if purpose == "photo" and (domain != "nutrition" or "summary" not in reply_or_write):
@@ -483,7 +490,7 @@ def gate(
     if "summary" in content:  # a reply
         if purpose == "photo":
             check.on_plate = _plate(check, content.get("items"))
-        check.on_plate |= _already_had(check, logged)
+        check.on_plate |= _already_had(check, [*logged, *had])
         items = _items(check, domain, content.get("items", []), "items")
         content["summary"] = check.prose(content["summary"], "summary")
         notes = [check.prose(n, f"notes[{i}]") for i, n in enumerate(content.get("notes") or [])]

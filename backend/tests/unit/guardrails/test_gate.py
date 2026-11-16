@@ -637,6 +637,36 @@ def test_a_photos_food_recommended_again_is_removed():
     assert result.content["summary"] == "This looks like peanut chikki."
 
 
+
+# --- Entries the coach read from the logs (Part E #65) ---
+# Live, 15 Nov 2026: "How's my week looking?" lost every sentence naming the logged leg
+# press, twice, and the answer was only "You're right—sorry."
+
+LEG_PRESS_READ = [{"catalogue_id": "leg_press"}]
+POHA = food("Poha", ["poha", "peanut"], ["peanut"])
+
+
+def test_an_entry_read_from_the_logs_may_be_named():
+    said = "You did leg press on Tuesday and Thursday, 3 sets each."
+    assert gate("physical", reply(summary=said), KNEE).content["summary"] == ""  # the old loss
+    result = gate("physical", reply(summary=said), KNEE, had=LEG_PRESS_READ)
+    assert result.content["summary"] == said
+
+
+def test_an_entry_read_from_the_logs_recommended_again_is_removed():
+    result = gate("physical", reply(summary="Good week. Keep doing leg press twice a week."),
+                  KNEE, had=LEG_PRESS_READ)
+    assert result.content["summary"] == "Good week."
+
+
+def test_what_was_left_out_of_a_read_meal_stays_checked():
+    had = [{"foods": [POHA], "left_out": ["peanut"]}]
+    said = "You had poha on Monday. Peanut adds healthy fats."
+    result = gate("nutrition", reply(summary=said), PEANUT, had=had)
+    assert result.content["summary"] == "You had poha on Monday."
+    eaten = gate("nutrition", reply(summary=said), PEANUT, had=[{"foods": [POHA]}])
+    assert eaten.content["summary"] == said  # with the peanut, it is what they had
+
 # --- A held entry (Part E #52) ---
 
 

@@ -84,6 +84,7 @@ async def test_a_time_ahead_or_too_far_back_stages_nothing(account_ctx, when, re
     out = await TOOLS["log_practice"].run({**WRITES["log_practice"][1], "when": when},
                                           account_ctx)
     assert out["status"] == "refused" and reason in out["reason"]
+    assert out["code"] == "time_out_of_range"
     assert account_ctx.staged_writes == []
 
 
@@ -120,7 +121,8 @@ async def test_gate_refusal_stages_nothing(account_ctx, name):
 
     account_ctx.gate_write = refuse
     out = await TOOLS[name].run(WRITES[name][1], account_ctx)
-    assert out == {"status": "refused", "reason": "Contains an allergen in your profile"}
+    assert out == {"status": "refused", "code": "not_allowed",
+                   "reason": "Contains an allergen in your profile"}
     assert account_ctx.staged_writes == []
     assert account_ctx.decisions == [block]
 
@@ -156,7 +158,7 @@ async def test_one_message_logs_at_most_its_cap_across_every_coach():
                 )["status"] == "staged"
     assert (await TOOLS["log_meal"].run(WRITES["log_meal"][1], nutrition))["status"] == "staged"
     out = await TOOLS["log_workout"].run(WRITES["log_workout"][1], physical)
-    assert out == {"status": "refused", "reason": write_tools.TOO_MANY}
+    assert out == {"status": "refused", "code": "too_many", "reason": write_tools.TOO_MANY}
     assert turn.count() == ENTRIES_PER_TURN
 
 
@@ -177,10 +179,18 @@ async def test_another_activity_named_after_one_exercise_is_that_exercise(accoun
     assert staged.args.activity == (activity if logged == "other_activity" else None)
 
 
-async def test_retry_clears_staged_writes(account_ctx):
-    await TOOLS["log_practice"].run(WRITES["log_practice"][1], account_ctx)
-    account_ctx.clear_staged()
-    assert account_ctx.staged_writes == []
+@pytest.mark.parametrize("name", list(WRITES))
+async def test_with_writes_off_nothing_is_staged_or_gated(account_ctx, name):
+    """Part E #65: only the call answering the person's message may log."""
+    async def never(kind, args, ctx):
+        raise AssertionError("the gate ran")
+
+    await TOOLS[name].run(WRITES[name][1], account_ctx)  # this turn's entry is kept
+    account_ctx.writes = "off"
+    account_ctx.gate_write = never
+    out = await TOOLS[name].run(WRITES[name][1], account_ctx)
+    assert out == {"status": "refused", "code": "writes_off", "reason": write_tools.WRITES_OFF}
+    assert len(account_ctx.staged_writes) == 1
 
 
 @pytest.mark.parametrize(

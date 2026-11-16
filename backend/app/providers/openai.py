@@ -175,6 +175,8 @@ def _to_input(message: Message) -> list[dict[str, Any]]:
         if message.role == "assistant":
             return [{"role": "assistant", "content": message.text}]
         content: list[dict[str, Any]] = [{"type": "input_text", "text": message.text}]
+        if message.role == "holos":
+            return [{"role": "developer", "content": content}]
         for image in message.images:
             data = base64.b64encode(image.data).decode()
             content.append({"type": "input_image",

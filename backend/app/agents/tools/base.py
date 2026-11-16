@@ -61,6 +61,12 @@ class ToolContext:
     sources: list[Source] = field(default_factory=list)
     searches_used: int = 0
     untrusted: bool = False  # a web search result entered the turn (Plan C.17)
+    # Only the call answering the person's message may log; the agent sets "off" for a
+    # retry or any other call of Holos's own (Plan C.17, Part E #65)
+    writes: Literal["allowed", "off"] = "allowed"
+    # What get_recent_logs read, as the gate's `had` (Part E #65): kept across a retry,
+    # since the retry still sees the tool results
+    read_logs: list[dict[str, Any]] = field(default_factory=list)
     # When the person said it and their time zone: a log's `when` is worked out from
     # these (Part E #51); None is the moment the tool runs
     said: datetime | None = None
@@ -74,10 +80,6 @@ class ToolContext:
 
     def entries_in_turn(self) -> int:
         return self.turn.count() if self.turn is not None else len(self.staged_writes)
-
-    def clear_staged(self) -> None:
-        """A retry starts without the writes of the failed attempt (Plan C.10 step 6)."""
-        self.staged_writes.clear()
 
 
 ToolHandler = Callable[[BaseModel, ToolContext], Awaitable[dict[str, Any]]]

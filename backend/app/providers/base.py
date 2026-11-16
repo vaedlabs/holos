@@ -28,7 +28,9 @@ class ImageInput:
 
 @dataclass(frozen=True)
 class Turn:
-    role: Literal["user", "assistant"]
+    # holos: Holos's own text (profile fields, notes, retry notes), never the person's
+    # words (Plan C.9, Part E #65): OpenAI's developer role
+    role: Literal["user", "assistant", "holos"]
     text: str
     images: tuple[ImageInput, ...] = ()
 

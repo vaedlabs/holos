@@ -909,19 +909,24 @@ async def test_the_coach_sees_past_warnings(store, async_engine):
     assert entry["warnings"][0]["left_out"] is True
 
 
-async def test_a_retry_that_logs_nothing_commits_nothing(store, async_engine):
+async def test_a_retry_keeps_the_first_trys_entry_and_it_is_saved_once(store, async_engine):
+    """Part E #65 (7): a retry is Holos's own check; it can't log, and the entry from
+    the person's message stays (it was cleared, and a retry could log it again)."""
     me = await account(store, async_engine)
     await sql(async_engine, "INSERT INTO medical_history (user_id, conditions) "
               "VALUES (:u, :c)", u=me.user_id, c=KNEE_NOTE)
-    # The first try logs and is blocked; the retry gives a safe plan and logs nothing
+    # The first try logs and is blocked; the retry tries to log the same again
     models = Models(router=[_route("physical")], physical=[
-        _calls(("log_workout", BRIDGES)), _physical("back_squat"), _physical("glute_bridge")])
+        _calls(("log_workout", BRIDGES)), _physical("back_squat"),
+        _calls(("log_workout", BRIDGES)), _physical("glute_bridge")])
     events = _events(await _post(_writes_app(store, async_engine, models), me,
-                                 _payload("a leg plan")))
+                                 _payload("log 3x12 bridges and give me a leg plan")))
     await _settled()
     assert ("step", "retry") in [(n, d["name"]) for n, d in events if n == "step"]
-    assert "committed" not in _names(events)
-    assert await _count(async_engine, "workout_logs") == 0
+    assert models.fakes["physical"].calls[3].messages[-1].output["code"] == "writes_off"
+    [committed] = [d for n, d in events if n == "committed"]
+    assert len(committed["writes"]) == 1
+    assert await _count(async_engine, "workout_logs") == 1
 
 
 async def test_a_reconnect_sees_what_was_logged(store, async_engine):
