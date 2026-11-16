@@ -43,7 +43,7 @@ MSG = [Turn("user", "hi")]
 SLOW_SPEED = Speed(p50=3.0, p90=60.0, p95=8.0, p99=120.0)
 # Real-time tests
 FAST = Speed(p50=0.05, p90=0.1, p95=0.15, p99=0.3)
-SLOTS = {"openai": 24, "gemini": 4, "tavily": 4}
+SLOTS = {"openai": 24, "second": 4, "tavily": 4}
 
 
 class Clock:
@@ -95,7 +95,7 @@ def _make(primary_script, fallback_script=None, *, clock=None, breakers=None,
         clock.now += seconds
 
     primary = FakeProvider(list(primary_script), name="openai")
-    fallback = FakeProvider(list(fallback_script or []), name="gemini")
+    fallback = FakeProvider(list(fallback_script or []), name="second")
     opts = GenerateOptions(model="m", max_output_tokens=100)
     rp = ResilientProvider(
         Route(primary, opts),
@@ -137,7 +137,7 @@ async def test_backoff_doubles_and_retry_after_is_honoured_in_full():
 
 
 async def test_a_retry_after_longer_than_the_time_left_gives_the_route_up_at_once():
-    # Gemini's free tier asked for 34-53 s (Part D); 25 s left can't fit that
+    # A provider's free tier asked for 34-53 s (Part D); 25 s left can't fit that
     rp, primary, fallback, sleeps, clock = _make([RateLimited("429", retry_after=40.0)], [OK])
     assert (await rp.generate(MSG, plan=_plan(clock))).parsed == OK.parsed
     assert len(primary.calls) == 1 and len(fallback.calls) == 1 and sleeps == []
@@ -246,7 +246,7 @@ async def test_a_call_faster_than_p90_gets_no_backup():
 
 
 async def test_no_backup_without_a_free_slot():
-    one = FairScheduler({"openai": 1, "gemini": 1, "tavily": 1}, global_slots=1)
+    one = FairScheduler({"openai": 1, "second": 1, "tavily": 1}, global_slots=1)
     rp, primary, _, _, clock = _make([Slow(0.2, OK)], scheduler=one, real_time=True)
     assert (await rp.generate(MSG, plan=_plan(clock, left=3, speed=FAST))).parsed == OK.parsed
     assert len(primary.calls) == 1
@@ -390,7 +390,7 @@ async def test_unbilled_errors_release_the_reservation_and_unknown_usage_keeps_i
 
 
 async def test_a_shed_call_releases_its_reservation():
-    full = FairScheduler({"openai": 1, "gemini": 1, "tavily": 1}, global_slots=1)
+    full = FairScheduler({"openai": 1, "second": 1, "tavily": 1}, global_slots=1)
     full._take("openai", "someone")
     meter = Meter()
     rp, primary, _, _, clock = _make([OK], scheduler=full)
@@ -532,7 +532,7 @@ async def test_breakers_are_per_provider():
     breakers = Breakers(clock)
     for _ in range(5):
         breakers["openai"].record_failure()
-    assert breakers["openai"].state == "open" and breakers["gemini"].state == "closed"
+    assert breakers["openai"].state == "open" and breakers["second"].state == "closed"
 
 
 # --- Streaming calls: silence rules and first-output backups (Part E #35) ---

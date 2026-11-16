@@ -22,12 +22,14 @@ from app.providers import (
     ToolSpec,
     Turn,
 )
-from app.providers.gemini import GeminiProvider
 from app.providers.openai import OpenAIProvider
 
-MODELS = {"openai": "gpt-6-luna", "gemini": "gemini-3.5-flash-lite"}
-REPLY_CAP = {"openai": 1200, "gemini": 1400}
-PROVIDERS = ("openai", "gemini")
+# One entry per provider: another provider is one more entry here, and every scenario
+# runs on it too
+MODELS = {"openai": "gpt-6-luna"}
+REPLY_CAP = {"openai": 1200}
+PROVIDERS = tuple(MODELS)
+CLASSES = {"openai": OpenAIProvider}
 
 RECENT_LOGS = ToolSpec(
     name="get_recent_logs",
@@ -40,8 +42,7 @@ LOG_ENTRIES = {"entries": [{"date": "2026-10-24", "meal_type": "lunch",
 
 def make_provider(name: str, api_key: str, transport: httpx.AsyncBaseTransport):
     client = httpx.AsyncClient(transport=transport, timeout=30)
-    cls = OpenAIProvider if name == "openai" else GeminiProvider
-    return cls(api_key, http_client=client)
+    return CLASSES[name](api_key, http_client=client)
 
 
 def options(name: str, max_output_tokens: int | None = None) -> GenerateOptions:
@@ -110,10 +111,3 @@ async def truncated(provider, name):
 SCENARIOS = [Scenario(f.__name__, f) for f in
              (structured_physical, structured_nutrition, structured_mental, tool_call, image,
               truncated)]
-
-# Gemini rejects the physical schema: "too many states for serving" (124 exercise ids
-# plus numeric bounds, Part D), and since its item limit was dropped (2 Nov 2026) "too
-# much branching" for the same ids, and so for the 153 with sports (9 Nov 2026, Part E
-# #53). C.9 never sends physical replies to Gemini; the real 400 is kept as an
-# error-mapping fixture.
-EXPECTED_ERRORS = {("gemini", "structured_physical"): "BadRequest"}

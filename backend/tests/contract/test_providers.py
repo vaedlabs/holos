@@ -1,5 +1,6 @@
-"""The same contract tests on OpenAIProvider and GeminiProvider, replaying recorded HTTP
-(Plan P2.3). No network. Re-record with `python -m tests.contract.record_providers`.
+"""The same contract tests on every provider (`PROVIDERS`: OpenAIProvider), replaying
+recorded HTTP (Plan P2.3). No network. Re-record with
+`python -m tests.contract.record_providers`.
 """
 
 import json
@@ -25,12 +26,10 @@ from app.providers import (
     ToolResult,
     Turn,
 )
-from app.providers.gemini import _to_steps
 from app.providers.openai import _to_input
 
 from .http_fixtures import RaisingTransport, ReplayTransport, load
 from .provider_scenarios import (
-    EXPECTED_ERRORS,
     PROVIDERS,
     image,
     make_provider,
@@ -75,10 +74,6 @@ def _final(body):
 )
 async def test_structured_parse(provider_name, run, model):
     provider, transport = _replay(provider_name, run.__name__)
-    if (provider_name, run.__name__) in EXPECTED_ERRORS:
-        with pytest.raises(BadRequest, match="too many states|too much branching"):
-            await run(provider, provider_name)
-        return
     [result] = await run(provider, provider_name)
     assert isinstance(result.parsed, model)
     assert result.parsed.kind in ("plan", "answer", "clarify", "log_ack")
@@ -88,8 +83,7 @@ async def test_structured_parse(provider_name, run, model):
 
 
 @pytest.mark.parametrize("provider_name", PROVIDERS)
-async def test_nutrition_reply_parses_on_both_providers(provider_name):
-    """Nutrition runs on Gemini with an OpenAI fallback (C.9): both must parse it."""
+async def test_nutrition_reply_keeps_its_foods_in_their_limits(provider_name):
     provider, _ = _replay(provider_name, "structured_nutrition")
     [result] = await structured_nutrition(provider, provider_name)
     reply = result.parsed
@@ -198,26 +192,16 @@ async def test_transport_errors_map(provider_name, raised, error):
 CALL = ToolCall(id="c1", name="get_recent_logs", arguments={"kind": "meal", "days": 7})
 
 
-def test_openai_rebuilds_a_gemini_turn():
-    turn = ModelTurn(provider="gemini", items=({"type": "thought"},), tool_calls=(CALL,),
+def test_openai_rebuilds_another_providers_turn():
+    turn = ModelTurn(provider="fake", items=({"type": "thought"},), tool_calls=(CALL,),
                      text=None)
     items = _to_input(turn)
     assert items == [{"type": "function_call", "call_id": "c1", "name": "get_recent_logs",
                       "arguments": '{"kind": "meal", "days": 7}'}]
 
 
-def test_gemini_rebuilds_an_openai_turn():
-    turn = ModelTurn(provider="openai", items=({"type": "reasoning"},), tool_calls=(CALL,),
-                     text="Checking your logs.")
-    steps = _to_steps(turn)
-    assert steps[0]["type"] == "model_output"
-    assert steps[1] == {"type": "function_call", "id": "c1", "name": "get_recent_logs",
-                        "arguments": {"kind": "meal", "days": 7}}
-
-
-@pytest.mark.parametrize("to_wire", [_to_input, _to_steps], ids=["openai", "gemini"])
-def test_tool_results_are_json(to_wire):
-    [item] = to_wire(ToolResult("c1", "get_recent_logs", {"entries": []}))
+def test_tool_results_are_json():
+    [item] = _to_input(ToolResult("c1", "get_recent_logs", {"entries": []}))
     assert '{"entries": []}' in str(item)
 
 
@@ -234,13 +218,3 @@ async def test_openai_streams_and_reports_progress():
     assert isinstance(result.parsed, MentalReply)
     assert sum(events) > 10 and events[0] is False
     assert provider.streams is True
-
-
-async def test_gemini_does_not_stream():
-    provider, _ = _replay("gemini", "structured_mental")
-    events: list[bool] = []
-    await provider.generate(
-        [Turn("user", "One 5-minute practice for stress before an exam.")],
-        options=options("gemini"), system="You are a calm wellbeing coach. Reply in the schema.",
-        schema=MentalReply, progress=events.append)
-    assert events == [] and provider.streams is False

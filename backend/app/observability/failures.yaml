@@ -556,7 +556,7 @@ failures:
       - tests/unit/agents/test_base.py::test_a_logged_claim_with_nothing_saved_is_reworded_by_a_retry_that_cant_log
       - tests/unit/agents/test_base.py::test_a_retry_that_still_says_logged_tells_the_person_nothing_was_saved
       - tests/unit/agents/test_base.py::test_a_reply_that_only_said_logged_gets_no_safety_explanation
-    seen_live: "2026-10-25: the old Gemini nutrition agent didn't call its log tool (Part E #12); 2026-11-15: 10 of 19 true reports of earlier entries were told nothing was saved (D050 (b))"
+    seen_live: "2026-10-25: the old nutrition agent didn't call its log tool (Part E #12); 2026-11-15: 10 of 19 true reports of earlier entries were told nothing was saved (D050 (b))"
 
   - id: tools.recent_logs_down
     layer: tools

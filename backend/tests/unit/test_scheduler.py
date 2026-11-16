@@ -7,6 +7,9 @@ import pytest
 from app.providers import FairScheduler, NoCapacity
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+# Two model providers and search, as the slot table would read with a second provider
+# (only OpenAI today): slots, the shared LLM limit and fairness across providers
+TWO_MODELS = {"openai": 24, "second": 4, "tavily": 4}
 
 
 async def _hold(scheduler, provider, principal, seconds, log, peak):
@@ -24,7 +27,7 @@ async def test_no_principal_gets_more_than_three_slots():
 
 
 async def test_waiting_principals_are_served_round_robin():
-    s = FairScheduler(provider_slots={"openai": 1, "gemini": 1, "tavily": 1}, global_slots=1)
+    s = FairScheduler(provider_slots={"openai": 1, "second": 1, "tavily": 1}, global_slots=1)
     order: list[str] = []
     blocker = asyncio.Event()
 
@@ -49,7 +52,7 @@ async def test_waiting_principals_are_served_round_robin():
 
 
 async def test_cancelling_a_waiter_frees_its_place():
-    s = FairScheduler(provider_slots={"openai": 1, "gemini": 1, "tavily": 1}, global_slots=1)
+    s = FairScheduler(provider_slots={"openai": 1, "second": 1, "tavily": 1}, global_slots=1)
     release = asyncio.Event()
 
     async def holder():
@@ -71,33 +74,33 @@ async def test_cancelling_a_waiter_frees_its_place():
 
 
 async def test_cancelling_a_running_call_releases_its_slot():
-    s = FairScheduler()
-    task = asyncio.create_task(_hold(s, "gemini", "a", 10, [], {}))
+    s = FairScheduler(TWO_MODELS)
+    task = asyncio.create_task(_hold(s, "second", "a", 10, [], {}))
     await asyncio.sleep(0.01)
-    assert s.in_use(provider="gemini") == 1
+    assert s.in_use(provider="second") == 1
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-    assert s.in_use(provider="gemini") == 0 and s.in_use(principal="a") == 0
+    assert s.in_use(provider="second") == 0 and s.in_use(principal="a") == 0
 
 
-async def test_slow_gemini_does_not_take_openai_slots():
-    s = FairScheduler()  # gemini 4, openai 24, global 24
-    gemini = [asyncio.create_task(_hold(s, "gemini", f"g{i}", 0.5, [], {})) for i in range(10)]
+async def test_a_slow_provider_does_not_take_another_providers_slots():
+    s = FairScheduler(TWO_MODELS)  # second 4, openai 24, global 24
+    slow = [asyncio.create_task(_hold(s, "second", f"g{i}", 0.5, [], {})) for i in range(10)]
     await asyncio.sleep(0.01)
-    assert s.in_use(provider="gemini") == 4  # its bulkhead, not more
+    assert s.in_use(provider="second") == 4  # its bulkhead, not more
     started = asyncio.get_running_loop().time()
     await asyncio.gather(*(_hold(s, "openai", f"o{i}", 0.01, [], {}) for i in range(4)))
-    assert asyncio.get_running_loop().time() - started < 0.2  # didn't wait for Gemini
-    for t in gemini:
+    assert asyncio.get_running_loop().time() - started < 0.2  # didn't wait for the slow one
+    for t in slow:
         t.cancel()
-    await asyncio.gather(*gemini, return_exceptions=True)
+    await asyncio.gather(*slow, return_exceptions=True)
 
 
 async def test_global_limit_across_llm_providers():
-    s = FairScheduler(provider_slots={"openai": 8, "gemini": 8, "tavily": 4}, global_slots=8)
+    s = FairScheduler(provider_slots={"openai": 8, "second": 8, "tavily": 4}, global_slots=8)
     tasks = [asyncio.create_task(_hold(s, p, f"{p}{i}", 0.2, [], {}))
-             for p in ("openai", "gemini") for i in range(6)]
+             for p in ("openai", "second") for i in range(6)]
     await asyncio.sleep(0.02)
     assert s.in_use() == 8
     for t in tasks:
@@ -107,7 +110,7 @@ async def test_global_limit_across_llm_providers():
 
 
 async def test_search_slots_do_not_count_against_the_llm_limit():
-    s = FairScheduler(provider_slots={"openai": 8, "gemini": 8, "tavily": 4}, global_slots=2)
+    s = FairScheduler(provider_slots={"openai": 8, "second": 8, "tavily": 4}, global_slots=2)
     tasks = [asyncio.create_task(_hold(s, "openai", f"o{i}", 0.2, [], {})) for i in range(2)]
     await asyncio.sleep(0.01)
     async with s.slot("tavily", "t1"):  # global LLM limit is full, search still runs
@@ -125,7 +128,7 @@ async def test_unknown_provider_rejected():
 async def test_waiters_cancelled_as_slots_free_do_not_leak():
     """Regression: a waiter cancelled while a slot frees used to be granted the slot,
     which then leaked."""
-    s = FairScheduler(provider_slots={"openai": 2, "gemini": 2, "tavily": 2}, global_slots=2)
+    s = FairScheduler(provider_slots={"openai": 2, "second": 2, "tavily": 2}, global_slots=2)
     holders = [asyncio.create_task(_hold(s, "openai", f"h{i}", 0.05, [], {})) for i in range(2)]
     await asyncio.sleep(0.01)
     waiters = [asyncio.create_task(_hold(s, "openai", f"w{i}", 0.05, [], {})) for i in range(6)]
@@ -145,7 +148,7 @@ async def test_random_load_never_exceeds_caps_or_leaks(seed):
     import random
 
     r = random.Random(seed)
-    caps = {"openai": 3, "gemini": 2, "tavily": 2}
+    caps = {"openai": 3, "second": 2, "tavily": 2}
     s = FairScheduler(provider_slots=caps, global_slots=4, per_principal=2)
     principals = [f"p{i}" for i in range(6)]
     violations = []
@@ -176,7 +179,7 @@ async def test_random_load_never_exceeds_caps_or_leaks(seed):
 
 
 def _full(clock=None):
-    s = FairScheduler({"openai": 2, "gemini": 1, "tavily": 1}, global_slots=2,
+    s = FairScheduler({"openai": 2, "second": 1, "tavily": 1}, global_slots=2,
                       **({"clock": clock} if clock else {}))
     s._take("openai", "x")
     s._take("openai", "y")
@@ -217,7 +220,7 @@ async def test_a_waiter_still_without_a_slot_at_its_start_by_time_is_shed():
 
 
 async def test_predicted_wait_follows_real_slot_times():
-    s = FairScheduler({"openai": 1, "gemini": 1, "tavily": 1}, global_slots=1)
+    s = FairScheduler({"openai": 1, "second": 1, "tavily": 1}, global_slots=1)
     assert s.predicted_wait("openai") == pytest.approx(3.3)
     for _ in range(40):
         async with s.slot("openai", "a"):
@@ -226,12 +229,12 @@ async def test_predicted_wait_follows_real_slot_times():
 
 
 async def test_take_now_only_when_free_and_nobody_waits():
-    s = FairScheduler({"openai": 2, "gemini": 1, "tavily": 1}, global_slots=4)
+    s = FairScheduler({"openai": 2, "second": 1, "tavily": 1}, global_slots=4)
     assert s.take_now("openai", "a") and s.take_now("openai", "b")
     assert not s.take_now("openai", "c")  # full
     s.release("openai", "b")
-    waiter = asyncio.create_task(s.acquire("gemini", "d"))
-    s._take("gemini", "z")  # gemini full, so d must wait
+    waiter = asyncio.create_task(s.acquire("second", "d"))
+    s._take("second", "z")  # second full, so d must wait
     await asyncio.sleep(0)
     assert s._waiting and s._can_run("openai", "c")
     assert not s.take_now("openai", "c")  # free, but someone waits
@@ -242,7 +245,7 @@ async def test_take_now_only_when_free_and_nobody_waits():
 async def test_waiters_are_shed_as_soon_as_a_slow_call_shows_they_cant_start_in_time():
     # Live, 28 Oct: a cold burst predicted 3.3 s calls, calls took ~7 s, and 59 calls
     # waited 16.3 s to be refused. A finished call now updates every waiter's prediction.
-    s = FairScheduler({"openai": 2, "gemini": 1, "tavily": 1}, global_slots=2)
+    s = FairScheduler({"openai": 2, "second": 1, "tavily": 1}, global_slots=2)
     s._slot_time["openai"] = 0.01  # cold: optimistic
     loop = asyncio.get_running_loop()
     s._take("openai", "x")

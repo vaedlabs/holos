@@ -1,4 +1,5 @@
-"""One real call per provider (Plan P2.3). Nightly or by hand; never on push.
+"""One real call per reply schema on the provider (Plan P2.3). Nightly or by hand;
+never on push.
 
     cd backend && pytest -m paid tests/paid/test_providers_live.py
 """
@@ -9,9 +10,9 @@ import httpx
 import pytest
 from dotenv import load_dotenv
 
-from app.agents.schemas import MentalReply, NutritionReply
+from app.agents.schemas import REPLY_MODELS, REPLY_TOKEN_CAP
+from app.config.limits import REASONING_ALLOWANCE_LOW
 from app.providers import GenerateOptions, Turn
-from app.providers.gemini import GeminiProvider
 from app.providers.openai import OpenAIProvider
 
 pytestmark = [pytest.mark.paid, pytest.mark.asyncio]
@@ -26,22 +27,21 @@ def _key(name: str) -> str:
     return key
 
 
-async def test_openai_live_mental_reply():
-    provider = OpenAIProvider(_key("OPENAI_API_KEY"), http_client=httpx.AsyncClient(timeout=30))
-    result = await provider.generate(
-        [Turn("user", "One 3-minute practice to calm down before sleep.")],
-        options=GenerateOptions(model="gpt-6-luna", max_output_tokens=1200),
-        system="You are a calm wellbeing coach. Reply in the schema.", schema=MentalReply)
-    assert isinstance(result.parsed, MentalReply)
-    assert result.usage.tokens_in > 0 and not result.truncated
+# One message per reply schema: the schema as sent (llm_json_schema) works live
+ASKS = {
+    "physical": "A 10-minute home workout for a beginner.",
+    "nutrition": "Suggest one high-protein vegetarian snack.",
+    "mental": "One 3-minute practice to calm down before sleep.",
+}
 
 
-async def test_gemini_live_nutrition_reply():
-    provider = GeminiProvider(_key("GOOGLE_GEMINI_API_KEY"),
-                              http_client=httpx.AsyncClient(timeout=30))
+@pytest.mark.parametrize("agent", list(REPLY_MODELS))
+async def test_openai_live_reply(agent):
+    provider = OpenAIProvider(_key("OPENAI_API_KEY"), http_client=httpx.AsyncClient(timeout=60))
     result = await provider.generate(
-        [Turn("user", "Suggest one high-protein vegetarian snack.")],
-        options=GenerateOptions(model="gemini-3.5-flash-lite", max_output_tokens=1400),
-        system="You are a nutrition coach. Reply in the schema.", schema=NutritionReply)
-    assert isinstance(result.parsed, NutritionReply)
+        [Turn("user", ASKS[agent])],
+        options=GenerateOptions(model="gpt-6-luna", max_output_tokens=REPLY_TOKEN_CAP[agent]
+                                + REASONING_ALLOWANCE_LOW, reasoning="low"),
+        system=f"You are a {agent} coach. Reply in the schema.", schema=REPLY_MODELS[agent])
+    assert isinstance(result.parsed, REPLY_MODELS[agent])
     assert result.usage.tokens_in > 0 and not result.truncated

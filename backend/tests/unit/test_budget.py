@@ -33,12 +33,6 @@ def test_a_luna_call_costs_its_tokens_at_list_price():
     assert budget.call_usd("gpt-6-luna", usage) == Decimal("0.00114")
 
 
-def test_gemini_cached_tokens_are_never_cheaper_than_input():
-    full = budget.call_usd("gemini-3.5-flash-lite", Usage(1000, 100))
-    cached = budget.call_usd("gemini-3.5-flash-lite", Usage(1000, 100, cached_tokens=1000))
-    assert full == cached == Decimal("0.00055")
-
-
 def test_costs_round_up_to_the_millionth():
     # 1 token of luna input is $0.0000001: it still counts as $0.000001
     assert budget.call_usd("gpt-6-luna", Usage(1, 0)) == Decimal("0.000001")

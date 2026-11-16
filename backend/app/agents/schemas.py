@@ -125,8 +125,8 @@ class PracticeItem(_LLMModel):
 class FoodItem(_LLMModel):
     day: str | None = DAY  # null in a meal log
     name: str = Field(max_length=60, description="The dish, at most 60 characters.")
-    # Gemini doesn't enforce item counts and OpenAI doesn't enforce string lengths
-    # (Part D): the descriptions are how the model learns these limits
+    # OpenAI doesn't enforce string lengths (Part D): the descriptions are how the
+    # model learns these limits
     ingredients: list[Annotated[str, Field(max_length=30)]] = Field(
         min_length=1, max_length=8,
         description="1 to 8 main ingredients, in English, each at most 30 characters.")
@@ -951,18 +951,20 @@ class ImportPayload(_Model):
 
 # --- Provider schema ---
 
-# Keywords neither provider enforces in structured output (Plan Part D)
+# Keywords the provider doesn't enforce in structured output (Plan Part D)
 _UNENFORCED = ("maxLength", "minLength", "pattern")
 
 
 def llm_json_schema(model: type[BaseModel]) -> dict[str, Any]:
     """The JSON Schema to send to a provider for an LLM model.
 
-    $defs are inlined (Gemini documents only root references), nullable fields
-    become {"type": [X, "null"]}, every object gets additionalProperties: false,
-    and string lengths move into the description because neither provider
-    enforces them; a pattern is left out (its description says the format). Pydantic
-    still checks lengths and patterns when the reply is parsed.
+    $defs are inlined, nullable fields become {"type": [X, "null"]}, every object
+    gets additionalProperties: false, and string lengths move into the description
+    because the provider doesn't enforce them; a pattern is left out (its description
+    says the format). Pydantic still checks lengths and patterns when the reply is
+    parsed. The inlining and the nullable form were made for a provider since removed;
+    OpenAI's strict mode accepts them, and they are what the coaches were measured on,
+    so they stay (owner, 16 Nov 2026, P4.14).
     """
     schema = model.model_json_schema()
     defs = schema.pop("$defs", {})
@@ -976,7 +978,7 @@ def llm_json_schema(model: type[BaseModel]) -> dict[str, Any]:
             target = copy.deepcopy(defs[node["$ref"].split("/")[-1]])
             rest = {k: v for k, v in node.items() if k != "$ref"}
             return walk({**target, **rest})
-        # Nullable X: Gemini documents {"type": [X, "null"]}, not anyOf
+        # Nullable X as {"type": [X, "null"]}, not anyOf
         options = node.get("anyOf")
         if options and len(options) == 2 and {"type": "null"} in options:
             other = next(o for o in options if o != {"type": "null"})

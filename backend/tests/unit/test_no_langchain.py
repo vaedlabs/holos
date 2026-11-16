@@ -1,5 +1,5 @@
-"""LangChain and LangGraph are gone (Plan P4.12): no module in app/ imports them, or the
-old Gemini SDK, and requirements.txt doesn't install them."""
+"""LangChain and LangGraph are gone (Plan P4.12), and so is the Google SDK (P4.14): no
+module in app/ imports them, and requirements.txt doesn't install them."""
 
 import ast
 from pathlib import Path
@@ -9,7 +9,7 @@ import pytest
 pytestmark = pytest.mark.unit
 
 BACKEND = Path(__file__).resolve().parents[2]
-GONE = ("langchain", "langgraph", "langsmith", "google.generativeai")
+GONE = ("langchain", "langgraph", "langsmith", "google.generativeai", "google.genai")
 
 
 def _imports(path: Path) -> set[str]:
@@ -18,7 +18,8 @@ def _imports(path: Path) -> set[str]:
         if isinstance(node, ast.Import):
             names |= {alias.name for alias in node.names}
         elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
-            names.add(node.module)
+            # "from google import genai" imports google.genai
+            names |= {node.module} | {f"{node.module}.{alias.name}" for alias in node.names}
     return names
 
 
@@ -39,12 +40,13 @@ def test_requirements_dont_install_them():
                 for line in (BACKEND / "requirements.txt").read_text().splitlines()
                 if line.strip() and not line.lstrip().startswith("#")]
     assert [p for p in packages if p.startswith(("langchain", "langgraph", "langsmith"))
-            or p == "google-generativeai"] == []
+            or p in ("google-generativeai", "google-genai")] == []
 
 
 def test_the_check_sees_an_import(tmp_path):
     module = tmp_path / "m.py"
     module.write_text("import os\nfrom langchain_core.messages import HumanMessage\n"
-                      "import google.generativeai as genai\n")
-    assert {n for n in _imports(module) if _gone(n)} == {"langchain_core.messages",
-                                                        "google.generativeai"}
+                      "import google.generativeai as genai\nfrom google import genai\n")
+    assert {n for n in _imports(module) if _gone(n)} == {
+        "langchain_core.messages", "langchain_core.messages.HumanMessage",
+        "google.generativeai", "google.genai"}

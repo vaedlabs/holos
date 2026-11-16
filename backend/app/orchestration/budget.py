@@ -41,8 +41,6 @@ class Price:
 
 PRICES = {
     "gpt-6-luna": Price(Decimal("0.10"), Decimal("0.01"), Decimal("0.50")),
-    # Gemini's cached price isn't recorded, so cached tokens cost full price: never too low
-    "gemini-3.5-flash-lite": Price(Decimal("0.30"), Decimal("0.30"), Decimal("2.50")),
 }
 
 

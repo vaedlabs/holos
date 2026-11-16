@@ -5,7 +5,7 @@
 - Python 3.12+
 - Node.js 20+ (developed on 24.11+)
 - PostgreSQL 14+
-- API keys for OpenAI and Google Gemini (Tavily is optional)
+- An OpenAI API key (Tavily is optional)
 
 ---
 
@@ -34,7 +34,6 @@ JWT_SECRET_KEY=your-secret-key-minimum-32-characters
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
 OPENAI_API_KEY=sk-your-key
-GOOGLE_GEMINI_API_KEY=your-gemini-key
 TAVILY_API_KEY=your-tavily-key
 ENVIRONMENT=development
 LOG_LEVEL=INFO
@@ -44,7 +43,6 @@ Generate a JWT secret with `openssl rand -hex 32` if you don't have one.
 
 **Where to get the keys:**
 - OpenAI: [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-- Gemini: [makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey) — needed for the Nutrition Agent's image analysis
 - Tavily: [tavily.com](https://tavily.com) — optional, enables web search in agents
 
 ### Database

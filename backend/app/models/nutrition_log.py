@@ -125,7 +125,7 @@ class NutritionLog(Base):
     # Flexible JSON structure allows different food types to have different fields
     # Example: {"foods": [{"name": "Grilled Chicken", "quantity": "200g", "calories": 330}]}
     # Used by Nutrition Agent to analyze dietary patterns and provide recommendations
-    # Can be populated from image analysis (Gemini Vision API) or manual entry
+    # Can be populated from image analysis (a meal photo) or manual entry
     # Nullable to allow simple meal logs without detailed food breakdown
     foods = Column(Text, nullable=True)  # JSON string with food items and details
     

@@ -217,22 +217,11 @@ def _largest(model: type[schemas._ReplyBase]) -> BaseModel:
 
 @pytest.mark.parametrize("agent", list(schemas.REPLY_MODELS))
 def test_largest_reply_fits_size_rule(agent):
-    # o200k_base is the OpenAI tokenizer; Gemini has none offline (Part E #10)
+    # o200k_base is the OpenAI tokenizer (Part E #10)
     model = schemas.REPLY_MODELS[agent]
     tokens = len(tiktoken.get_encoding("o200k_base").encode(_largest(model).model_dump_json()))
     limit = schemas.REPLY_TOKEN_CAP[agent] - schemas.SIZE_RULE_MARGIN
     assert tokens <= limit, f"{agent}: {tokens} tokens > {limit}"
-
-
-@pytest.mark.parametrize("agent", list(schemas.REPLY_MODELS))
-def test_gemini_gets_no_item_limit_on_lists_of_items(agent):
-    # Live, 2 Nov 2026: "too many states for serving" with maxItems 21 foods or 24
-    # exercises; the description still states the limit and Pydantic enforces it
-    from app.providers.gemini import gemini_schema
-    props = gemini_schema(schemas.REPLY_MODELS[agent])["properties"]
-    assert "maxItems" not in props["items"] and "to " in props["items"]["description"]
-    assert "maxItems" not in json.dumps(props["items"]["items"])
-    assert (props["notes"]["maxItems"], props["source_ids"]["maxItems"]) == (3, 5)
 
 
 @pytest.mark.parametrize("model", schemas.LLM_MODELS, ids=LLM_IDS)

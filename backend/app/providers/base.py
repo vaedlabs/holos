@@ -16,7 +16,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.observability.tracer import CAUSES, Cause
 
-ProviderName = Literal["openai", "gemini", "fake"]
+ProviderName = Literal["openai", "fake"]
 Reasoning = Literal["none", "low", "medium", "high"]
 
 
@@ -46,8 +46,8 @@ class ToolCall:
 class ModelTurn:
     """What the model produced in one call, sent back unchanged in the next request.
 
-    `items` is the provider's own wire format (Gemini needs its thought steps
-    returned). If the conversation moves to another provider (fallback), that
+    `items` is the provider's own wire format (OpenAI's reasoning items go back as
+    they came). If the conversation moves to another provider (fallback), that
     provider rebuilds the turn from `text` and `tool_calls` instead.
     """
 

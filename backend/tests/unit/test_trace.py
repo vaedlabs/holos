@@ -36,7 +36,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 OK = reply(MentalReply(kind="answer", summary="ok", items=[], notes=[], source_ids=[],
                        follow_up=None, risk_flag=False), request_id="req_ok")
 MSG = [Turn("user", "hi")]
-SLOTS = {"openai": 24, "gemini": 4, "tavily": 4}
+SLOTS = {"openai": 24, "second": 4, "tavily": 4}
 # Real time, small limits. No backups unless a case asks for one (first_p90 10 s)
 SPEED = Speed(p50=0.05, p90=10.0, p95=0.15, p99=0.3, first_p90=10.0)
 BACKUP = Speed(p50=0.05, p90=0.1, p95=0.15, p99=0.3, first_p90=0.1)
@@ -81,7 +81,7 @@ class _LateScheduler(FairScheduler):
 
 
 def _full() -> FairScheduler:
-    full = FairScheduler({"openai": 1, "gemini": 1, "tavily": 1}, global_slots=1)
+    full = FairScheduler({"openai": 1, "second": 1, "tavily": 1}, global_slots=1)
     full._take("openai", "someone")
     return full
 
@@ -200,7 +200,7 @@ def test_the_trace_holds_no_text():
 async def test_a_slow_call_without_a_backup_says_why():
     # One slot: the slow call holds it, so its backup has none (live, 29 Oct 2026: a
     # router call that never answered, and the trace couldn't say why no backup ran)
-    one = FairScheduler({"openai": 1, "gemini": 1, "tavily": 1}, global_slots=1)
+    one = FairScheduler({"openai": 1, "second": 1, "tavily": 1}, global_slots=1)
     trace = await _run([Slow(0.3, OK)], speed=BACKUP, scheduler=one)
     assert [(s.name, s.outcome, s.detail) for s in trace.steps] == [
         ("backup_skipped", "no_slot", "mental")]
@@ -218,7 +218,7 @@ async def test_an_error_names_its_request_id_without_headers():
 
 
 async def test_time_waiting_for_a_slot_is_recorded():
-    one = FairScheduler({"openai": 1, "gemini": 1, "tavily": 1}, global_slots=1)
+    one = FairScheduler({"openai": 1, "second": 1, "tavily": 1}, global_slots=1)
     one._take("openai", "someone")
     asyncio.get_running_loop().call_later(0.1, one.release, "openai", "someone")
     trace = await _run([OK], scheduler=one, left=60.0)  # room for the predicted wait

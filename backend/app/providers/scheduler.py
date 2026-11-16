@@ -1,6 +1,6 @@
 """FairScheduler: bounded, fair access to the providers (Plan C.9, C.12).
 
-* Slots per provider (bulkheads): a slow Gemini can't take OpenAI's slots.
+* Slots per provider (bulkheads): a slow provider can't take another's slots.
 * LLM calls share a global limit (24); Tavily has only its own bulkhead.
 * At most 3 slots per principal across providers.
 * Waiting principals are served round-robin, so one busy user can't starve others.
@@ -27,7 +27,9 @@ from app.config import limits, speeds
 
 from .base import NoCapacity
 
-LLM_PROVIDERS = frozenset({"openai", "gemini"})
+# Every provider but search is a model and shares the LLM limit: another model provider
+# needs only its slots (owner, 16 Nov 2026: more providers later)
+SEARCH_PROVIDERS = frozenset({"tavily"})
 # The average slot time starts at the measured physical p50 and follows real calls
 SLOT_TIME_START_S = speeds.PHYSICAL.p50
 SLOT_TIME_WEIGHT = 0.1  # weight of each new call in the running average
@@ -89,7 +91,7 @@ class FairScheduler:
         if ahead is None:
             ahead = sum(w.provider == provider for q in self._waiting.values() for w in q)
         slots = self._caps[provider]
-        if provider in LLM_PROVIDERS:
+        if provider not in SEARCH_PROVIDERS:
             slots = min(slots, self._global)
         return (ahead + 1) / slots * self._slot_time[provider]
 
@@ -133,7 +135,7 @@ class FairScheduler:
     def release(self, provider: str, principal: str, held_s: float | None = None) -> None:
         self._by_provider[provider] -= 1
         self._by_principal[principal] -= 1
-        if provider in LLM_PROVIDERS:
+        if provider not in SEARCH_PROVIDERS:
             self._llm_in_use -= 1
         if held_s is not None:
             self._slot_time[provider] += SLOT_TIME_WEIGHT * (held_s - self._slot_time[provider])
@@ -160,12 +162,12 @@ class FairScheduler:
             return False
         if self._by_principal[principal] >= self._per_principal:
             return False
-        return not (provider in LLM_PROVIDERS and self._llm_in_use >= self._global)
+        return provider in SEARCH_PROVIDERS or self._llm_in_use < self._global
 
     def _take(self, provider: str, principal: str) -> None:
         self._by_provider[provider] += 1
         self._by_principal[principal] += 1
-        if provider in LLM_PROVIDERS:
+        if provider not in SEARCH_PROVIDERS:
             self._llm_in_use += 1
 
     def _dispatch(self) -> None:

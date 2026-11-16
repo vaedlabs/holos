@@ -38,9 +38,6 @@ requests==2.32.5
 # Web Search
 tavily-python==0.7.13
 
-# Google Gemini provider (Interactions API), kept as a possible fallback (Part E #29)
-google-genai==2.33.0
-
 # Image Processing
 Pillow==12.0.0
 

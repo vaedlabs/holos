@@ -5,7 +5,7 @@ Three domain-specialized agents — fitness, nutrition, and mental health — co
 
 ## 1. What Holos Is
 
-FastAPI backend, Next.js frontend, PostgreSQL, and a mix of OpenAI and Google Gemini under the hood. Three domain agents handle fitness, nutrition, and mental health. A coordinator sits on top, routing your message to the right agent or pulling from all three when needed.
+FastAPI backend, Next.js frontend, PostgreSQL, and OpenAI models under the hood. Three domain agents handle fitness, nutrition, and mental health. A coordinator sits on top, routing your message to the right agent or pulling from all three when needed.
 
 ### Tech Stack
 
@@ -16,15 +16,14 @@ FastAPI backend, Next.js frontend, PostgreSQL, and a mix of OpenAI and Google Ge
 | Database | PostgreSQL 14+ |
 | ORM / Migrations | SQLAlchemy, Alembic |
 | Agent Framework | LangChain |
-| LLM — Physical, Mental, Coordinator | OpenAI |
-| LLM — Nutrition + Vision | Google Gemini |
+| LLM — all agents, including vision | OpenAI |
 | Web Search | Tavily (optional) |
 | Auth | JWT |
 
 Here's what it actually does:
 
 - **Physical Fitness** (OpenAI): Workout planning and exercise recommendations, cross-checked against your medical history before suggesting anything
-- **Nutrition** (Gemini): Meal planning with location-aware suggestions. Take a photo of your food, it'll pull the calories and macros out of it
+- **Nutrition** (OpenAI): Meal planning with location-aware suggestions. Take a photo of your food, it'll pull the calories and macros out of it
 - **Mental Fitness** (OpenAI): Mindfulness and stress management
 - **Coordinator** (OpenAI): Figures out who to talk to, or builds a cross-domain plan if your question doesn't fit neatly into one box
 - Conversation history and images persist across sessions — it remembers what you said last time
@@ -34,7 +33,7 @@ Here's what it actually does:
 
 ## 2. Architecture
 
-Standard three-tier setup. The Next.js frontend talks to FastAPI over REST with JWT auth. The backend has one route per agent plus routes for auth, medical history, preferences, conversation, and logs. The coordinator either handles the message itself or delegates to a domain agent. Physical fitness and mental health use OpenAI; nutrition uses Gemini including vision for food images. Everything persistent — users, preferences, medical data, messages, logs — lives in PostgreSQL.
+Standard three-tier setup. The Next.js frontend talks to FastAPI over REST with JWT auth. The backend has one route per agent plus routes for auth, medical history, preferences, conversation, and logs. The coordinator either handles the message itself or delegates to a domain agent. Every agent uses OpenAI, including vision for food images. Everything persistent — users, preferences, medical data, messages, logs — lives in PostgreSQL.
 
 ---
 
@@ -69,7 +68,7 @@ holos/
 
 ## 4. Setup
 
-**You'll need:** Python 3.12+, Node.js 20+ (developed on 24.11+), PostgreSQL 14+, and API keys for OpenAI and Google Gemini. Tavily is optional if you want web search.
+**You'll need:** Python 3.12+, Node.js 20+ (developed on 24.11+), PostgreSQL 14+, and an OpenAI API key. Tavily is optional if you want web search.
 
 ### Backend
 
@@ -107,8 +106,7 @@ App runs at `http://localhost:3000`.
 | `JWT_SECRET_KEY` | Min 32 chars — `openssl rand -hex 32` works |
 | `JWT_ALGORITHM` | Algorithm for JWT signing |
 | `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Default 1440 |
-| `OPENAI_API_KEY` | Physical, Mental, Coordinator agents |
-| `GOOGLE_GEMINI_API_KEY` | Nutrition agent + vision |
+| `OPENAI_API_KEY` | All agents, including vision |
 | `TAVILY_API_KEY` | Optional, web search |
 
 **`frontend/.env.local`**

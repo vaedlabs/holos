@@ -35,7 +35,6 @@ jobs:
       TEST_DATABASE_URL: postgresql+psycopg://holos:holos@localhost:5432/holos_test
       # Placeholders only: push tests make no paid calls (Plan A.1 rule 8)
       OPENAI_API_KEY: sk-ci-placeholder
-      GOOGLE_GEMINI_API_KEY: ci-placeholder
       TAVILY_API_KEY: ci-placeholder
       # Sessions (Plan C.6): CI-only values; Turnstile uses Cloudflare's public test key
       SESSION_SECRET: ci-session-secret-placeholder-at-least-32-bytes

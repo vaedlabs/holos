@@ -40,7 +40,7 @@ INFLIGHT_GLOBAL = 32
 LEASE_TTL = timedelta(seconds=60)
 LLM_SLOTS_PER_PRINCIPAL = 3
 LLM_SLOTS_GLOBAL = 24
-PROVIDER_SLOTS = {"openai": 24, "gemini": 4, "tavily": 4}
+PROVIDER_SLOTS = {"openai": 24, "tavily": 4}
 
 # Request and spend caps
 REQUESTS_PER_MINUTE = 6

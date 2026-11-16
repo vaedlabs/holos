@@ -1046,7 +1046,7 @@ async def test_reserved_spend_is_what_session_start_sees(store, async_engine):
     cfg = settings()
     key = ip_key("203.0.113.7", cfg)
     money = Budget(store)
-    call = ("gemini-3.5-flash-lite", 10_000, 1_400)  # $0.0065 each
+    call = ("gpt-6-luna", 10_000, 11_000)  # $0.0065 each
 
     class Turnstile:
         def __init__(self):

@@ -1,8 +1,8 @@
 """Record the provider fixtures with one live run (Plan P2.3). Makes paid calls.
 
-    cd backend && python -m tests.contract.record_providers [openai|gemini] [scenario ...]
+    cd backend && python -m tests.contract.record_providers [openai] [scenario ...]
 
-Uses OPENAI_API_KEY and GOOGLE_GEMINI_API_KEY from .env. Owner approval needed.
+Uses OPENAI_API_KEY from .env. Owner approval needed.
 """
 
 import asyncio
@@ -16,7 +16,7 @@ from app.providers import ProviderError
 from .http_fixtures import RecordingTransport, save
 from .provider_scenarios import PROVIDERS, SCENARIOS, make_provider
 
-KEYS = {"openai": "OPENAI_API_KEY", "gemini": "GOOGLE_GEMINI_API_KEY"}
+KEYS = {"openai": "OPENAI_API_KEY"}
 
 
 async def main(selected: list[str]) -> int:
