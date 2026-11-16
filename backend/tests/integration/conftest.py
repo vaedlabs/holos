@@ -23,13 +23,42 @@ TEST_URL = os.getenv("TEST_DATABASE_URL")
 OLD_HEAD = "cd5e821b7af6"  # head before Plan P1.3
 
 
+HERE = Path(__file__).parent
+# Without the test database the run stops, here and in CI alike: skipped, these tests
+# would let a renamed or deleted setting pass with a green tick (R3). Leaving them out is
+# asked for by name; a later -m replaces pytest.ini's, so it keeps paid and load out too
+MISSING = (
+    "{n} integration tests need TEST_DATABASE_URL, and it is not set.\n"
+    "To run them: on your machine, set it in backend/.env (the line is in "
+    "backend/.env.example); in CI, the backend job in .github/workflows/ci.yml sets it "
+    "under env:, next to the postgres service: put the line back, or match its name to "
+    "backend/.env.example.\n"
+    'To leave them out on purpose: pytest -m "not integration and not paid and not load"'
+)
+
+
+def _integration(item) -> bool:
+    return HERE in Path(item.fspath).parents
+
+
+@pytest.hookimpl(tryfirst=True)  # before -m deselects by this marker
 def pytest_collection_modifyitems(items):
-    here = Path(__file__).parent
     for item in items:
-        if here in Path(item.fspath).parents:
+        if _integration(item):
             item.add_marker(pytest.mark.integration)
-            if not TEST_URL:
-                item.add_marker(pytest.mark.skip(reason="TEST_DATABASE_URL is not set"))
+
+
+def pytest_collection_finish(session):
+    """After -m: stop only when integration tests are still in the run."""
+    n = sum(1 for item in session.items if _integration(item))
+    if TEST_URL or not n:
+        return
+    if os.getenv("GITHUB_ACTIONS") == "true":  # the fix, on the run's summary page
+        out = session.config.get_terminal_writer()
+        out.line()  # GitHub reads the notice only at the start of a line, not after "collecting"
+        out.line("::error title=Database tests can't run::"
+                 + MISSING.format(n=n).replace("\n", "%0A"))
+    raise pytest.UsageError(MISSING.format(n=n))
 
 
 def _guard(url: str) -> None:

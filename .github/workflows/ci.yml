@@ -27,6 +27,11 @@ jobs:
     env:
       # Separate databases: integration tests refuse to run against DATABASE_URL
       DATABASE_URL: postgresql+psycopg://holos:holos@localhost:5432/postgres
+      # The integration tests (about half the suite) need TEST_DATABASE_URL: without it
+      # the run stops with "integration tests need TEST_DATABASE_URL" (R3), never a green
+      # run that skipped them. To fix that failure: put this line back, pointing at the
+      # postgres service above, and keep its name the same as in backend/.env.example and
+      # tests/integration/conftest.py (rename all three together).
       TEST_DATABASE_URL: postgresql+psycopg://holos:holos@localhost:5432/holos_test
       # Placeholders only: push tests make no paid calls (Plan A.1 rule 8)
       OPENAI_API_KEY: sk-ci-placeholder
