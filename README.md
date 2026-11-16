@@ -34,10 +34,6 @@ Here's what it actually does:
 
 ## 2. Architecture
 
-<p align="center">
-  <img src="holos_architecture.png" alt="Architecture for Holos"/>
-</p>
-
 Standard three-tier setup. The Next.js frontend talks to FastAPI over REST with JWT auth. The backend has one route per agent plus routes for auth, medical history, preferences, conversation, and logs. The coordinator either handles the message itself or delegates to a domain agent. Physical fitness and mental health use OpenAI; nutrition uses Gemini including vision for food images. Everything persistent — users, preferences, medical data, messages, logs — lives in PostgreSQL.
 
 ---
