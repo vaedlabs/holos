@@ -1,0 +1,45 @@
+# Runtime packages, top level only. Edit this file, then recompile the lock:
+#   pip-compile --generate-hashes --allow-unsafe --strip-extras -o requirements.txt requirements.in
+
+# Web framework and the ASGI server
+fastapi==0.122.1
+uvicorn[standard]==0.38.0
+
+# Postgres through SQLAlchemy; greenlet runs the async engine
+sqlalchemy==2.0.44
+psycopg[binary]==3.3.6
+greenlet==3.5.6
+alembic==1.17.2
+
+# Account images on S3-compatible storage (C.8)
+boto3==1.43.123
+
+# OpenAI SDK (Responses API, Plan C.9). 3.x is no longer blocked (LangChain is gone);
+# moving to it is its own step: its httpx2 default client changes our test fixtures
+openai==2.54.0
+
+# Imported directly (the Turnstile client, the OpenAI HTTP client), not only through openai
+httpx==0.28.1
+
+# Password hashing
+bcrypt==5.0.0
+
+# Request and settings models; email-validator backs EmailStr
+pydantic==2.12.5
+pydantic-settings==2.12.0
+email-validator==2.1.0
+
+# Loads backend/.env in development
+python-dotenv==1.2.1
+
+# Parses the chat request's multipart form (routers/intake.py)
+python-multipart==0.0.20
+
+# Web search for the coaches
+tavily-python==0.7.13
+
+# Account image processing
+Pillow==12.0.0
+
+# Guardrails data files
+PyYAML==6.0.3
