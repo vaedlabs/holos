@@ -33,6 +33,17 @@ class _LogRepository(UserScopedRepository):
         )
         return list(rows)
 
+    async def between(self, start: datetime, end: datetime) -> list:
+        """Entries dated from `start` up to `end`, for the repeat check (Part E #67)."""
+        date = getattr(self.model, self.date_column)
+        rows = await self._session.scalars(
+            select(self.model)
+            .where(self.model.user_id == self._user_id, date >= start, date <= end)
+            .order_by(date.desc(), self.model.id.desc())
+            .limit(MAX_RECENT)
+        )
+        return list(rows)
+
     async def delete(self, log_id: int) -> bool:
         result = await self._session.execute(
             delete(self.model).where(self.model.id == log_id, self.model.user_id == self._user_id)

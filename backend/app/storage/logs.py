@@ -2,6 +2,7 @@
 nutrition_logs, practice → mental_fitness_logs).
 
     log_id = await insert_log(session, user_id, write)   # inside the caller's transaction
+    await delete_log(session, user_id, "meal", log_id)    # a repeat's Replace (Part E #67)
 
 The chat turn's auto-commit and the confirm endpoint both insert through here, so a
 confirmed entry reads the same as one logged at once. JSON columns are text in the old
@@ -14,12 +15,21 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.display import item_name
-from app.agents.schemas import LogMealArgs, LogPracticeArgs, LogWorkoutArgs, StagedWrite
+from app.agents.schemas import (
+    LogMealArgs,
+    LogPracticeArgs,
+    LogWorkoutArgs,
+    StagedWrite,
+    WriteKind,
+)
 from app.data.repositories import (
     MentalLogRepository,
     NutritionLogRepository,
     WorkoutLogRepository,
 )
+
+_REPOS = {"workout": WorkoutLogRepository, "meal": NutritionLogRepository,
+          "practice": MentalLogRepository}
 
 
 async def insert_log(session: AsyncSession, user_id: int, write: StagedWrite,
@@ -53,6 +63,12 @@ async def insert_log(session: AsyncSession, user_id: int, write: StagedWrite,
     else:
         raise TypeError(f"no log table for {write.kind}")
     return row.id
+
+
+async def delete_log(session: AsyncSession, user_id: int, kind: WriteKind,
+                     log_id: int) -> bool:
+    """False if it was gone already (deleted on the logs screen)."""
+    return await _REPOS[kind](session, user_id).delete(log_id)
 
 
 def _mood(value: int | None) -> str | None:

@@ -144,7 +144,8 @@ def held_entry(kind: WriteKind, payload: dict) -> StagedWrite | None:
     try:
         return StagedWrite(kind=kind, args=WRITE_ARGS[kind].model_validate(payload["args"]),
                            warnings=payload.get("warnings") or [], at=payload.get("at"),
-                           time_guessed=payload.get("time_guessed", False))
+                           time_guessed=payload.get("time_guessed", False),
+                           repeat_of=payload.get("repeat_of"))
     except (ValidationError, KeyError, TypeError):
         return None
 
@@ -153,7 +154,8 @@ def held_payload(write: StagedWrite) -> dict:
     return {"args": write.args.model_dump(mode="json"),
             "warnings": [w.model_dump(mode="json") for w in write.warnings],
             "at": write.at.isoformat() if write.at else None,
-            "time_guessed": write.time_guessed}
+            "time_guessed": write.time_guessed,
+            "repeat_of": write.repeat_of.model_dump(mode="json") if write.repeat_of else None}
 
 
 def logged_at_allowed(at: datetime, now: datetime | None = None) -> bool:

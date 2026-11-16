@@ -12,7 +12,7 @@ import { api, signOut } from '@/lib/api'
 import { accountCards, guestCards } from '@/lib/cards'
 import { guestStore } from '@/lib/guestStore'
 import { shrinkPhoto } from '@/lib/image'
-import { sendChat } from '@/lib/stream'
+import { NOT_ATTACHED, retryId, sendChat } from '@/lib/stream'
 import { COACHES, stepStatus, turnView } from '@/lib/turnView'
 
 /**
@@ -66,17 +66,24 @@ export default function ChatPage() {
     setBefore(page.before)
   }, [before])
 
-  const send = useCallback(async ({ message, image, agents }) => {
+  // `again`: Retry after an interrupted answer, into the same place; with its request ID,
+  // the server's answer if it has one, so nothing is answered or logged twice (#67)
+  const send = useCallback(async ({ message, image, agents }, again = null) => {
     setSending(true)
     setFailed(null)
-    const key = `live-${Date.now()}`
-    setEntries((now) => [...now,
-      { key: `${key}-q`, role: 'user', text: message, preview: image ? URL.createObjectURL(image) : null },
-      { key, role: 'assistant', events: [], live: true, asked: { message, image } }])
+    const key = again?.key ?? `live-${Date.now()}`
+    if (again) {
+      setEntries((now) => now.map((e) => (e.key === key ? { ...e, events: [], live: true } : e)))
+    } else {
+      setEntries((now) => [...now,
+        { key: `${key}-q`, role: 'user', text: message, preview: image ? URL.createObjectURL(image) : null },
+        { key, role: 'assistant', events: [], live: true, asked: { message, image } }])
+    }
     const events = []
     const input = { message, timezone: zone(), ...(agents?.length ? { agents } : {}) }
     const result = await sendChat(guest ? store.chatInput(message, input) : input, {
       image,
+      ...(again?.requestId ? { clientRequestId: again.requestId } : {}),
       onEvent: (event) => {
         events.push(event)
         if (event.name === 'step') setStatus((now) => stepStatus(now, event.data.name))
@@ -92,10 +99,16 @@ export default function ChatPage() {
       setEntries((now) => now.map((e) => (e.key === key ? { ...e, live: false } : e)))
       return
     }
-    if (result.outcome === 'refused') { // nothing came: the question goes back in the box
+    if (again?.requestId && NOT_ATTACHED.has(result.code)) { // no answer to attach to
+      await send({ message, image, agents }, { key, requestId: null })
+      return
+    }
+    if (result.outcome === 'refused' && !again) { // nothing came: the question goes back in the box
       setEntries((now) => now.filter((e) => !e.key.startsWith(key)))
     }
-    setFailed({ message: result.message, input: { message, image, agents } })
+    setFailed({ message: result.message, input: { message, image, agents },
+                again: result.code === 'interrupted'
+                  ? { key, requestId: retryId(result, again) } : null })
   }, [guest, store])
 
   const submit = async (e) => {
@@ -184,7 +197,7 @@ export default function ChatPage() {
             {failed.message}
             {failed.input && (
               <button type="button" className="btn btn-outline" disabled={sending}
-                      onClick={() => send(failed.input)}>Retry</button>
+                      onClick={() => send(failed.input, failed.again)}>Retry</button>
             )}
           </div>
         )}

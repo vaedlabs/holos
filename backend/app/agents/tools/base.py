@@ -15,7 +15,14 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agents.clock import UTC_ZONE
-from app.agents.schemas import Decision, Source, StagedWrite, WriteKind, WriteWarning
+from app.agents.schemas import (
+    Decision,
+    RepeatOf,
+    Source,
+    StagedWrite,
+    WriteKind,
+    WriteWarning,
+)
 from app.data.state_store import SpendKey
 
 
@@ -37,6 +44,16 @@ async def allow_all(kind: WriteKind, args: BaseModel, ctx: "ToolContext") -> Gat
     return GateResult(allowed=True)
 
 
+# Finds an entry already logged that a staged one repeats: `orchestration.repeats`
+# (Plan C.17, Part E #67)
+RepeatHook = Callable[[StagedWrite, "ToolContext"], Awaitable[RepeatOf | None]]
+
+
+async def no_repeats(write: StagedWrite, ctx: "ToolContext") -> RepeatOf | None:
+    """For tests of the tools alone; a chat turn always sets the real check."""
+    return None
+
+
 @dataclass
 class TurnEntries:
     """Every coach's tool context in one message, so a cap counts all their entries."""
@@ -54,6 +71,7 @@ class ToolContext:
     user_id: int | None = None
     sessions: async_sessionmaker[AsyncSession] | None = None  # account mode only
     gate_write: GateHook = allow_all
+    find_repeat: RepeatHook = no_repeats
     search: Any = None  # WebSearch; typed loosely to avoid an import cycle
     search_keys: list[SpendKey] = field(default_factory=list)  # credit caps (Plan C.13)
     staged_writes: list[StagedWrite] = field(default_factory=list)

@@ -79,6 +79,22 @@ describe('cards', () => {
   })
 })
 
+describe('repeats (Part E #67)', () => {
+  it('wait together on the answer, out of the coaches\' sections, each in its place', () => {
+    const repeat = { summary: 'Lunch: Dal', at: 'x' }
+    const view = turnView([
+      { event: 'text', data: { agent: 'nutrition', chunk: 'Dal is good.' } },
+      { event: 'pending_write', data: { kind: 'meal', summary: 'Lunch', at: 'x', repeat_of: repeat } },
+      { event: 'pending_write', data: { kind: 'workout', summary: 'Run', at: 'x', repeat_of: repeat,
+                                        state: 'logged' } },
+      { event: 'pending_write', data: { kind: 'meal', summary: 'Snack', at: 'x' } },
+    ])
+    expect(view.repeats.map((c) => [c.summary, c.index, c.state]))
+      .toEqual([['Lunch', 1, 'waiting'], ['Run', 2, 'logged']])
+    expect(view.sections.flatMap((s) => s.cards).map((c) => c.summary)).toEqual(['Snack'])
+  })
+})
+
 describe('helpers', () => {
   it('a week is grouped by day, in the order given', () => {
     const items = [{ day: 'Mon', display: 'a' }, { day: 'Mon', display: 'b' },

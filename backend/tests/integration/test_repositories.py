@@ -2,6 +2,7 @@
 
 import inspect
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -17,9 +18,9 @@ ALL_REPOS = [getattr(repos, name) for name in repos.__all__]
 # Every public method, so a new one can't skip the isolation tests below
 EXPECTED_METHODS = {
     "ProfileRepository": {"get_medical", "get_preferences", "save_medical", "save_preferences"},
-    "WorkoutLogRepository": {"add", "recent", "delete"},
-    "NutritionLogRepository": {"add", "recent", "delete"},
-    "MentalLogRepository": {"add", "recent", "delete"},
+    "WorkoutLogRepository": {"add", "recent", "between", "delete"},
+    "NutritionLogRepository": {"add", "recent", "between", "delete"},
+    "MentalLogRepository": {"add", "recent", "between", "delete"},
     "MessageRepository": {"add", "recent", "clear"},
     "ImageRepository": {"keys", "owns"},
     "TraceRepository": {"add", "get", "recent", "add_decisions", "decisions"},
@@ -103,6 +104,25 @@ async def test_log_add_rejects_user_id_field(users):
     session, alice, bob = users
     with pytest.raises(ValueError, match="unknown fields"):
         await repos.WorkoutLogRepository(session, alice).add(user_id=bob, notes="sneaky")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "repo, column", [(repos.WorkoutLogRepository, "workout_date"),
+                     (repos.NutritionLogRepository, "meal_date"),
+                     (repos.MentalLogRepository, "activity_date")]
+)
+async def test_between_reads_only_the_window_and_only_mine(users, repo, column):
+    """The repeat check's read (Part E #67): entries dated inside the window, both ends
+    included, and never someone else's."""
+    session, alice, bob = users
+    noon = datetime(2026, 1, 10, 12, 0, tzinfo=UTC)  # far from the fixture's own entries
+    mine = repo(session, alice)
+    for hours in (-3, -2, 0, 2, 3):
+        await mine.add(notes=f"a{hours}", **{column: noon + timedelta(hours=hours)})
+    await repo(session, bob).add(notes="bob noon", **{column: noon})
+    rows = await mine.between(noon - timedelta(hours=2), noon + timedelta(hours=2))
+    assert [r.notes for r in rows] == ["a2", "a0", "a-2"]
 
 
 @pytest.mark.asyncio

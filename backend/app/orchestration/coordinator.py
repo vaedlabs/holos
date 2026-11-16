@@ -60,6 +60,7 @@ from app.orchestration.composer import (
 from app.orchestration.logged_note import logged_note
 from app.orchestration.principal import Principal
 from app.orchestration.reader import Read, needs_reading, read_mentions
+from app.orchestration.repeats import guest_logs, repeat_finder
 from app.orchestration.router import RouteDecision
 from app.orchestration.services import Services
 from app.orchestration.staging import (
@@ -282,6 +283,9 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
     c = job.composer
     deadline = min(time.monotonic() + AGENT_DEADLINE_S, job.deadline)
     untrusted: dict[AgentName, bool] = {}
+    # A guest's entries are the ones their browser sent; an account's are read (#67)
+    find_repeat = repeat_finder(None if job.principal.user_id
+                                else guest_logs(job.payload.guest_logs))
 
     async def one(agent: AgentName) -> tuple[AgentName, AgentResult]:
         await c.step("agent_started", agent)
@@ -289,7 +293,8 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
         tools = ToolContext(mode="account" if job.principal.user_id else "guest",
                             trace_id=job.admitted.trace_id, user_id=job.principal.user_id,
                             sessions=job.sessions, gate_write=write_gate(profile),
-                            search=services.search, search_keys=job.admitted.search_keys,
+                            find_repeat=find_repeat, search=services.search,
+                            search_keys=job.admitted.search_keys,
                             said=job.said, tz=zone(job.payload.timezone), turn=job.entries)
         result = await services.coaches[agent].run(AgentRun(
             message=job.payload.message, profile=profile, history=history, tools=tools,

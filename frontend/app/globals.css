@@ -732,6 +732,10 @@ h3 {
 .chat-card-form label { display: flex; gap: 0.4rem; align-items: center; }
 .chat-card-form fieldset { border: 0; padding: 0; display: flex; gap: var(--spacing-sm); }
 .chat-card-actions { display: flex; gap: var(--spacing-sm); width: 100%; }
+.chat-card-repeat { border-color: rgba(255, 193, 7, 0.7); }
+.chat-card-repeats { list-style: none; margin: 0 0 var(--spacing-sm); padding: 0; }
+.chat-card-repeats li + li { margin-top: var(--spacing-sm); }
+.chat-card-repeat .chat-card-actions { flex-wrap: wrap; align-items: center; }
 .chat-card-state, .chat-card-message, .chat-hint { opacity: 0.85; font-size: 0.9rem; }
 .chat-crisis { background: rgba(220, 53, 69, 0.2); border: 1px solid rgba(220, 53, 69, 0.6); border-radius: var(--border-radius); padding: var(--spacing-md); }
 .chat-status { opacity: 0.75; font-style: italic; }

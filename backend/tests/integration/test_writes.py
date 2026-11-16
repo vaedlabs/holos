@@ -275,7 +275,8 @@ async def test_a_guest_turn_sends_its_entries_and_stores_nothing(store, async_en
                                     "warnings": [],
                                     "entry": {"kind": "workout", "args": BRIDGES_AS_SENT,
                                               "warnings": [], "at": None,
-                                              "time_guessed": False}}]
+                                              "time_guessed": False,
+                                              "repeat_of": None}}]
     assert await _count(async_engine, "workout_logs") == 0
     assert await _count(async_engine, "pending_writes") == 0
 
@@ -321,7 +322,8 @@ async def test_a_guests_held_entry_carries_the_profile_hash(store, async_engine)
     # The hash of the profile the browser sent, so it can tell if it changed (C.17)
     assert pending["profile_hash"] == staging.profile_hash(UserProfile(**profile))
     assert pending["entry"] == {"kind": "workout", "args": BRIDGES_AS_SENT,
-                                "warnings": [], "at": None, "time_guessed": False}
+                                "warnings": [], "at": None, "time_guessed": False,
+                                "repeat_of": None}
     assert pending["warnings"] == []  # held for the search only
     assert await _count(async_engine, "pending_writes") == 0
 

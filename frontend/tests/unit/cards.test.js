@@ -34,6 +34,15 @@ describe('an account', () => {
       .toEqual({ state, message: `said ${code}` })
   })
 
+  it("Replace is sent only when asked for (Part E #67)", async () => {
+    const { fetchImpl, calls } = fakeFetch([json(200, { writes: [{ summary: 'Logged' }] }),
+                                           json(200, { writes: [{ summary: 'Logged' }] })])
+    await accountCards(fetchImpl).confirm(CARD, { at: 'x', replace: true })
+    await accountCards(fetchImpl).confirm(CARD, { at: 'x' })
+    expect(calls[0].body.replace).toBe(true)
+    expect(calls[1].body).not.toHaveProperty('replace')
+  })
+
   it("Don't log, and Don't log after it was logged", async () => {
     const { fetchImpl } = fakeFetch([json(200, { discarded: true }),
                                      json(409, { code: 'logged', message: 'already logged' })])
@@ -47,7 +56,8 @@ describe('a guest', () => {
     const store = { confirm: vi.fn().mockResolvedValue({ ok: true }), discard: vi.fn() }
     expect(await guestCards(store, 'tr9').confirm(CARD, { at: 'x', leftOut: [] }))
       .toEqual({ state: 'logged', message: '' })
-    expect(store.confirm).toHaveBeenCalledWith('tr9:3', { at: 'x', meal: undefined, leftOut: [] })
+    expect(store.confirm).toHaveBeenCalledWith('tr9:3', { at: 'x', meal: undefined, leftOut: [],
+                                                         replace: false })
     await guestCards(store, 'tr9').discard(CARD)
     expect(store.discard).toHaveBeenCalledWith('tr9:3')
   })

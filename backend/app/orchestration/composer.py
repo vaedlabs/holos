@@ -229,13 +229,16 @@ class Composer:
                             profile_hash: str | None = None) -> None:
         """A write that waits for the person's confirmation (C.17), with when it happened
         and a meal's meal, which the confirm card asks for again (Part E #50); a time the
-        person didn't give is marked, for them to pick (Part E #51)."""
+        person didn't give is marked, for them to pick (Part E #51); an entry already
+        logged is named, for the repeat card (Part E #67)."""
         fields: dict[str, Any] = {"kind": write.kind,
                                   "summary": summarise(write.kind, write.args)[:300],
                                   "warnings": [warning_text(w) for w in write.conflicts],
                                   "attributes": confirm_attributes(write), "at": at,
                                   "meal": getattr(write.args, "meal", None),
                                   "time_guessed": write.time_guessed}
+        if write.repeat_of is not None:
+            fields["repeat_of"] = write.repeat_of
         if self.mode == "account":
             fields |= {"write_id": write_id}
         else:

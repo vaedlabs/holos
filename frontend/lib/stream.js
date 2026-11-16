@@ -5,6 +5,7 @@
  *   const result = await sendChat({ message, timezone }, { image, onEvent, onStatus })
  *   // {outcome: 'done' | 'error' | 'refused', code, message, keepMessage, clientRequestId}
  *   if (result.keepMessage) await sendChat(sameInput, handlers)  // Retry: a new request ID
+ *   await sendChat(sameInput, { ...handlers, clientRequestId })   // after `interrupted`
  *
  * `onEvent({name, data})` gets each event once, by `seq`. `onStatus('reconnecting')`
  * when the stream goes quiet (no event or ping for 20 s) or the network drops, then
@@ -14,7 +15,11 @@
  * message is sent again, and the helplines come at once (Part E #59, F10).
  *
  * The message stays in the box after anything but a finished answer (`keepMessage`), so
- * Retry sends it again with a new request ID (Part E #58: `connection`).
+ * Retry sends it again with a new request ID (Part E #58: `connection`). After
+ * `interrupted` the server may have finished the answer, saved entries included, so
+ * Retry sends the same request ID first: the server attaches it to that request instead
+ * of answering, and logging, again (Part E #67). `duplicate_request` or `expired` means
+ * it has no answer to give: then a new ID.
  */
 
 import { API_URL, csrfToken, errorOf, forgetSession } from './api'
@@ -23,6 +28,8 @@ export const CONTRACT_VERSION = 1 // checked against contracts/ by the tests
 export const SILENCE_MS = 20_000
 export const BACKOFF_MS = [1000, 2000, 4000, 8000, 16000]
 export const INTERRUPTED = 'Your answer was interrupted. Tap to try again.'
+// A request the server can't attach to again: Retry sends it as new
+export const NOT_ATTACHED = new Set(['duplicate_request', 'expired'])
 const TERMINAL = new Set(['done', 'error'])
 
 /** Server-sent events as they arrive in chunks: `{name, data}`, or `{ping: true}`. */
@@ -77,8 +84,8 @@ const pause = (ms, onOnline) => new Promise((resolve) => {
 export async function sendChat(input, {
   image = null, onEvent = () => {}, onStatus = () => {}, fetchImpl = fetch,
   silenceMs = SILENCE_MS, backoffMs = BACKOFF_MS, network = browserNetwork(), resent = false,
+  clientRequestId = crypto.randomUUID(),
 } = {}) {
-  const clientRequestId = crypto.randomUUID()
   const payload = { contract_version: CONTRACT_VERSION, ...input,
                     client_request_id: clientRequestId }
   let lastSeq = -1
@@ -194,6 +201,17 @@ export async function sendChat(input, {
   }
   return { outcome: 'error', code: terminal.data.code, message: terminal.data.message,
            retryAfter: terminal.data.retry_after ?? null, keepMessage: true, clientRequestId }
+}
+
+/**
+ * The request ID Retry sends after a failed answer (Part E #67): after `interrupted`, the
+ * same ID once, so the server's answer comes back if it finished; null for a new one.
+ * The same ID interrupted again means the server's request ended there (its worker
+ * stopped), and replaying it would show the same interruption at every tap.
+ */
+export function retryId(result, again = null) {
+  if (result.code !== 'interrupted' || again?.requestId) return null
+  return result.clientRequestId
 }
 
 /** The request body (C.7): the payload part, and the photo as one upload. */

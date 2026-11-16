@@ -9,7 +9,8 @@
  * A coach's text and items keep their order; items in a row make one table. A saved or
  * held entry's card sits in the section of the coach that logged it (by its kind), even
  * a section with no text, and the coach's sentence about it replaces the card's
- * "Logged" line when it comes (#58).
+ * "Logged" line when it comes (#58). Entries that repeat one already logged wait
+ * together on one card after the sections, `view.repeats` (#67).
  */
 
 export const COACHES = {
@@ -24,7 +25,7 @@ const SHOWN = new Set(['section_start', 'text', 'item', 'sources', 'section_end'
                        'pending_write', 'committed', 'logged_note', 'crisis', 'notice'])
 
 export function turnView(events) {
-  const view = { own: [], summary: [], sections: [], crisis: null, notices: [],
+  const view = { own: [], summary: [], sections: [], repeats: [], crisis: null, notices: [],
                  step: null, done: false, error: null, traceId: null }
   const section = (agent) => {
     let found = view.sections.find((s) => s.agent === agent)
@@ -82,10 +83,12 @@ export function turnView(events) {
         if (card) card.note = data.text
         break
       }
-      case 'pending_write':
-        cardSection(data.kind ?? data.entry?.kind).cards.push({
-          type: 'held', index, state: data.state ?? 'waiting', ...data })
+      case 'pending_write': {
+        const card = { type: 'held', index, state: data.state ?? 'waiting', ...data }
+        if (data.repeat_of) view.repeats.push(card) // one card for all of them (#67)
+        else cardSection(data.kind ?? data.entry?.kind).cards.push(card)
         break
+      }
       case 'crisis':
         view.crisis = data
         break

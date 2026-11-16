@@ -44,11 +44,25 @@ def shown_digest(shown: list[dict] | None) -> str:
     """What an answer showed, as the stream's models read it, card states left out."""
     events = []
     for event in DISPLAY.validate_python(shown or []):
-        dumped = event.model_dump(mode="json")
+        dumped = _unset_dropped(event.model_dump(mode="json"))
         if dumped["event"] == "pending_write":
             dumped["data"].pop("state", None)
         events.append(dumped)
     return hashlib.sha256(_canonical(events)).hexdigest()
+
+
+# Fields added after answers were signed: unset, they are left out, so the digests of
+# answers signed before them don't change (Part E #67)
+ADDED = {"repeat_of"}
+
+
+def _unset_dropped(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _unset_dropped(v) for k, v in value.items()
+                if not (k in ADDED and v is None)}
+    if isinstance(value, list):
+        return [_unset_dropped(v) for v in value]
+    return value
 
 
 def _sig(said: HistoryTurn, reply: HistoryTurn, shown: str, prev: str | None) -> str:

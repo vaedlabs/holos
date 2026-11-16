@@ -18,7 +18,8 @@ Confirm (C.17, accounts): a write held after a web search or for a conflict with
 profile is gated again against the profile as it is now, then logged with its warnings,
 in one transaction. The body may name what the person left out (`{"left_out":
 ["peanut"]}`, from the event's `attributes`) and the date, time and meal they confirm
-(`at`, `meal`; else when they said it). A held write waits with no time limit until it
+(`at`, `meal`; else when they said it), and for a repeat, whether it replaces the entry
+it repeats (`replace`, Part E #67). A held write waits with no time limit until it
 is confirmed, discarded ("Don't log") or replaced by a newer one of its kind (Part E
 #50). A repeat gets the first answer. Guests confirm in the browser, which keeps their
 logs.
@@ -67,7 +68,7 @@ from app.routers.errors import ApiError
 from app.routers.intake import clean_image, read_chat_request
 from app.storage.context import Sessions, load_profile
 from app.storage.images import ImageStore
-from app.storage.logs import insert_log
+from app.storage.logs import delete_log, insert_log
 
 router = APIRouter(prefix="/agents/chat", tags=["chat"])
 writes_router = APIRouter(prefix="/agents/writes", tags=["chat"])
@@ -170,6 +171,8 @@ async def confirm_write(
         if body.at is not None and not logged_at_allowed(body.at):
             raise ApiError(400, "bad_date", "Choose a date and time in the last "
                            f"{limits.LOG_DATE_BACK.days} days, not in the future.")
+        if body.replace and (write.repeat_of is None or write.repeat_of.log_id is None):
+            raise ApiError(400, "bad_request", "This entry has no earlier one to replace.")
         return with_left_out(write, left_out)
 
     async def regate(payload: dict) -> str | None:
@@ -183,6 +186,8 @@ async def confirm_write(
         write = confirmed(payload)
         at = body.at or write.at or payload["staged_at"]
         write = write.model_copy(update={"at": at, "time_guessed": False})
+        if body.replace:  # gone already (deleted on the logs screen): logged all the same
+            await delete_log(session, user_id, write.kind, int(write.repeat_of.log_id))
         log_id = await insert_log(session, user_id, write, at=at)
         return {"writes": [confirmation(write, str(log_id), "account", at,
                                         zone(body.timezone))]}
@@ -222,8 +227,9 @@ def _payload(raw: dict, principal: Principal) -> ChatPayload:
         raise ApiError(400, "bad_request", "Unknown contract version.")
     _check_zone(payload.timezone)
     if principal.user_id is not None:
-        if payload.guest_profile is not None or payload.guest_history is not None:
-            raise ApiError(400, "bad_request", "An account's profile and history are "
+        if (payload.guest_profile is not None or payload.guest_history is not None
+                or payload.guest_logs is not None):
+            raise ApiError(400, "bad_request", "An account's profile, history and logs are "
                            "kept by Holos, not sent with the message.")
     elif payload.guest_profile is not None:
         size = len(json.dumps(payload.guest_profile.model_dump(mode="json")).encode())

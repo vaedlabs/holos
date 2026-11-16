@@ -35,6 +35,8 @@ export const LIMITS = {
   importLogs: 500, // limits.IMPORT_LOG_ENTRIES
   daysBack: 30, // limits.LOG_DATE_BACK
   minutesAhead: 5, // limits.LOG_DATE_AHEAD
+  logsSent: 50, // limits.GUEST_LOGS_SENT: for the repeat check (Part E #67)
+  logsDays: 7, // limits.GUEST_LOGS_DAYS
 }
 // What a saved turn keeps (C.5 History): the events that show the person something
 const SHOWN = new Set(['section_start', 'text', 'item', 'sources', 'section_end',
@@ -47,7 +49,11 @@ export const MESSAGES = {
   bad_date: `Choose a date and time in the last ${LIMITS.daysBack} days, not in the future.`,
   bad_left_out: 'Only what the warning names can be left out.',
   not_found: 'There is no such entry to confirm.',
+  no_replace: 'This entry has no earlier one to replace.',
 }
+
+/** A stored entry's ID: what a repeat card's Replace names (Part E #67). */
+const newId = () => crypto.randomUUID()
 
 /** JSON as Python writes it with sort_keys and compact separators, non-ASCII kept. */
 export function canonical(value) {
@@ -119,11 +125,19 @@ export function guestStore(storage = globalThis.localStorage,
       write(data)
     },
 
-    /** The chat request's guest fields (C.8): the profile and the last 6 turns. */
+    /**
+     * The chat request's guest fields (C.8): the profile, the last 6 turns, and the
+     * entries logged in the last 7 days (at most 50), so an entry logged again waits on
+     * the repeat card (Part E #67).
+     */
     chatInput(message, extra = {}) {
       const data = read()
       const history = data.turns.slice(-LIMITS.turnsSent).map(historyTurn)
-      return { message, guest_profile: data.profile, guest_history: history, ...extra }
+      const since = now().getTime() - LIMITS.logsDays * 86_400_000
+      const logs = data.logs.filter((l) => new Date(l.at).getTime() >= since)
+        .slice(-LIMITS.logsSent)
+      return { message, guest_profile: data.profile, guest_history: history, guest_logs: logs,
+               ...extra }
     },
 
     /** A finished turn (`done`): the signed exchange, what was shown, logs and held entries. */
@@ -142,7 +156,9 @@ export function guestStore(storage = globalThis.localStorage,
 
       for (const write of events.filter((e) => e.name === 'committed')
         .flatMap((e) => e.data.writes)) {
-        if (write.entry) data.logs.push({ entry: write.entry, at: write.at ?? done.data.turn.ts })
+        if (write.entry) {
+          data.logs.push({ id: newId(), entry: write.entry, at: write.at ?? done.data.turn.ts })
+        }
       }
       const held = display.flatMap((e, card) => (e.event === 'pending_write'
         ? [{ id: `${traceId}:${card}`, turn: traceId, card, kind: e.data.entry.kind, ...e.data }]
@@ -160,9 +176,10 @@ export function guestStore(storage = globalThis.localStorage,
 
     /**
      * Logs a held entry as the person confirms it: when it happened (`at`, a Date or ISO
-     * string with its zone), a meal's meal, and what they left out of its warnings.
+     * string with its zone), a meal's meal, and what they left out of its warnings. A
+     * repeat's `replace` deletes the entry it repeats (Part E #67).
      */
-    async confirm(id, { at, meal, leftOut = [] } = {}) {
+    async confirm(id, { at, meal, leftOut = [], replace = false } = {}) {
       const data = read()
       const entry = data.pending.find((p) => p.id === id)
       if (!entry) return { ok: false, code: 'not_found', message: MESSAGES.not_found }
@@ -181,15 +198,21 @@ export function guestStore(storage = globalThis.localStorage,
           || when.getTime() < nowMs - LIMITS.daysBack * 86_400_000) {
         return { ok: false, code: 'bad_date', message: MESSAGES.bad_date }
       }
+      const earlier = entry.entry.repeat_of?.log_id
+      if (replace && !earlier) {
+        return { ok: false, code: 'bad_request', message: MESSAGES.no_replace }
+      }
+      const { repeat_of: _repeat, ...held } = entry.entry
       const logged = {
-        ...entry.entry,
+        ...held,
         args: meal && entry.entry.kind === 'meal' ? { ...entry.entry.args, meal } : entry.entry.args,
         warnings: entry.entry.warnings.map((w) => (w.kind === 'conflict'
           && w.attributes.some((a) => leftOut.includes(a)) ? { ...w, left_out: true } : w)),
         at: when.toISOString(),
         time_guessed: false,
       }
-      data.logs.push({ entry: logged, at: when.toISOString() })
+      if (replace) data.logs = data.logs.filter((l) => l.id !== earlier) // gone already: logged
+      data.logs.push({ id: newId(), entry: logged, at: when.toISOString() })
       data.pending = data.pending.filter((p) => p.id !== id)
       setCard(data, entry, 'logged')
       write(data)

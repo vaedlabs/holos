@@ -227,8 +227,65 @@ describe('held entries (C.17)', () => {
   it('what the turn logged at once is kept for the import', () => {
     const s = store()
     s.recordTurn(turnEvents({ committed: [['workout', BRIDGES]] }))
-    expect(s.data().logs).toEqual([{ at: '2026-11-15T09:00:00Z',
+    expect(s.data().logs).toEqual([{ id: expect.any(String), at: '2026-11-15T09:00:00Z',
                                      entry: { kind: 'workout', args: BRIDGES, warnings: [] } }])
+  })
+})
+
+describe('repeats (Part E #67)', () => {
+  const chatPayload = ajv.compile(JSON.parse(
+    fs.readFileSync(path.join(CONTRACTS, 'schema', 'chat_payload.json'), 'utf8')))
+
+  /** A turn whose held entry repeats the stored one `logId`. */
+  const repeated = async (s, logId) => {
+    const events = turnEvents({ held: [['workout', BRIDGES]],
+                                hash: await profileHash(s.profile()) })
+    const card = events.find((e) => e.name === 'pending_write').data
+    card.repeat_of = { summary: 'Glute bridge', at: '2026-11-15T09:00:00Z', log_id: logId,
+                       this_turn: false }
+    card.entry.repeat_of = card.repeat_of
+    s.recordTurn(events)
+    return s.pending()[0].id
+  }
+
+  it('each message carries the entries of the last 7 days, at most 50, each with its ID', () => {
+    const storage = memoryStorage()
+    const s = store(storage)
+    for (let i = 0; i < 3; i++) {
+      s.recordTurn(turnEvents({ committed: Array.from({ length: 20 }, () => ['workout', BRIDGES]) }))
+    }
+    const data = s.data()
+    data.logs[0].at = '2026-11-07T09:00:00Z' // 8 days back: not sent
+    storage.setItem('holos.guest.v1', JSON.stringify(data))
+    const input = s.chatInput('hi', { client_request_id: crypto.randomUUID(), contract_version: 1 })
+    expect(input.guest_logs).toHaveLength(LIMITS.logsSent)
+    expect(input.guest_logs.at(-1)).toEqual(data.logs.at(-1))
+    expect(new Set(input.guest_logs.map((l) => l.id)).size).toBe(LIMITS.logsSent)
+    expect(LIMITS.logsSent).toBe(chatPayload.schema.properties.guest_logs.anyOf[0].maxItems)
+    expect(chatPayload(input)).toBe(true)
+  })
+
+  it('Replace logs it in place of the entry it repeats', async () => {
+    const s = store()
+    s.recordTurn(turnEvents({ committed: [['workout', BRIDGES], ['workout', SQUATS]] }))
+    const [bridges, squats] = s.data().logs
+    const id = await repeated(s, bridges.id)
+    expect((await s.confirm(id, { replace: true })).ok).toBe(true)
+    const logs = s.data().logs
+    expect(logs.map((l) => l.entry.args.catalogue_id)).toEqual(['back_squat', 'glute_bridge'])
+    expect(logs[0]).toEqual(squats)
+    expect(logs[1].id).not.toBe(bridges.id)
+    expect(logs[1].entry).not.toHaveProperty('repeat_of')
+  })
+
+  it('Log again keeps both; Replace with nothing to replace is refused', async () => {
+    const s = store()
+    s.recordTurn(turnEvents({ committed: [['workout', BRIDGES]] }))
+    const id = await repeated(s, null)
+    expect(await s.confirm(id, { replace: true })).toMatchObject(
+      { ok: false, code: 'bad_request', message: MESSAGES.no_replace })
+    expect((await s.confirm(id)).ok).toBe(true)
+    expect(s.data().logs).toHaveLength(2)
   })
 })
 

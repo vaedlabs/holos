@@ -9,6 +9,12 @@ says "held" for both, so the coach never tells the person it was logged (Part E 
 Before the gate, the entry's `when` becomes a time (agents/when.py, Part E #51): one
 ahead of now or too far back is refused, nothing staged; one the person didn't give is
 the usual time, and the entry waits for them to pick it on the card.
+
+After the gate, an entry matching one already logged (the same meal that day, the same
+exercise or practice within 2 hours) waits on the repeat card instead of being saved
+again: Log again, Replace or Don't log (Part E #67), and the coach may point to
+Replace for a correction. Wording only steers the model; a re-log has to be caught in
+code (Part E #65).
 """
 
 from datetime import UTC, datetime
@@ -67,6 +73,20 @@ HELD = ("Not refused and not saved yet: it waits for the person to confirm it on
 HELD_TIME = ("Not saved yet: the person didn't say what time, so it waits on the card below "
              "your reply with {} filled in, for them to pick the time and confirm. Say so "
              "briefly. Don't say it was refused, couldn't be saved, or was logged.")
+# Part E #67: the entry matches one already logged, so it waits on the repeat card; the
+# coach may answer "is it logged?" truthfully, in words the claim check doesn't remove,
+# and point to Replace for a correction (one already saved can be replaced)
+REPEAT = ("Already in the person's log ({}), so it wasn't logged again. If they asked "
+          "whether it is logged, say what they had or did and when, without the words "
+          "logged, saved, recorded or noted. Don't say you logged, saved, changed or "
+          "updated anything.")
+# Owner (16 Nov 2026, Part E #67): told nothing of the card, the coach answered a
+# correction with "I couldn't change its time to 11:30" over a card offering Replace
+REPEAT_SAVED = (" A card below your reply lets them log it again, replace the earlier entry "
+                "with this one, or not log it. If they were correcting the earlier entry (its "
+                "time or a detail), say in one short sentence that they can tap Replace on "
+                "the card below; otherwise don't mention the card.")
+REPEAT_THIS_TURN = " Don't mention a card or a question about it."
 
 
 # Part E #59: a model told to log 40 entries in one message saved 40
@@ -118,7 +138,15 @@ async def _stage(kind: WriteKind, args: BaseModel, ctx: ToolContext) -> dict[str
     args = gate.args or args
     write = StagedWrite(kind=kind, args=args, warnings=list(gate.warnings),
                         at=None if when.at == said else when.at, time_guessed=when.guessed)
+    if (repeat := await ctx.find_repeat(write, ctx)) is not None:
+        write = write.model_copy(update={"repeat_of": repeat})
     ctx.staged_writes.append(write)
+    if repeat is not None:  # unmentioned: the card asks (C.17, Part E #67)
+        earlier = "earlier in this answer" if repeat.this_turn else when_text(
+            repeat.at, ctx.tz, said)
+        return {"status": "held", "code": "repeat", "summary": summarise(kind, args),
+                "next": REPEAT.format(f"{repeat.summary}, {earlier}")
+                + (REPEAT_SAVED if repeat.log_id else REPEAT_THIS_TURN)}
     if write.conflicts:  # something they already had conflicts: they confirm (Part E #45)
         return {"status": "held", "summary": summarise(kind, args),
                 "warnings": [f"{w.item}: {w.reason}" for w in write.conflicts], "next": HELD}

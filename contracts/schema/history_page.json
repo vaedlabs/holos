@@ -625,6 +625,17 @@
           "default": null,
           "title": "Profile Hash"
         },
+        "repeat_of": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatOf"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "state": {
           "default": "waiting",
           "enum": [
@@ -1440,6 +1451,46 @@
       "title": "PracticeItem",
       "type": "object"
     },
+    "RepeatOf": {
+      "additionalProperties": false,
+      "description": "The entry a new one repeats (C.17, Part E #67): the card names it, and Replace\ndeletes it. `log_id` is the account's row or the guest's stored entry; none for an\nentry of this same answer, which can't be replaced.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "log_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Log Id"
+        },
+        "summary": {
+          "maxLength": 300,
+          "title": "Summary",
+          "type": "string"
+        },
+        "this_turn": {
+          "default": false,
+          "title": "This Turn",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "summary",
+        "at"
+      ],
+      "title": "RepeatOf",
+      "type": "object"
+    },
     "SectionEndShown": {
       "additionalProperties": false,
       "properties": {
@@ -1816,6 +1867,17 @@
           ],
           "title": "Kind",
           "type": "string"
+        },
+        "repeat_of": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatOf"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "time_guessed": {
           "default": false,

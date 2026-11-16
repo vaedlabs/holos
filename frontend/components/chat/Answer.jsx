@@ -1,6 +1,6 @@
 'use client'
 
-import Card from './Card'
+import Card, { RepeatCard } from './Card'
 import Items from './Items'
 import Prose from './Prose'
 import { COACHES, safeLink } from '@/lib/turnView'
@@ -14,8 +14,9 @@ const FAILED = {
 
 /**
  * One answer (C.5): Holos's own reply, each coach's section in the order it came (text,
- * item tables, sources, cautions, cards), the summary, notices and helplines. A coach
- * that failed shows Retry only while the answer is live (`onRetry`), never in history.
+ * item tables, sources, cautions, cards), the entries already logged on one card, the
+ * summary, notices and helplines. A coach that failed shows Retry only while the answer
+ * is live (`onRetry`), never in history.
  */
 export default function Answer({ view, onRetry, onConfirm, onDiscard }) {
   return (
@@ -56,6 +57,9 @@ export default function Answer({ view, onRetry, onConfirm, onDiscard }) {
           ))}
         </section>
       ))}
+      {view.repeats.length > 0 && (
+        <RepeatCard cards={view.repeats} onConfirm={onConfirm} onDiscard={onDiscard} />
+      )}
       {view.summary.map((t, i) => (
         <div key={`sum-${i}`} className="chat-summary"><Prose text={t} /></div>
       ))}

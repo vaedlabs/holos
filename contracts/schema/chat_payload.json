@@ -221,6 +221,23 @@
       "default": null,
       "title": "Guest History"
     },
+    "guest_logs": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "maxItems": 50,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Guest Logs"
+    },
     "guest_profile": {
       "anyOf": [
         {

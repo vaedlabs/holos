@@ -77,6 +77,13 @@ DECIDED_WRITE_KEPT = timedelta(days=1)  # a repeat tap gets the same answer
 # A held log entry has no time limit (Part E #50); its confirmed date and time
 LOG_DATE_BACK = timedelta(days=30)
 LOG_DATE_AHEAD = timedelta(minutes=5)  # the phone's clock may run a little ahead
+# A workout or practice this close to a logged one of the same catalogue ID is a repeat
+# (C.17); a meal's window is its slot on the same day
+REPEAT_WINDOW = timedelta(hours=2)
+# A guest's logged entries sent with each message, for the repeat check (owner, 16 Nov
+# 2026, Part E #67): the newest, at most this many and this old
+GUEST_LOGS_SENT = 50
+GUEST_LOGS_DAYS = 7
 
 # Output and import
 TRACE_TO_BROWSER_BYTES = 32 * 1024

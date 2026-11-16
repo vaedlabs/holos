@@ -11,6 +11,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import Answer from '@/components/chat/Answer'
+import { REPLACED_EARLIER, whenShort } from '@/components/chat/Card'
 import { turnView } from '@/lib/turnView'
 
 afterEach(cleanup)
@@ -129,6 +130,57 @@ describe('cards', () => {
           ev('logged_note', { text: 'A warm bowl of dal, nice.' })])
     expect(screen.getByText('A warm bowl of dal, nice.')).toBeTruthy()
     expect(screen.queryByText('Logged: Lunch: Dal')).toBeNull()
+  })
+})
+
+describe('the repeat card (Part E #67)', () => {
+  const repeat = (i, fields = {}) => ev('pending_write', { kind: 'meal', summary: `Lunch: Dal ${i}`,
+    warnings: [], attributes: [], at: '2026-11-15T07:30:00Z', meal: 'lunch', time_guessed: false,
+    write_id: `w${i}`, repeat_of: { summary: 'Lunch: Dal', at: '2026-11-15T06:30:00Z',
+                                     log_id: String(i), this_turn: false }, ...fields })
+
+  it("an answer's repeats are one card naming each earlier entry", () => {
+    const { container } = draw([repeat(1), repeat(2)])
+    expect(container.querySelectorAll('.chat-card-repeat')).toHaveLength(1)
+    expect(screen.getAllByText(/^Already logged: Lunch: Dal · /)).toHaveLength(2)
+    expect(screen.getByText('Log them again?')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull()
+  })
+
+  it('each entry shows its own time: a correction differs only in that', () => {
+    draw([repeat(1)])
+    const card = document.querySelector('.chat-card-repeat')
+    expect(card.textContent).toContain(`Lunch: Dal 1 · ${whenShort('2026-11-15T07:30:00Z')}`)
+    expect(card.textContent).toContain(`Already logged: Lunch: Dal · ${whenShort('2026-11-15T06:30:00Z')}`)
+  })
+
+  it.each([
+    ['Log again', false, 'Logged.'],
+    ['Replace the earlier ones', true, REPLACED_EARLIER],
+  ])('%s decides every entry still waiting', async (button, replace, said) => {
+    const onConfirm = vi.fn().mockResolvedValue({ state: 'logged', message: '' })
+    draw([repeat(1), repeat(2), repeat(3, { state: 'discarded' })], { onConfirm })
+    fireEvent.click(screen.getByRole('button', { name: button }))
+    await waitFor(() => expect(screen.getAllByText(said)).toHaveLength(2))
+    expect(onConfirm.mock.calls.map(([card, body]) => [card.write_id, body.replace]))
+      .toEqual([['w1', replace], ['w2', replace]])
+    expect(onConfirm.mock.calls[0][1].at).toBe('2026-11-15T07:30:00Z')
+    expect(screen.queryByRole('button', { name: 'Log again' })).toBeNull()
+  })
+
+  it("Don't log drops them all", async () => {
+    const onDiscard = vi.fn().mockResolvedValue({ state: 'discarded', message: '' })
+    draw([repeat(1), repeat(2)], { onDiscard })
+    fireEvent.click(screen.getByRole('button', { name: "Don't log" }))
+    await waitFor(() => expect(screen.getAllByText('Not logged.')).toHaveLength(2))
+  })
+
+  it('an entry of this same answer can be logged again, not replaced', () => {
+    draw([repeat(1, { repeat_of: { summary: 'Lunch: Dal', at: '2026-11-15T07:30:00Z',
+                                   log_id: null, this_turn: true } })])
+    expect(screen.getByText('Also earlier in this answer.')).toBeTruthy()
+    expect(screen.getByText('Log it again?')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Replace/ })).toBeNull()
   })
 })
 

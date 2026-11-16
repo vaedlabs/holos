@@ -11,7 +11,7 @@ import addFormats from 'ajv-formats'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { rememberSession } from '@/lib/api'
-import { CONTRACT_VERSION, EventParser, INTERRUPTED, sendChat } from '@/lib/stream'
+import { CONTRACT_VERSION, EventParser, INTERRUPTED, retryId, sendChat } from '@/lib/stream'
 
 import { fakeFetch, json, quietNetwork, streamed, wire } from './fake_server'
 
@@ -118,6 +118,23 @@ describe('sendChat', () => {
     expect(retry.outcome).toBe('done')
     expect(calls[1].payload.message).toBe(INPUT.message)
     expect(calls[1].payload.client_request_id).not.toBe(calls[0].payload.client_request_id)
+  })
+
+  it('after `interrupted`, Retry can send the same request ID (Part E #67)', async () => {
+    const { fetchImpl, calls } = fakeFetch([streamed([ACCEPTED, TEXT, DONE].map(wire))])
+    const clientRequestId = crypto.randomUUID()
+    const result = await sendChat(INPUT, { ...FAST, fetchImpl, clientRequestId })
+    expect(result).toMatchObject({ outcome: 'done', clientRequestId })
+    expect(calls[0].payload.client_request_id).toBe(clientRequestId)
+  })
+
+  it.each([
+    ['interrupted on the phone: the same ID once', { code: 'interrupted' }, null, 'r1'],
+    ['the same ID interrupted again: a new one', { code: 'interrupted' }, { requestId: 'r1' }, null],
+    ['a new ID interrupted: that one once', { code: 'interrupted' }, { requestId: null }, 'r1'],
+    ['any other failure: a new one', { code: 'connection' }, null, null],
+  ])('Retry after a failure, %s', (_, failed, again, id) => {
+    expect(retryId({ ...failed, clientRequestId: 'r1' }, again)).toBe(id)
   })
 
   it('a silent stream reconnects from the last event, and nothing comes twice', async () => {

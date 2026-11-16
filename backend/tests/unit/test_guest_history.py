@@ -116,3 +116,28 @@ def test_a_card_state_is_the_guests_own():
 def test_an_import_without_a_display_checks_its_digest():
     turns = _imported(history(2), None)
     assert verified_import(turns) == (0, [])
+
+
+def test_an_answer_signed_before_repeat_of_keeps_its_digest():
+    """Part E #67 added `repeat_of` to cards and entries: unset, it leaves the digest of
+    an answer signed before it as it was (computed with the code before the field)."""
+    entry = {"kind": "workout", "args": {
+        "catalogue_id": "glute_bridge", "activity": None, "sets": 3, "reps": 12,
+        "duration_s": None, "note": "", "when": {"day": None, "time": None, "ampm": None,
+                                                 "part": None}},
+        "warnings": [], "at": None, "time_guessed": False}
+    shown = [
+        {"event": "committed", "data": {"writes": [{
+            "kind": "workout", "summary": "Logged: Glute bridge: 3 x 12 · 12:30 pm",
+            "at": "2026-11-16T12:30:00Z", "write_id": None, "entry": entry, "warnings": []}]}},
+        {"event": "pending_write", "data": {
+            "kind": "workout", "summary": "Glute bridge: 3 x 12", "warnings": [],
+            "attributes": [], "at": "2026-11-16T12:30:00Z", "meal": None,
+            "time_guessed": False, "entry": entry, "profile_hash": "a" * 64,
+            "state": "waiting"}},
+    ]
+    pinned = "aed316d9f231b9e121ed95813b1d1163e0b6f1e5574b6ad1a675cd00c3ed134d"
+    assert shown_digest(shown) == pinned
+    shown[1]["data"]["repeat_of"] = {"summary": "Glute bridge", "log_id": "7",
+                                     "at": "2026-11-16T11:30:00Z", "this_turn": False}
+    assert shown_digest(shown) != pinned  # set, it is signed like the rest

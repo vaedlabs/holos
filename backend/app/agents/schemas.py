@@ -31,7 +31,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.config.limits import IMPORT_LOG_ENTRIES, IMPORT_TURNS
+from app.config.limits import GUEST_LOGS_SENT, IMPORT_LOG_ENTRIES, IMPORT_TURNS
 from app.guardrails.loader import get_guardrails
 from app.guardrails.types import OTHER_ACTIVITY, Allergen, Diet
 
@@ -475,6 +475,9 @@ class ChatPayload(_Model):
     agents: list[AgentName] | None = Field(default=None, min_length=1, max_length=3)
     guest_profile: UserProfile | None = None
     guest_history: list[HistoryTurn] | None = Field(default=None, max_length=6)
+    # A guest's newest logged entries, for the repeat check only (Part E #67). Each is
+    # read on its own (ImportLog), so one the schema no longer reads is skipped, not fatal
+    guest_logs: list[dict[str, Any]] | None = Field(default=None, max_length=GUEST_LOGS_SENT)
     client_request_id: UUID
     contract_version: int = Field(ge=1)
     # The device's IANA time zone ("Asia/Kolkata"), not its clock (Part E #51); none: UTC
@@ -520,6 +523,17 @@ class WriteWarning(_Model):
     left_out: bool = False
 
 
+class RepeatOf(_Model):
+    """The entry a new one repeats (C.17, Part E #67): the card names it, and Replace
+    deletes it. `log_id` is the account's row or the guest's stored entry; none for an
+    entry of this same answer, which can't be replaced."""
+
+    summary: str = Field(max_length=300)
+    at: datetime
+    log_id: str | None = Field(default=None, max_length=64)
+    this_turn: bool = False
+
+
 class StagedWrite(_Model):
     kind: WriteKind
     args: LogWorkoutArgs | LogMealArgs | LogPracticeArgs
@@ -528,6 +542,8 @@ class StagedWrite(_Model):
     # whether no time was given, so the person picks it on the card (owner, Part E #51)
     at: datetime | None = None
     time_guessed: bool = False
+    # An entry already logged that this one matches: it waits on the repeat card (#67)
+    repeat_of: RepeatOf | None = None
 
     @property
     def conflicts(self) -> list[WriteWarning]:
@@ -536,8 +552,9 @@ class StagedWrite(_Model):
     @property
     def waits(self) -> bool:
         """It waits for the person's confirmation whatever the turn: a conflict with
-        their profile (Part E #45) or a time they didn't give (Part E #51)."""
-        return bool(self.conflicts) or self.time_guessed
+        their profile (Part E #45), a time they didn't give (Part E #51) or an entry
+        already logged (Part E #67)."""
+        return bool(self.conflicts) or self.time_guessed or self.repeat_of is not None
 
     @model_validator(mode="after")
     def _args_match_kind(self):
@@ -698,6 +715,8 @@ class ConfirmWrite(_Model):
     at: AwareDatetime | None = None
     meal: MealType | None = None
     timezone: str | None = Field(default=None, max_length=64)  # for the "Logged" line
+    # A repeat's "Replace": the entry it repeats is deleted as this one is logged (#67)
+    replace: bool = False
 
 
 class ImportLog(_Model):
@@ -706,6 +725,7 @@ class ImportLog(_Model):
 
     entry: StagedWrite
     at: datetime
+    id: str | None = Field(default=None, max_length=64)  # the browser's, for Replace (#67)
 
 
 class ProfileNotes(_Model):
@@ -728,6 +748,8 @@ class PendingWriteShown(_Model):
     meal: MealType | None = None
     # No time was given: `at` is the usual time for it, for the person to change
     time_guessed: bool = False
+    # It repeats an entry already logged: "Log again", "Replace" or "Don't log" (#67)
+    repeat_of: RepeatOf | None = None
     # Account mode
     write_id: str | None = None
     # Guest mode

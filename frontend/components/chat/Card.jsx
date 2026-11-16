@@ -107,3 +107,85 @@ function HeldCard({ card, onConfirm, onDiscard }) {
     </div>
   )
 }
+
+// After Replace; a reload shows the card's saved state, "Logged."
+export const REPLACED_EARLIER = 'Logged; the earlier one was removed.'
+
+/** "7:00 am", or "Sun 15 Nov, 7:00 am" on another day, in the person's own zone. */
+export function whenShort(iso, now = new Date()) {
+  const d = new Date(iso)
+  const time = d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })
+  if (d.toDateString() === now.toDateString()) return time
+  const day = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  return `${day}, ${time}`
+}
+
+/**
+ * Entries that repeat one already logged, all of an answer's on one card (C.17; Part E
+ * #67): each with its time and the entry it repeats, since a correction differs only in
+ * that time; Log again, Replace the earlier ones (only when each has one already saved)
+ * or Don't log, for all that still wait.
+ */
+export function RepeatCard({ cards, onConfirm, onDiscard }) {
+  const [states, setStates] = useState(() => cards.map((c) => c.state))
+  const [swapped, setSwapped] = useState([]) // logged by Replace, this visit
+  const [messages, setMessages] = useState([])
+  const [busy, setBusy] = useState(false)
+  const waiting = cards.filter((_, i) => states[i] === 'waiting')
+  const replaceable = waiting.length > 0 && waiting.every((c) => c.repeat_of.log_id)
+
+  const decide = async (action, replace = false) => {
+    setBusy(true)
+    setMessages([])
+    try {
+      for (const [i, card] of cards.entries()) {
+        if (states[i] !== 'waiting') continue
+        const result = await action(card)
+        if (result.state) setStates((now) => now.map((s, j) => (j === i ? result.state : s)))
+        if (replace && result.state === 'logged') setSwapped((now) => [...now, i])
+        if (result.message && !result.state) setMessages((now) => [...now, result.message])
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+  const confirm = (replace) => decide((card) => onConfirm(card, {
+    at: card.at, meal: card.meal ?? undefined, replace }), replace)
+
+  return (
+    <div className="chat-card chat-card-held chat-card-repeat">
+      <ul className="chat-card-repeats">
+        {cards.map((c, i) => (
+          <li key={c.index ?? i}>
+            <p className="chat-card-summary">{c.summary} · {whenShort(c.at)}</p>
+            <p className="chat-hint">
+              {c.repeat_of.this_turn ? 'Also earlier in this answer.'
+                : `Already logged: ${c.repeat_of.summary} · ${whenShort(c.repeat_of.at)}`}
+            </p>
+            {states[i] !== 'waiting' && (
+              <p className="chat-card-state">
+                {swapped.includes(i) ? REPLACED_EARLIER : STATES[states[i]]}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+      {waiting.length > 0 && (
+        <div className="chat-card-actions">
+          <span>{waiting.length === 1 ? 'Log it again?' : 'Log them again?'}</span>
+          <button type="button" className="btn btn-primary" disabled={busy}
+                  onClick={() => confirm(false)}>Log again</button>
+          {replaceable && (
+            <button type="button" className="btn btn-outline" disabled={busy}
+                    onClick={() => confirm(true)}>
+              {waiting.length === 1 ? 'Replace the earlier one' : 'Replace the earlier ones'}
+            </button>
+          )}
+          <button type="button" className="btn btn-outline" disabled={busy}
+                  onClick={() => decide(onDiscard)}>Don&apos;t log</button>
+        </div>
+      )}
+      {messages.map((m, i) => <p key={i} className="chat-card-message">{m}</p>)}
+    </div>
+  )
+}
