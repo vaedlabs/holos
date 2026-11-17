@@ -23,8 +23,11 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
-    # Majors of the framework wait for R8 (ESLint CLI and Next 16), which removes these
+    # Majors of the framework wait for R8 (ESLint CLI and Next 16), which removes these;
+    # eslint-config-next 15 accepts ESLint 9 at most, so npm ci refuses ESLint 10 alone
     ignore:
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
       - dependency-name: next
         update-types: ["version-update:semver-major"]
       - dependency-name: react

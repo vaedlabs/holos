@@ -1,8 +1,17 @@
 name: CI
 
+# Pushes run only on main: a PR branch is tested by its pull_request run, so Dependabot's
+# branches don't run twice (R5)
 on:
   push:
+    branches: [main]
   pull_request:
+
+# A newer commit on a PR cancels the run still going for the old one (Dependabot rebases
+# every open PR after each merge); every commit on main keeps its own result
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
