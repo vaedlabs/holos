@@ -8,9 +8,10 @@ on:
   pull_request:
 
 # A newer commit on a PR cancels the run still going for the old one (Dependabot rebases
-# every open PR after each merge); every commit on main keeps its own result
+# every open PR after each merge). A push to main gets a group of its own commit: GitHub
+# keeps one pending run per group, so a shared main group dropped a merge's run (R5)
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
