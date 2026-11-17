@@ -2,7 +2,9 @@
 #   pip-compile --generate-hashes --allow-unsafe --strip-extras -o requirements.txt requirements.in
 
 # Web framework and the ASGI server
-fastapi==0.122.1
+fastapi==0.163.1
+# Imported directly (the intake multipart parser, the middleware), not only through fastapi
+starlette==1.10.0
 uvicorn[standard]==0.38.0
 
 # Postgres through SQLAlchemy; greenlet runs the async engine
@@ -26,20 +28,20 @@ bcrypt==5.0.0
 
 # Request and settings models; email-validator backs EmailStr
 pydantic==2.12.5
-pydantic-settings==2.12.0
-email-validator==2.1.0
+pydantic-settings==2.16.3
+email-validator==2.4.0
 
 # Loads backend/.env in development
-python-dotenv==1.2.1
+python-dotenv==1.2.4
 
 # Parses the chat request's multipart form (routers/intake.py)
-python-multipart==0.0.20
+python-multipart==0.0.34
 
 # Web search for the coaches
 tavily-python==0.7.13
 
 # Account image processing
-Pillow==12.0.0
+Pillow==13.0.0
 
 # Guardrails data files
 PyYAML==6.0.3

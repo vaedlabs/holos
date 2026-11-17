@@ -14,7 +14,6 @@ import httpx
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from fastapi.routing import APIRoute
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 
@@ -33,6 +32,7 @@ from app.dependencies import (
 from app.orchestration.principal import csrf_token
 from app.routers.errors import ApiError, api_error_handler
 from app.storage.images import LocalImageStore, image_key
+from tests.routes import api_routes
 
 from .accounts import call
 from .test_admission import account, settings, sql
@@ -41,8 +41,7 @@ from .test_writes import BRIDGES
 
 pytestmark = pytest.mark.asyncio
 
-ROUTES = sorted((m, r.path) for r in main.app.routes if isinstance(r, APIRoute)
-                for m in r.methods)
+ROUTES = sorted((m, r.path) for r in api_routes(main.app) for m in r.methods)
 # Routes that hold no user data, and why
 NO_USER_DATA = {
     ("GET", "/"): "a fixed welcome",

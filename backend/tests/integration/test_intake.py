@@ -390,7 +390,7 @@ async def test_a_preamble_before_the_first_boundary_is_400():
     # RFC 2046 allows a preamble, browsers never send one, python-multipart refuses it
     result = await post(b"This is a preamble.\r\n" + form())
     assert result.status == 400
-    assert result.body["message"] == "Malformed form data."
+    assert result.body["message"] == "Malformed form data: Invalid multipart data."
 
 
 async def test_an_image_sent_without_a_filename_is_400():
@@ -414,11 +414,21 @@ async def test_a_huge_part_header_is_refused_without_a_crash():
     assert (await post(body + b"a" * (2 * MB))).status == 413
 
 
-@pytest.mark.parametrize("filename", ["../../etc/passwd", "a\0b.jpg", "x" * 5000, "名前.jpg"])
+# "名" * 255: the longest name a phone or desktop file system allows (255 bytes there,
+# 765 here in UTF-8)
+@pytest.mark.parametrize("filename", ["../../etc/passwd", "a\0b.jpg", "名" * 255, "名前.jpg"])
 async def test_the_filename_is_ignored(filename):
     result = await post(form(image=image_bytes(), filename=filename), query="clean=1")
     assert result.status == 200
     assert not hasattr(intake.ChatIntake, "filename")
+
+
+async def test_a_part_header_over_4_kb_is_400():
+    # python-multipart caps one part header line at about 4 KB (its
+    # DEFAULT_MAX_HEADER_SIZE); no real filename comes near it
+    result = await post(form(image=image_bytes(), filename="x" * 5000))
+    assert result.status == 400
+    assert result.body["message"] == "Malformed form data: Invalid multipart data."
 
 
 async def test_a_client_that_disconnects_mid_body_gets_400_not_500():

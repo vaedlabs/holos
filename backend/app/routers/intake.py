@@ -21,7 +21,6 @@ from typing import Any
 
 import anyio
 from PIL import Image, ImageOps, UnidentifiedImageError
-from python_multipart.exceptions import FormParserError
 from starlette.formparsers import MultiPartException, MultiPartParser
 from starlette.requests import ClientDisconnect, Request
 
@@ -114,9 +113,9 @@ async def read_chat_request(request: Request) -> ChatIntake:
     try:
         form = await parser.parse()
     except MultiPartException as exc:
+        # Starlette 1.x also wraps python-multipart's own errors (bad boundary, broken
+        # framing) as "Invalid multipart data."
         raise _bad_request(f"Malformed form data: {exc.message}") from None
-    except FormParserError:  # python-multipart's own errors: bad boundary, broken framing
-        raise _bad_request("Malformed form data.") from None
     except ClientDisconnect:
         raise _bad_request("The request ended early.") from None
     if not parser.finished:

@@ -3,10 +3,10 @@
 from pathlib import Path
 
 import pytest
-from fastapi.routing import APIRoute
 
 from app.dependencies import get_principal
 from app.main import app
+from tests.routes import api_routes
 
 pytestmark = pytest.mark.unit
 
@@ -26,8 +26,7 @@ def _calls(dependant, found: set) -> set:
 
 
 def _state_changing():
-    return [r for r in app.routes
-            if isinstance(r, APIRoute) and r.methods - {"GET", "HEAD", "OPTIONS"}]
+    return [r for r in api_routes(app) if r.methods - {"GET", "HEAD", "OPTIONS"}]
 
 
 def test_every_state_changing_route_resolves_the_session():
@@ -74,8 +73,8 @@ def test_cors_allows_only_the_app_origin_with_the_csrf_header():
 def test_no_route_takes_a_bearer_token():
     from fastapi.security import HTTPBearer
 
-    bearer = [r.path for r in app.routes if isinstance(r, APIRoute)
-              and any(isinstance(c, HTTPBearer) for c in _calls(r.dependant, set()))]
+    bearer = [r.path for r in api_routes(app)
+              if any(isinstance(c, HTTPBearer) for c in _calls(r.dependant, set()))]
     assert bearer == []
 
 

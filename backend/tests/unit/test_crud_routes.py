@@ -14,6 +14,7 @@ from app.data.engine import (
 )
 from app.dependencies import get_database
 from app.routers.crud import conversation, logs, medical, preferences
+from tests.routes import api_routes
 
 pytestmark = pytest.mark.unit
 
@@ -32,8 +33,7 @@ def _uses_sync_database(route: APIRoute) -> bool:
 
 
 def test_the_crud_routes_are_all_served():
-    served = {(m, r.path) for r in main.app.routes if isinstance(r, APIRoute)
-              for m in r.methods}
+    served = {(m, r.path) for r in api_routes(main.app) for m in r.methods}
     assert len(_routes()) == 13  # conversation 3, logs 6, medical 2, preferences 2
     assert {(m, r.path) for m, r in _routes()} <= served
 

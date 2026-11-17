@@ -63,6 +63,15 @@ jobs:
             pip-compile -q --generate-hashes --allow-unsafe --strip-extras -o $f.txt $f.in
             diff <(grep -v '^ *#' /tmp/$f.committed) <(grep -v '^ *#' $f.txt)
           done
+      # A published advisory against anything that ships fails the run (R5). The lock is
+      # complete and hashed, so pip-audit reads it as is instead of resolving it again
+      - name: Audit the runtime lock
+        run: pip-audit -r requirements.txt --require-hashes --disable-pip
+      # Test tools never ship: their advisories are listed here and fixed by Dependabot's
+      # weekly PRs, without blocking the run
+      - name: Audit the dev lock (listed, not blocking)
+        continue-on-error: true
+        run: pip-audit -r requirements-dev.txt --require-hashes --disable-pip
       - run: ruff check .
       - name: Contracts are up to date
         run: python -m app.contracts.generate --check
@@ -83,6 +92,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      # Only what ships to the browser fails the run (R5); dev tools are Dependabot's job
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm test
       # Catches files the repo needs but doesn't hold (frontend/lib/ was ignored once)
