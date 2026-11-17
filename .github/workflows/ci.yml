@@ -55,7 +55,7 @@ jobs:
       TURNSTILE_INTERACTIVE_SECRET_KEY: 1x0000000000000000000000000000000AA
       ENVIRONMENT: test
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
@@ -94,7 +94,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
