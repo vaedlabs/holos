@@ -9,7 +9,7 @@ pytest-cov==4.1.0
 # Token counting for the contract size rule (Plan C.3); only tests use it
 tiktoken==0.12.0
 
-ruff==0.17.2
+ruff==0.17.5
 
 # Compiles the locks; CI recompiles to check they match their inputs
 pip-tools==7.7.0
