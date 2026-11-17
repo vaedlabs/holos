@@ -27,7 +27,7 @@
     "ajv-formats": "^3.0.1",
     "eslint": "^9.0.0",
     "eslint-config-next": "15.5.29",
-    "jsdom": "^26.1.0",
+    "jsdom": "^31.0.1",
     "vitest": "^4.1.12"
   },
   "overrides": {
