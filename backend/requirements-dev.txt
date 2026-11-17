@@ -404,7 +404,9 @@ platformdirs==4.14.5 \
 pluggy==1.6.0 \
     --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
     --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
-    # via pytest
+    # via
+    #   pytest
+    #   pytest-cov
 py-serializable==2.2.0 \
     --hash=sha256:2cce775abc5aac12115f9ff572a145c7276d04a770090334bd4e51ed9c782415 \
     --hash=sha256:8e4fa02e8de819c0488ccdb69c2d3109274adcf224c02357fd8729cb12727aab
@@ -436,9 +438,9 @@ pytest-asyncio==0.24.0 \
     --hash=sha256:a811296ed596b69bf0b6f3dc40f83bcaf341b155a269052d82efa2b25ac7037b \
     --hash=sha256:d081d828e576d85f875399194281e92bf8a68d60d72d1a2faf2feddb6c46b276
     # via -r requirements-dev.in
-pytest-cov==4.1.0 \
-    --hash=sha256:3904b13dfbfec47f003b8e77fd5b589cd11904a21ddf1ab38a64f204d6a10ef6 \
-    --hash=sha256:6ba70b9e97e69fcc3fb45bfeab2d0a138fb65c4d0d6a41ef33983ad114be8c3a
+pytest-cov==7.1.0 \
+    --hash=sha256:30674f2b5f6351aa09702a9c8c364f6a01c27aae0c1366ae8016160d1efc56b2 \
+    --hash=sha256:a0461110b7865f9a271aa1b51e516c9a95de9d696734a2f71e3e78f46e1d4678
     # via -r requirements-dev.in
 regex==2025.11.3 \
     --hash=sha256:04d2765516395cf7dda331a244a3282c0f5ae96075f728629287dfa6f76ba70a \

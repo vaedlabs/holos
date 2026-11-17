@@ -4,7 +4,7 @@
 
 pytest==8.4.2
 pytest-asyncio==0.24.0
-pytest-cov==4.1.0
+pytest-cov==7.1.0
 
 # Token counting for the contract size rule (Plan C.3); only tests use it
 tiktoken==0.12.0
