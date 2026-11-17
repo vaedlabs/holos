@@ -5,16 +5,16 @@
 fastapi==0.163.1
 # Imported directly (the intake multipart parser, the middleware), not only through fastapi
 starlette==1.10.0
-uvicorn[standard]==0.38.0
+uvicorn[standard]==0.54.0
 
 # Postgres through SQLAlchemy; greenlet runs the async engine
-sqlalchemy==2.0.44
-psycopg[binary]==3.3.6
+sqlalchemy==2.1.8
+psycopg[binary]==3.3.9
 greenlet==3.5.6
-alembic==1.17.2
+alembic==1.20.1
 
 # Account images on S3-compatible storage (C.8)
-boto3==1.43.123
+boto3==1.44.3
 
 # OpenAI SDK (Responses API, Plan C.9). 3.x is no longer blocked (LangChain is gone);
 # moving to it is its own step: its httpx2 default client changes our test fixtures
@@ -27,7 +27,7 @@ httpx==0.28.1
 bcrypt==5.0.0
 
 # Request and settings models; email-validator backs EmailStr
-pydantic==2.12.5
+pydantic==2.14.3
 pydantic-settings==2.16.3
 email-validator==2.4.0
 
@@ -38,7 +38,7 @@ python-dotenv==1.2.4
 python-multipart==0.0.34
 
 # Web search for the coaches
-tavily-python==0.7.13
+tavily-python==0.8.5
 
 # Account image processing
 Pillow==13.0.0
