@@ -23,6 +23,7 @@ from app.config.settings import Settings, get_settings
 from app.data.engine import make_async_engine
 from app.data.state_store import StateStore
 from app.dependencies import get_db_sessions, get_principal, get_state_store
+from app.middleware import flood
 from app.middleware.flood import FloodLimit, flood_key
 from app.middleware.headers import SecurityHeaders
 from app.orchestration import admission, passwords
@@ -1148,11 +1149,16 @@ async def test_lifespan_and_other_scopes_pass_through(store):
     assert sent == ["lifespan.startup.complete", "lifespan.shutdown.complete"]
 
 
-async def test_concurrent_requests_from_one_ip_get_exactly_100(store):
+async def test_concurrent_requests_from_one_ip_get_exactly_100(store, monkeypatch, caplog):
+    # This checks the count, not the counter's speed: 150 checks at once queue on one row,
+    # and on a slow CI runner one passed the 0.5 s timeout, so the limit opened (its own
+    # test: a_database_outage) and all 150 got 200. Locally the slowest takes ~75 ms.
+    monkeypatch.setattr(flood, "CHECK_TIMEOUT_S", 30)
     app = flood_app(store, settings())
     await not_near_window_end(60, margin=10)
     async with client_for(app) as c:
         responses = await asyncio.gather(*(c.get("/ping") for _ in range(150)))
+    assert "flood counter unavailable" not in caplog.text
     codes = sorted(r.status_code for r in responses)
     assert codes.count(200) == limits.FLOOD_REQUESTS_PER_MINUTE
     assert codes.count(429) == 50
