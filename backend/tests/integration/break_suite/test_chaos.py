@@ -93,14 +93,15 @@ def _coach(log: tuple[str, dict] | None, reply: LLMResult):
 
 
 def _ack(cls, summary):
+    own = {"photo_shows_food": None} if cls is NutritionReply else {}
     return _result(cls(kind="log_ack", summary=summary, items=[], notes=[], source_ids=[],
-                       follow_up=None, risk_flag=False))
+                       follow_up=None, risk_flag=False, **own))
 
 
 def _answer():
     return _result(NutritionReply(kind="answer", summary="Dal and rice is a good dinner.",
                                   items=[], notes=[], source_ids=[], follow_up=None,
-                                  risk_flag=False))
+                                  risk_flag=False, photo_shows_food=None))
 
 
 # --- Faults ---

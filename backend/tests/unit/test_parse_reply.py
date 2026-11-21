@@ -45,7 +45,7 @@ def test_an_over_long_field_in_an_item_is_trimmed():
                                         "cucumber salad and a glass of buttermilk",
             "calories": 400, "note": ""}
     data = dict(kind="plan", summary="ok", items=[food], notes=[], source_ids=[],
-                follow_up=None, risk_flag=False)
+                follow_up=None, risk_flag=False, photo_shows_food=None)
     reply = parse_reply(json.dumps(data), NutritionReply, "openai")
     assert len(reply.items[0].portion) <= 80
 

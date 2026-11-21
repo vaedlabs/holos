@@ -232,6 +232,11 @@ class NutritionReply(_ReplyBase):
     items: list[FoodItem] = Field(max_length=21, description=(
         "1 to 21 items when kind is plan, including each food seen in a photo; empty "
         "otherwise."))
+    # Every photo comes here before any topic check, so the coach says whether it is one
+    # Holos reads; false gets a fixed reply instead of this one (P4.17, Part E #71)
+    photo_shows_food: bool | None = Field(description=(
+        "Only when the message has a photo: true if it shows food, a drink, or a food label "
+        "or packaging; false for anything else. Null when there is no photo."))
 
 
 class MentalReply(_ReplyBase):

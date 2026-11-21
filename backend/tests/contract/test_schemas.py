@@ -210,9 +210,11 @@ def _largest(model: type[schemas._ReplyBase]) -> BaseModel:
         "MentalReply": dict(day=_text(16), catalogue_id=longest(schemas.PracticeId),
                             duration_min=60, note=_text(120)),
     }[model.__name__]
+    # The food coach's flag at its longest JSON ("false" > "true")
+    own = {"photo_shows_food": False} if model is schemas.NutritionReply else {}
     return model(kind="plan", summary=_text(400), notes=[_text(200)] * 3,
                  source_ids=[_text(20)] * 5, follow_up=None, risk_flag=True,
-                 items=[items] * schemas.PLAN_MAX_ITEMS[model.__name__])
+                 items=[items] * schemas.PLAN_MAX_ITEMS[model.__name__], **own)
 
 
 @pytest.mark.parametrize("agent", list(schemas.REPLY_MODELS))

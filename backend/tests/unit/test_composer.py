@@ -75,8 +75,9 @@ def _done_inputs(sample: list[dict]) -> tuple:
 
 
 def _reply(model, kind="plan", summary="", items=(), notes=(), follow_up=None):
+    own = {"photo_shows_food": None} if model is NutritionReply else {}
     return model(kind=kind, summary=summary, items=list(items), notes=list(notes),
-                 source_ids=[], follow_up=follow_up, risk_flag=False)
+                 source_ids=[], follow_up=follow_up, risk_flag=False, **own)
 
 
 def _exercise(cid, sets=None, reps=None, duration_s=None, intensity="moderate", note=""):

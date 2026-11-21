@@ -23,11 +23,13 @@ from datetime import UTC, datetime
 from app.agents.base import AgentRun, Reader, error_code
 from app.agents.clock import now_note, zone
 from app.agents.display import history_text
+from app.agents.nutrition import NOT_FOOD_REPLY
 from app.agents.schemas import (
     AgentName,
     AgentResult,
     ChatPayload,
     HistoryTurn,
+    NutritionReply,
     Usage,
     UserProfile,
 )
@@ -186,7 +188,8 @@ async def _run(job: ChatJob, services: Services, meters: "_Meters") -> None:
                 return await commit_writes(session, job.principal.user_id, writes, hash_,
                                            job.admitted.trace_id, at=job.said)
 
-            key = await _keep_image(job)
+            # A photo turned down isn't kept: Holos keeps only meal photos (Part E #71)
+            key = None if _not_food(results.get("nutrition")) else await _keep_image(job)
             try:
                 saved = await save_turn(job.principal, job.sessions,
                                         job.payload.client_request_id, job.payload.message,
@@ -304,6 +307,9 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
             images=(job.image,) if photo else (), others=tuple(a for a in agents if a != agent),
             trace=job.trace, crisis_recent=job.crisis_recent,
             read=_reader(job, services, profile, meters)))
+        if photo and _not_food(result):
+            result = _turned_down(result)
+            await c.step("gate", agent, detail="not_food")
         if caveat and result.reply is not None and result.reply.kind == "plan":
             result.warnings.append(caveat)
         untrusted[agent] = tools.untrusted
@@ -325,6 +331,25 @@ async def _coaches(job: ChatJob, services: Services, agents: list[AgentName],
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
     return results, untrusted
+
+
+def _not_food(result: AgentResult | None) -> bool:
+    """The food coach said the photo isn't food. Null (no answer to it) keeps the reply:
+    a meal turned down is a failure too (Part E #71)."""
+    reply = result.reply if result is not None else None
+    return isinstance(reply, NutritionReply) and reply.photo_shows_food is False
+
+
+def _turned_down(result: AgentResult) -> AgentResult:
+    """The fixed reply in place of the coach's: nothing described, nothing logged. Its
+    risk flag stays, so the helplines still follow (P4.17, Part E #71)."""
+    risk = result.reply is not None and result.reply.risk_flag
+    reply = NutritionReply(kind="answer", summary=NOT_FOOD_REPLY, items=[], notes=[],
+                           source_ids=[], follow_up=None, risk_flag=risk,
+                           photo_shows_food=False)
+    return result.model_copy(update={
+        "reply": reply, "warnings": [], "removed_count": 0, "item_caveats": [],
+        "decisions": [], "sources": [], "staged_writes": []})
 
 
 async def _keep_image(job: ChatJob) -> str | None:

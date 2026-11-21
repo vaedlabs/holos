@@ -374,8 +374,11 @@ class BaseAgent:
                     removed_count=len(gated.blocked_items),
                     decisions=[*decisions_of(gated), *decisions_of(told), *run.tools.decisions])
         run.trace.step("explain", self.domain, "fixed_reply", began_ms=began)
+        # The food coach's own field: null, since foods were found, so the reply stands
+        # (P4.17)
+        own = {"photo_shows_food": None} if "photo_shows_food" in self.schema.model_fields else {}
         fixed = self.schema(kind="answer", summary=UNSAFE_FALLBACK[self.domain], items=[],
-                            notes=[], source_ids=[], follow_up=None, risk_flag=False)
+                            notes=[], source_ids=[], follow_up=None, risk_flag=False, **own)
         return AgentResult(reply=fixed, warnings=warnings,
                            removed_count=len(gated.blocked_items),
                            decisions=[*decisions_of(gated), *run.tools.decisions])

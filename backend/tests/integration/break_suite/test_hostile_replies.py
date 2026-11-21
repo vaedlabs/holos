@@ -117,6 +117,7 @@ def _nutrition(summary=SAFE, notes=(), food=None):
                             diet_tags=[], portion="1 bowl", calories=230, note="")
     return _result(NutritionReply(kind="plan", summary=summary, notes=list(notes),
                                   source_ids=[], follow_up=None, risk_flag=False,
+                                  photo_shows_food=None,
                                   items=[food]))
 
 

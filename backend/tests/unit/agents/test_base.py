@@ -118,7 +118,7 @@ def _logged(food):
 def _nutrition(*foods, kind=None, summary="Here you go."):
     return NutritionReply(kind=kind or ("plan" if foods else "answer"), summary=summary,
                           items=list(foods), notes=[], source_ids=[], follow_up=None,
-                          risk_flag=False)
+                          risk_flag=False, photo_shows_food=None)
 
 
 # --- The gate and the retry (C.10 steps 5-7) ---

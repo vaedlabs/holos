@@ -727,7 +727,7 @@ async def test_a_photo_goes_to_the_food_coach_with_the_image(store, async_engine
     reply = NutritionReply(kind="plan", summary="Looks like dal and rice.", items=[
         FoodItem(day=None, name="Dal", ingredients=["lentils"], allergen_tags=[],
                  diet_tags=[], portion="1 bowl", calories=250, note="")],
-        notes=[], source_ids=[], follow_up=None, risk_flag=False)
+        notes=[], source_ids=[], follow_up=None, risk_flag=False, photo_shows_food=True)
     models = Models(nutrition=[_result(reply)])
     events = _events(await _post(_app(store, async_engine, models), await guest(store),
                                  _payload("is this ok?"), image=out.getvalue()))
@@ -750,6 +750,81 @@ async def test_a_guests_notes_are_checked_and_bring_no_caveat(store, async_engin
     assert not any("couldn't check" in w for w in end.get("warnings", []))
 
 
+# --- A photo that isn't food (P4.17, Part E #71) ---
+
+
+def _food_reply(shows_food, risk=False):
+    from app.agents.schemas import FoodItem, NutritionReply
+
+    return NutritionReply(kind="plan", summary="A dark chat window with message bubbles.",
+                          items=[FoodItem(day=None, name="Dal", ingredients=["lentils"],
+                                          allergen_tags=[], diet_tags=[], portion="1 bowl",
+                                          calories=250, note="")],
+                          notes=["Tip"], source_ids=[], follow_up=None, risk_flag=risk,
+                          photo_shows_food=shows_food)
+
+
+def _jpeg():
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 20, 40)).save(out, "JPEG")
+    return out.getvalue()
+
+
+async def test_a_photo_that_isnt_food_gets_the_fixed_reply(store, async_engine):
+    from app.agents.nutrition import NOT_FOOD_REPLY
+
+    models = Models(nutrition=[_result(_food_reply(False))])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("What is in this picture?"), image=_jpeg()))
+    texts = [d["chunk"] for n, d in events if n == "text"]
+    assert texts == [NOT_FOOD_REPLY]  # nothing the coach wrote: no description, no tip
+    assert "item" not in _names(events)
+    assert ("gate", "not_food") in [(d["name"], d.get("detail")) for n, d in events
+                                    if n == "step"]
+    assert events[-1][0] == "done"
+
+
+@pytest.mark.parametrize("shows_food", [True, None])
+async def test_a_food_photo_or_no_answer_keeps_the_coachs_reply(store, async_engine,
+                                                                 shows_food):
+    # Null is no answer to the question: a meal turned down is a failure too
+    models = Models(nutrition=[_result(_food_reply(shows_food))])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("is this ok?"), image=_jpeg()))
+    assert "item" in _names(events)
+    assert "not_food" not in json.dumps(events)
+
+
+async def test_without_a_photo_the_flag_is_never_read(store, async_engine):
+    models = Models(router=[_route("nutrition")], nutrition=[_result(_food_reply(False))])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("a dal recipe")))
+    assert "item" in _names(events)  # a false without a photo means nothing
+
+
+async def test_a_risk_flag_survives_the_fixed_reply(store, async_engine):
+    models = Models(nutrition=[_result(_food_reply(False, risk=True))])
+    events = _events(await _post(_app(store, async_engine, models), await guest(store),
+                                 _payload("look"), image=_jpeg()))
+    assert "crisis" in _names(events)  # the helplines still follow
+
+
+async def test_an_accounts_photo_that_isnt_food_is_not_kept(store, async_engine, tmp_path):
+    me = await account(store, async_engine)
+    models = Models(nutrition=[_result(_food_reply(False))])
+    events = _events(await _post(_app(store, async_engine, models, LocalImageStore(tmp_path)),
+                                 me, _payload("What is in this picture?"), image=_jpeg()))
+    await _settled()
+    assert events[-1][0] == "done"
+    assert list(tmp_path.rglob("*.jpg")) == []
+    assert await sql(async_engine, "SELECT role, image_path FROM conversation_messages "
+                     "ORDER BY id") == [("user", None), ("assistant", None)]
+
+
 # --- Account photos are kept (C.8, P4.9) ---
 
 
@@ -765,7 +840,7 @@ def _photo_turn():
     reply = NutritionReply(kind="plan", summary="Looks like dal.", items=[
         FoodItem(day=None, name="Dal", ingredients=["lentils"], allergen_tags=[],
                  diet_tags=[], portion="1 bowl", calories=250, note="")],
-        notes=[], source_ids=[], follow_up=None, risk_flag=False)
+        notes=[], source_ids=[], follow_up=None, risk_flag=False, photo_shows_food=True)
     return Models(nutrition=[_result(reply)]), out.getvalue()
 
 

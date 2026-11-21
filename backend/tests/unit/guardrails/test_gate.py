@@ -63,7 +63,7 @@ def physical(*cids, **kw) -> dict:
 
 
 def meal(*foods, **kw) -> dict:
-    return reply(list(foods), **kw)
+    return {**reply(list(foods), **kw), "photo_shows_food": None}
 
 
 def rule_ids(result) -> set[str]:

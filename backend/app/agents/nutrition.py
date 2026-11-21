@@ -4,6 +4,13 @@ from app.agents.base import BaseAgent
 from app.agents.schemas import NutritionReply
 from app.config.speeds import MEAL_PHOTO, NUTRITION, NUTRITION_PLAN
 
+# Sent instead of the coach's reply when a photo isn't food: Holos reads photos only to
+# track meals (owner's wording, 21 Nov 2026, Part E #71)
+NOT_FOOD_REPLY = ("Holos is made for holistic fitness and wellbeing, and it reads photos "
+                  "only to track meals and calories. Send a photo of a meal, a drink or a "
+                  "food label, and Holos will list what's in it with the calories, ready "
+                  "to log.")
+
 
 class NutritionAgent(BaseAgent):
     domain = "nutrition"
@@ -33,6 +40,9 @@ and state any assumption in the summary; ask first only when no sensible plan is
 - A meal photo: list each food you can see as an item (kind plan), with its likely \
 ingredients, allergen tags, portion and calories. Describe what is on the plate; if a food \
 may conflict with their allergies or diet, say so plainly in that item's note.
+- Any photo: set photo_shows_food. A photo of anything other than food, a drink, or a food \
+label or packaging (a screenshot, a person, a place, a document) is false: don't describe \
+it, give no items and log nothing. Without a photo it is null.
 - A meal they ate: call log_meal with its foods, each with your best estimate of its \
 calories, protein, carbs and fat for that portion, then confirm with kind log_ack. Asked \
 what they have eaten (today's protein, this week's calories): read get_recent_logs."""

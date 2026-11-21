@@ -87,7 +87,8 @@ def _ack(summary="Nice work.") -> LLMResult:
 
 def _lunch(summary="Lunch noted.") -> LLMResult:
     return _result(NutritionReply(kind="log_ack", summary=summary, items=[], notes=[],
-                                  source_ids=[], follow_up=None, risk_flag=False))
+                                  source_ids=[], follow_up=None, risk_flag=False,
+                                  photo_shows_food=None))
 
 
 def _with_search(models: Models) -> Models:
@@ -335,7 +336,8 @@ async def test_a_search_holds_only_the_writes_of_the_coach_that_ran_it(store, as
                      carbs_g=40, fat_g=6)
     meal = {"meal": "lunch", "foods": [dal.model_dump(mode="json")]}
     lunch = _result(NutritionReply(kind="log_ack", summary="Lunch noted.", items=[], notes=[],
-                                   source_ids=[], follow_up=None, risk_flag=False))
+                                   source_ids=[], follow_up=None, risk_flag=False,
+                                   photo_shows_food=None))
     models = _with_search(Models(
         router=[_route("physical", "nutrition")],
         physical=[_calls(("log_workout", BRIDGES)), _ack()],
@@ -357,7 +359,7 @@ async def test_no_summary_when_a_coach_only_logged(store, async_engine, talking)
     message ("I don't see an exercise coach's update here")."""
     tip = _result(NutritionReply(kind="answer", summary="Dal is a good source of protein.",
                                  items=[], notes=[], source_ids=[], follow_up=None,
-                                 risk_flag=False))
+                                 risk_flag=False, photo_shows_food=None))
     models = Models(router=[_route("physical", *talking)],
                     physical=[_calls(("log_workout", BRIDGES)), _ack("Your bridges are noted.")],
                     mental=[_mental()], nutrition=[tip],
@@ -456,6 +458,30 @@ async def test_the_event_carries_when_it_was_said_and_the_meal(store, async_engi
     [(write_id, said)] = await sql(async_engine, "SELECT id, created_at FROM pending_writes")
     assert (pending["write_id"], datetime.fromisoformat(pending["at"])) == (str(write_id), said)
     assert pending["meal"] == "lunch" and "expires_at" not in pending
+
+
+async def test_a_photo_that_isnt_food_logs_nothing(store, async_engine):
+    """P4.17: the coach logged from a screenshot, then said it wasn't food: the entry is
+    neither saved nor held (Part E #71)."""
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 20, 40)).save(out, "JPEG")
+    me = await account(store, async_engine)
+    not_food = _result(NutritionReply(kind="log_ack", summary="Logged your dal.", items=[],
+                                      notes=[], source_ids=[], follow_up=None,
+                                      risk_flag=False, photo_shows_food=False))
+    models = Models(nutrition=[_calls(("log_meal", {"meal": "lunch", "foods": [DAL]})),
+                               not_food])
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("log this"), image=out.getvalue()))
+    await _settled()
+    assert events[-1][0] == "done"
+    assert not {"logged", "pending_write"} & set(_names(events))
+    assert await _count(async_engine, "nutrition_logs") == 0
+    assert await _count(async_engine, "pending_writes") == 0
 
 
 # --- When it happened, from what the person said (Part E #51 step 2) ---
