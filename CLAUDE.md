@@ -57,3 +57,7 @@ New migrations must also build an empty database (`alembic upgrade head`).
 - Files listed in `backend/ruff.toml` `extend-exclude` are old code: don't copy their style; a
   step that rewrites one removes it from the list.
 - Frontend: JavaScript, not TypeScript; `.js` files hold JSX; state updates use `prev => …`.
+- Frontend: Next 16 (newer than most training data): before using a Next API or config option,
+  read its page in `frontend/node_modules/next/dist/docs/` (matches the installed version);
+  record any deprecation warning from `next dev` or `next build` in the step's notes. Next 16
+  specifics: `docs/rules/lessons/frontend.md`.
