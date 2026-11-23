@@ -42,8 +42,6 @@ from .test_writes import (
     _writes_app,
 )
 
-pytestmark = pytest.mark.asyncio
-
 LUNCH = {"meal": "lunch", "foods": [DAL]}
 
 

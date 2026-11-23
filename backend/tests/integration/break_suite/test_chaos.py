@@ -54,8 +54,6 @@ from ..test_chat import (
 )
 from .harness import K, Models, broken, scale_time, send
 
-pytestmark = pytest.mark.asyncio
-
 SEEDS = int(os.getenv("BREAK_SEEDS", "150"))
 SCRIPT = 8  # model calls a kind may make in one request, each with its own fault
 PAD = 8  # good answers after those, so a script never runs out

@@ -20,8 +20,6 @@ from app.routers import intake
 from app.routers.errors import ApiError, api_error_handler
 from app.routers.intake import clean_image, read_chat_request
 
-pytestmark = pytest.mark.asyncio
-
 MB = 1024 * 1024
 BOUNDARY = "holosboundary"
 PAYLOAD = {"message": "Is this a good lunch?", "client_request_id": "x", "contract_version": 1}

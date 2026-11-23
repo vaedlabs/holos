@@ -7,7 +7,6 @@ import json
 import uuid
 from datetime import UTC, datetime, timedelta
 
-import pytest
 import pytest_asyncio
 
 from app.config import limits
@@ -21,8 +20,6 @@ from .accounts import account_app, call
 from .guest_turns import signed_history
 from .test_admission import PASSWORD, account, guest, sql
 from .test_writes import BRIDGES, DAL, POHA, SQUATS
-
-pytestmark = pytest.mark.asyncio
 
 NOW = datetime(2026, 11, 2, 8, 30, tzinfo=UTC)
 GUEST = {"condition_ids": ["knee_ligament_injury"], "allergen_tags": ["peanut"],

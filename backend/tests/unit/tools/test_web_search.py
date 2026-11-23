@@ -9,7 +9,7 @@ from app.agents.tools.write import HELD
 
 from .conftest import Clock, FakeSearchClient, FakeStore
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 TOOL = next(t for t in AGENT_TOOLS["physical"] if t.name == "web_search")
 

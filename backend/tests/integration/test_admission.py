@@ -45,8 +45,6 @@ from app.routers.intake import clean_image, read_chat_request
 
 from .conftest import TEST_URL
 
-pytestmark = pytest.mark.asyncio
-
 APP = "http://localhost:3000"
 PASSWORD = "Correct-Horse-1"
 

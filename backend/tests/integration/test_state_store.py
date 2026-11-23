@@ -20,8 +20,6 @@ from app.models import NutritionLog
 
 from .conftest import TEST_URL
 
-pytestmark = pytest.mark.asyncio
-
 DAY = datetime(2026, 10, 25, tzinfo=UTC)
 
 

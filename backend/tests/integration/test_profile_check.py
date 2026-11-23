@@ -1,7 +1,6 @@
 """GET and POST /profile/check (Part E #42): the profile screen sees what a chat turn
 sees; only the caller's own profile; a guest's notes are checked and not stored."""
 
-import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -11,8 +10,6 @@ from app.storage.images import LocalImageStore
 
 from .accounts import account_app, call
 from .test_admission import account, guest, sql
-
-pytestmark = pytest.mark.asyncio
 
 
 @pytest_asyncio.fixture

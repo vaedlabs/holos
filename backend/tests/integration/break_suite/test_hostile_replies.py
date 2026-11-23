@@ -31,8 +31,6 @@ from ..test_admission import guest
 from ..test_chat import _app, _payload, _result, _route, requests_finish  # noqa: F401
 from .harness import Models, send, settled
 
-pytestmark = pytest.mark.asyncio
-
 KNEE = {"condition_ids": ["knee_ligament_injury"], "allergen_tags": [], "diet_tags": [],
         "notes": ""}
 PEANUT = {**KNEE, "condition_ids": [], "allergen_tags": ["peanut"]}

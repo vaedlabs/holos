@@ -15,7 +15,7 @@ from app.config.limits import REASONING_ALLOWANCE_LOW
 from app.providers import GenerateOptions, Turn
 from app.providers.openai import OpenAIProvider
 
-pytestmark = [pytest.mark.paid, pytest.mark.asyncio]
+pytestmark = pytest.mark.paid
 
 load_dotenv(".env")
 

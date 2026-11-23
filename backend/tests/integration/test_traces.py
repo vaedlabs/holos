@@ -5,7 +5,6 @@ message text; the writer never delays `done`."""
 import asyncio
 import time
 
-import pytest
 import pytest_asyncio
 
 from app import main
@@ -31,8 +30,6 @@ from .test_chat import (
     _settled,
     requests_finish,  # noqa: F401  (autouse)
 )
-
-pytestmark = pytest.mark.asyncio
 
 
 @pytest_asyncio.fixture

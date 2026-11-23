@@ -41,7 +41,7 @@ from .provider_scenarios import (
     truncated,
 )
 
-pytestmark = [pytest.mark.contract, pytest.mark.asyncio]
+pytestmark = pytest.mark.contract
 
 
 def _replay(provider_name: str, scenario: str, check_body: bool = True):

@@ -30,8 +30,6 @@ from app.routers.errors import ApiError, api_error_handler
 
 from .test_admission import guest, settings
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest_asyncio.fixture
 async def store(async_engine):

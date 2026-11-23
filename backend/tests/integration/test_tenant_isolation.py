@@ -39,8 +39,6 @@ from .test_admission import account, settings, sql
 from .test_intake import form
 from .test_writes import BRIDGES
 
-pytestmark = pytest.mark.asyncio
-
 ROUTES = sorted((m, r.path) for r in api_routes(main.app) for m in r.methods)
 # Routes that hold no user data, and why
 NO_USER_DATA = {

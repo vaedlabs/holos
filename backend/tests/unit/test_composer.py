@@ -42,7 +42,7 @@ from app.orchestration.composer import (
     turn_text,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 STREAMS = generate.CONTRACTS_DIR / "streams"
 KNEE = UserProfile(condition_ids=["knee_ligament_injury"], allergen_tags=[], diet_tags=[],

@@ -9,7 +9,7 @@ from botocore.stub import Stubber
 
 from app.storage.images import LocalImageStore, S3ImageStore, checked, image_key
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 
 async def test_local_put_get_and_delete_a_prefix(tmp_path):

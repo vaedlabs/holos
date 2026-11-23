@@ -25,7 +25,7 @@ from app.orchestration.services import READER_OPTIONS
 from app.providers import Breakers, CallPlan, ResilientProvider, Route, Turn
 from app.providers.openai import OpenAIProvider
 
-pytestmark = [pytest.mark.paid, pytest.mark.asyncio]
+pytestmark = pytest.mark.paid
 
 load_dotenv(".env")
 

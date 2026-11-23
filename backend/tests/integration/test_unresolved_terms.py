@@ -1,7 +1,6 @@
 """Unresolved health phrases for the catalogue review (P4.10, Part E #42, #47): counted
 when first saved, never on a read; no user link; shown only from 3 people."""
 
-import pytest
 import pytest_asyncio
 
 from app.data.state_store import StateStore
@@ -10,8 +9,6 @@ from app.observability.terms import PURGE, TOP, new_terms
 from .accounts import call
 from .test_admission import account, sql
 from .test_tenant_isolation import world  # noqa: F401  (reuses its app wiring)
-
-pytestmark = pytest.mark.asyncio
 
 
 @pytest_asyncio.fixture

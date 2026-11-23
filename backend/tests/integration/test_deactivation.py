@@ -18,8 +18,6 @@ from .accounts import account_app, call
 from .test_admission import account, guest, sql
 from .test_chat import Models, _app, _payload, _post
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest_asyncio.fixture
 async def store(async_engine):

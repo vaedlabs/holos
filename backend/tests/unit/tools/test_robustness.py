@@ -16,7 +16,7 @@ from app.agents.tools import web_search as ws
 from .conftest import Clock, FakeSearchClient, FakeStore
 from .test_write_and_read_tools import WRITES
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 TOOLS = {t.name: t for tools in AGENT_TOOLS.values() for t in tools}
 SEARCH = TOOLS["web_search"]

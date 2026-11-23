@@ -26,7 +26,7 @@ from app.providers import Breakers, FairScheduler, ResilientProvider, Route
 from app.providers.openai import OpenAIProvider
 from tests.scenarios.scenarios import HERE, conversations
 
-pytestmark = [pytest.mark.paid, pytest.mark.asyncio]
+pytestmark = pytest.mark.paid
 
 load_dotenv(".env")
 

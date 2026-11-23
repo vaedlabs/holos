@@ -25,8 +25,6 @@ from app.orchestration.budget import spend_keys
 
 from .test_admission import account, make_user, sql
 
-pytestmark = pytest.mark.asyncio
-
 
 class Images:
     """Deletes every prefix but the ones listed as failing."""

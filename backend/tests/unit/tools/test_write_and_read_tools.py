@@ -11,7 +11,7 @@ from app.agents.tools import AGENT_TOOLS, GateResult, ToolContext, TurnEntries
 from app.agents.tools import write as write_tools
 from app.config.limits import ENTRIES_PER_TURN
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 TOOLS = {t.name: t for tools in AGENT_TOOLS.values() for t in tools}
 

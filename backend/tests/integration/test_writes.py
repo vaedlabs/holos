@@ -52,8 +52,6 @@ from .test_chat import (
     requests_finish,  # noqa: F401  (autouse: requests end before the DB is emptied)
 )
 
-pytestmark = pytest.mark.asyncio
-
 BRIDGES = {"catalogue_id": "glute_bridge", "sets": 3, "reps": 12, "duration_s": None,
            "note": ""}
 SQUATS = {"catalogue_id": "back_squat", "sets": 1, "reps": 10, "duration_s": None, "note": ""}

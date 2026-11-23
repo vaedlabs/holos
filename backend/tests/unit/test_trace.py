@@ -31,7 +31,7 @@ from app.providers import (
 )
 from app.providers.fake import Slow, Stream, reply
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 OK = reply(MentalReply(kind="answer", summary="ok", items=[], notes=[], source_ids=[],
                        follow_up=None, risk_flag=False), request_id="req_ok")

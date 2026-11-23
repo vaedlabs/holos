@@ -19,7 +19,7 @@ from app.providers import (
 )
 from app.providers.openai import OpenAIProvider
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 
 def _sse(*events: dict) -> bytes:

@@ -29,7 +29,7 @@ from app.providers import (
 from app.providers.openai import OpenAIProvider
 from tests.scenarios.scenarios import HERE, conversations
 
-pytestmark = [pytest.mark.paid, pytest.mark.asyncio]
+pytestmark = pytest.mark.paid
 
 load_dotenv(".env")
 

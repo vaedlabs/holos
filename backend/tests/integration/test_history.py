@@ -35,8 +35,6 @@ from .test_chat import (
 from .test_database_down import _crud_app
 from .test_writes import BRIDGES, SQUATS, _confirm, _discard, _pending_turn, _writes_app
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest_asyncio.fixture
 async def store(async_engine):

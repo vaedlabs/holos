@@ -31,7 +31,7 @@ from app.providers import (
 )
 from app.providers.fake import Slow
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 AT = datetime(2026, 11, 9, 4, 0, tzinfo=UTC)
 INDIA = zone("Asia/Kolkata")

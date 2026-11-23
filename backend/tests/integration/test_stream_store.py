@@ -13,8 +13,6 @@ from app.data.state_store import StateStore
 from app.data.stream_store import DEAD_AFTER_S, RequestEnded, StreamStore
 from app.orchestration.stream import follow
 
-pytestmark = pytest.mark.asyncio
-
 KEY = "session:abc"
 INTERRUPTED = {"trace_id": "t1", "code": "interrupted", "message": "Interrupted."}
 

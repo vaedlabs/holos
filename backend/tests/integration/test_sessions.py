@@ -31,8 +31,6 @@ from app.routers import auth, session
 from app.routers.crud import preferences
 from app.routers.errors import ApiError, api_error_handler
 
-pytestmark = pytest.mark.asyncio
-
 PASS = "1x0000000000000000000000000000000AA"
 FAIL = "2x0000000000000000000000000000000AA"
 SPENT = "3x0000000000000000000000000000000AA"

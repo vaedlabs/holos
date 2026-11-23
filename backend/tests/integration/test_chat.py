@@ -65,8 +65,6 @@ from app.storage.images import LocalImageStore
 from .test_admission import APP, account, guest, seed_spend, settings, sql
 from .test_intake import form
 
-pytestmark = pytest.mark.asyncio
-
 KNEE_NOTE = "torn ACL left knee"
 
 

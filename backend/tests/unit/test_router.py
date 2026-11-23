@@ -29,7 +29,7 @@ from app.providers import (
     Usage,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 KNEE = UserProfile(condition_ids=["knee_ligament_injury"], allergen_tags=["peanut"],
                    diet_tags=["vegetarian"], notes="plays football")

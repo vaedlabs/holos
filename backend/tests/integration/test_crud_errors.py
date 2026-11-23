@@ -11,8 +11,6 @@ from .accounts import call
 from .test_admission import account
 from .test_database_down import _crud_app
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest.mark.parametrize(("method", "path"), [
     ("GET", "/medical/history"),

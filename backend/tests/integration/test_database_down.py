@@ -26,8 +26,6 @@ from .conftest import TEST_URL
 from .test_admission import APP, settings
 from .test_admission import account as make_account
 
-pytestmark = pytest.mark.asyncio
-
 
 def _app(store) -> FastAPI:
     app = FastAPI()

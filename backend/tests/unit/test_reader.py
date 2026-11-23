@@ -32,7 +32,7 @@ from app.providers import (
 )
 from app.providers.fake import Slow
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 
 
 def _answer(*sentences: list[tuple[str, str]]) -> LLMResult:

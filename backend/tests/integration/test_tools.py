@@ -19,8 +19,6 @@ from ..unit.tools.conftest import Clock, FakeSearchClient
 from ..unit.tools.test_write_and_read_tools import WRITES
 from .conftest import TEST_URL
 
-pytestmark = pytest.mark.asyncio
-
 TOOLS = {t.name: t for tools in AGENT_TOOLS.values() for t in tools}
 DAY = datetime(2026, 10, 25, tzinfo=UTC)
 

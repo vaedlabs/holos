@@ -2,7 +2,6 @@
 keyed by their principal key, and their images; a failed image delete is queued and
 the job clears it."""
 
-import pytest
 import pytest_asyncio
 import sqlalchemy as sa
 
@@ -14,8 +13,6 @@ from app.storage.images import LocalImageStore, image_key
 from .accounts import account_app, call
 from .test_admission import account, sql
 from .test_migrations import _user_columns, _user_tables, _value
-
-pytestmark = pytest.mark.asyncio
 
 
 @pytest_asyncio.fixture

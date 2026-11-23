@@ -6,7 +6,7 @@ import pytest
 
 from app.providers import FairScheduler, NoCapacity
 
-pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+pytestmark = pytest.mark.unit
 # Two model providers and search, as the slot table would read with a second provider
 # (only OpenAI today): slots, the shared LLM limit and fairness across providers
 TWO_MODELS = {"openai": 24, "second": 4, "tavily": 4}

@@ -11,7 +11,7 @@ import pytest
 from app.orchestration.sessions import Turnstile
 from app.routers.errors import ApiError
 
-pytestmark = [pytest.mark.paid, pytest.mark.asyncio]
+pytestmark = pytest.mark.paid
 
 TOKEN = "XXXX.DUMMY.TOKEN.XXXX"
 

@@ -19,8 +19,6 @@ from app.config import limits
 from app.data.state_store import SpendKey, StateStore
 from app.models import WorkoutLog
 
-pytestmark = pytest.mark.asyncio
-
 DAY = datetime(2026, 10, 25, tzinfo=UTC)
 WORKERS = 12  # below the async pool's 15 connections
 CENT = Decimal("0.01")

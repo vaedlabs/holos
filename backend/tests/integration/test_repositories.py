@@ -70,7 +70,6 @@ async def users(async_engine):
         yield session, alice.id, bob.id
 
 
-@pytest.mark.asyncio
 async def test_profile_isolated(users):
     session, alice, bob = users
     mine = repos.ProfileRepository(session, alice)
@@ -83,7 +82,6 @@ async def test_profile_isolated(users):
     assert (await theirs.get_preferences()).goals == "bob goal"
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "repo", [repos.WorkoutLogRepository, repos.NutritionLogRepository, repos.MentalLogRepository]
 )
@@ -99,14 +97,12 @@ async def test_logs_isolated(users, repo):
     assert await mine.delete(own.id) is True
 
 
-@pytest.mark.asyncio
 async def test_log_add_rejects_user_id_field(users):
     session, alice, bob = users
     with pytest.raises(ValueError, match="unknown fields"):
         await repos.WorkoutLogRepository(session, alice).add(user_id=bob, notes="sneaky")
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "repo, column", [(repos.WorkoutLogRepository, "workout_date"),
                      (repos.NutritionLogRepository, "meal_date"),
@@ -125,7 +121,6 @@ async def test_between_reads_only_the_window_and_only_mine(users, repo, column):
     assert [r.notes for r in rows] == ["a2", "a0", "a-2"]
 
 
-@pytest.mark.asyncio
 async def test_recent_logs_capped_and_newest_first(users):
     session, alice, _ = users
     mine = repos.WorkoutLogRepository(session, alice)
@@ -136,7 +131,6 @@ async def test_recent_logs_capped_and_newest_first(users):
     assert rows[0].notes == "n24"
 
 
-@pytest.mark.asyncio
 async def test_messages_isolated(users):
     session, alice, bob = users
     mine = repos.MessageRepository(session, alice)
@@ -151,7 +145,6 @@ async def test_messages_isolated(users):
     assert total == 1
 
 
-@pytest.mark.asyncio
 async def test_images_isolated(users):
     session, alice, bob = users
     mine = repos.ImageRepository(session, alice)
@@ -161,7 +154,6 @@ async def test_images_isolated(users):
     assert await repos.ImageRepository(session, bob).keys() == ["images/bob.jpg"]
 
 
-@pytest.mark.asyncio
 async def test_traces_isolated(users):
     session, alice, bob = users
     mine = repos.TraceRepository(session, alice)
@@ -180,7 +172,6 @@ async def test_traces_isolated(users):
     ]
 
 
-@pytest.mark.asyncio
 async def test_writes_carry_the_repository_user(users):
     session, alice, _ = users
     row = await repos.WorkoutLogRepository(session, alice).add(notes="x")
