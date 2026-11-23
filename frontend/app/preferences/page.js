@@ -384,7 +384,7 @@ export default function PreferencesPage() {
 
       {/* Main Content */}
       <div style={{ minHeight: 'calc(100vh - 80px)', background: 'transparent', padding: 'var(--spacing-xl) 0' }}>
-        <div className="container">
+        <div className="legacy-container">
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
               <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: '600', color: 'var(--text-light)', textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)' }}>Your Fitness Preferences</h2>

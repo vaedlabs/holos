@@ -1,0 +1,258 @@
+/*
+  Holos theme: the one place to change the look (R7, E072).
+
+  Three layers, edit from the top:
+    1. Palette: the raw colours. A colour literal anywhere else fails CI (scripts/check_theme.mjs).
+    2. Roles: what each colour is for, light and dark side by side as light-dark(light, dark).
+       Components use only roles, so a palette or role edit restyles every screen.
+    3. Tailwind mapping: exposes the roles, fonts, sizes and radius as utility classes.
+
+  Dark mode follows the device setting (color-scheme: light dark). A toggle later only sets
+  color-scheme on <html>; no value moves.
+  Typefaces are loaded in app/fonts.js; this file only says which role each one plays.
+  After an edit: `node scripts/check_theme.mjs` checks every text colour for WCAG AA in both modes,
+  and /styleguide (dev only) shows every role and component.
+*/
+
+/* 1. Palette ------------------------------------------------------------------------------- */
+:root {
+  /* Light, "Calm Clinic" */
+  --sage-50: #F6F7F5;
+  --white: #FFFFFF;
+  --sage-100: #EEF1EE;
+  --sage-200: #DDE2DE;
+  --sage-500: #78847E;
+  --sage-600: #5D6963;
+  --sage-700: #3E4A44;
+  --sage-900: #17201B;
+  --teal-50: #E3F1EF;
+  --teal-700: #0F766E;
+  --blue-700: #2563C4;
+  --amber-800: #9A4A08;
+  --violet-600: #7C4DCC;
+  --red-700: #B42318;
+  --red-50: #FDF0EE;
+  --red-950: #3D0B07;
+
+  /* Dark, "Night Focus" with the green accent */
+  --night-950: #0C0D10;
+  --night-900: #15171B;
+  --night-850: #1C1F24;
+  --night-800: #272A31;
+  --night-600: #5F6570;
+  --night-400: #8B9099;
+  --night-200: #B4B8BF;
+  --night-50: #EDEEF0;
+  --green-400: #3DD6A3;
+  --green-950: #12261F;
+  --blue-300: #6AA8FF;
+  --amber-400: #F2A93B;
+  --violet-300: #C29BFF;
+  --red-300: #FF8A80;
+  --red-900: #2B1312;
+  --red-25: #FDE8E6;
+
+  /* Scrims behind dialogs, drawers and sheets */
+  --scrim-light: rgb(23 32 27 / 0.32);
+  --scrim-dark: rgb(0 0 0 / 0.6);
+}
+
+/* 2. Roles --------------------------------------------------------------------------------- */
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces */
+  --background: light-dark(var(--sage-50), var(--night-950));
+  --card: light-dark(var(--white), var(--night-900));
+  --popover: light-dark(var(--white), var(--night-900));
+  --raised: light-dark(var(--sage-100), var(--night-850));
+  --overlay: light-dark(var(--scrim-light), var(--scrim-dark));
+
+  /* Text */
+  --foreground: light-dark(var(--sage-900), var(--night-50));
+  --foreground-secondary: light-dark(var(--sage-700), var(--night-200));
+  --muted-foreground: light-dark(var(--sage-600), var(--night-400));
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+
+  /* Brand */
+  --primary: light-dark(var(--teal-700), var(--green-400));
+  --primary-foreground: light-dark(var(--white), var(--night-950));
+  --primary-tint: light-dark(var(--teal-50), var(--green-950)); /* your messages, picked chips */
+  --primary-tint-foreground: var(--foreground);
+
+  /* Quiet fills: secondary buttons, hover rows, muted panels */
+  --secondary: var(--raised);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--raised);
+  --accent: var(--raised);
+  --accent-foreground: var(--foreground);
+
+  /* Lines. --input is darker than --border: a field's edge must reach 3:1 (WCAG 1.4.11) */
+  --border: light-dark(var(--sage-200), var(--night-800));
+  --input: light-dark(var(--sage-500), var(--night-600));
+  --ring: var(--primary);
+
+  /* States */
+  --destructive: light-dark(var(--red-700), var(--red-300));
+
+  /* The three pillars: coach names, chips, log groups */
+  --fitness: light-dark(var(--blue-700), var(--blue-300));
+  --nutrition: light-dark(var(--amber-800), var(--amber-400));
+  --mind: light-dark(var(--violet-600), var(--violet-300));
+
+  /* Crisis replies: fixed, never tied to the brand roles, so a rebrand can't weaken them (E072) */
+  --crisis-background: light-dark(var(--red-50), var(--red-900));
+  --crisis-border: light-dark(var(--red-700), var(--red-300));
+  --crisis-foreground: light-dark(var(--red-950), var(--red-25));
+
+  /* Elevation */
+  --elevation-card: 0 1px 2px rgb(16 24 20 / 0.06), 0 6px 20px rgb(16 24 20 / 0.06);
+  --elevation-popover: 0 4px 12px rgb(16 24 20 / 0.10), 0 16px 40px rgb(16 24 20 / 0.10);
+
+  /* Control heights: buttons, fields, selects, toggles, tabs (the design uses 40px; WCAG asks 24px at least) */
+  --control-height: 2.5rem;
+  --control-height-sm: 2rem;
+  --control-height-lg: 2.75rem;
+  --control-height-xs: 1.75rem;
+
+  /* Headings sit slightly tighter than body text */
+  --heading-tracking: -0.015em;
+
+  /* Corners: every other radius derives from this one (cards = 1.4×, so 14px) */
+  --radius: 0.625rem;
+
+  /* Motion: CSS transitions only; all of it is switched off under prefers-reduced-motion */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout */
+  --header-height: 3.5rem;
+
+  /* Stacking: header < drawers and dialogs < toasts */
+  --z-header: 30;
+  --z-overlay: 50;
+  --z-toast: 60;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --elevation-card: 0 0 0 1px rgb(255 255 255 / 0.04), 0 10px 30px rgb(0 0 0 / 0.45);
+    --elevation-popover: 0 0 0 1px rgb(255 255 255 / 0.06), 0 16px 40px rgb(0 0 0 / 0.55);
+  }
+}
+
+/* 3. Tailwind mapping ---------------------------------------------------------------------- */
+
+/* Dark utilities follow the device, like the roles above */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+/* No stock palette: only the roles below exist as colour classes, so `bg-blue-500` builds nothing */
+@theme {
+  --color-*: initial;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-raised: var(--raised);
+  --color-overlay: var(--overlay);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-tint: var(--primary-tint);
+  --color-primary-tint-foreground: var(--primary-tint-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-fitness: var(--fitness);
+  --color-nutrition: var(--nutrition);
+  --color-mind: var(--mind);
+  --color-crisis-background: var(--crisis-background);
+  --color-crisis-border: var(--crisis-border);
+  --color-crisis-foreground: var(--crisis-foreground);
+
+  /* Fonts: the faces come from app/fonts.js */
+  --font-sans: var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-heading-face), var(--font-body-face), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --shadow-card: var(--elevation-card);
+  --shadow-popover: var(--elevation-popover);
+  /* shadcn components use the stock shadow names; point them at the theme's two elevations */
+  --shadow-xs: var(--elevation-card);
+  --shadow-sm: var(--elevation-card);
+  --shadow-md: var(--elevation-popover);
+  --shadow-lg: var(--elevation-popover);
+}
+
+@theme {
+  /* Type scale: body text is 15px */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.3rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.6rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.3rem;
+
+  /* Spacing unit: p-4 = 4 × this */
+  --spacing: 0.25rem;
+
+  /* Content widths: max-w-chat, max-w-page */
+  --container-chat: 48rem;
+  --container-page: 72rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-base text-foreground antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-heading;
+    letter-spacing: var(--heading-tracking);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

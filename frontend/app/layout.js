@@ -1,5 +1,10 @@
 import './globals.css'
 
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+
+import { fontVariables } from './fonts'
+
 export const metadata = {
   title: 'Holos - AI Fitness Application',
   description: 'AI-powered fitness application with specialized agents',
@@ -10,9 +15,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+    <html lang="en" className={fontVariables} suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <TooltipProvider>{children}</TooltipProvider>
+        <Toaster />
+      </body>
     </html>
   )
 }
-

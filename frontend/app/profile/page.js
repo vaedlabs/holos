@@ -21,7 +21,7 @@ export default function ProfilePage() {
       </header>
       <main className="profile-main">
         <h1>Your health profile</h1>
-        <p className="text-muted">
+        <p className="legacy-text-muted">
           Holos checks every plan against what you pick here.{guest &&
           ' As a guest, it stays in this browser.'}
         </p>

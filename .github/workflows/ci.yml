@@ -105,6 +105,8 @@ jobs:
       # Only what ships to the browser fails the run (R5); dev tools are Dependabot's job
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
+      # Colours only through theme.css roles; text contrast AA in light and dark (R7)
+      - run: npm run check:theme
       - run: npm test
       # Catches files the repo needs but doesn't hold (frontend/lib/ was ignored once)
       - run: npm run build
