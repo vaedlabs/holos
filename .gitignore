@@ -2,6 +2,8 @@
 .vscode/
 .cursor/
 **/.DS_Store
+# Third-party component source kept as a local reference while porting (R7, E072)
+frontend/Downloads/
 # docs/ is its own private repo (vaedlabs/holos-docs)
 docs/
 
