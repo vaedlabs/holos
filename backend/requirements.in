@@ -18,7 +18,7 @@ boto3==1.44.7
 
 # OpenAI SDK (Responses API, Plan C.9). 3.x is no longer blocked (LangChain is gone);
 # moving to it is its own step: its httpx2 default client changes our test fixtures
-openai==2.54.0
+openai==3.57.0
 
 # Imported directly (the Turnstile client, the OpenAI HTTP client), not only through openai
 httpx==0.28.1
