@@ -13,12 +13,12 @@ import remarkGfm from 'remark-gfm'
 
 const ALLOWED = ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br', 'h1', 'h2', 'h3', 'h4',
                  'table', 'thead', 'tbody', 'tr', 'th', 'td', 'code', 'blockquote', 'del']
-const asHeading = ({ children }) => <p className="chat-prose-heading"><strong>{children}</strong></p>
+const asHeading = ({ children }) => <p><strong>{children}</strong></p>
 const COMPONENTS = { h1: asHeading, h2: asHeading, h3: asHeading, h4: asHeading }
 
 export default function Prose({ text }) {
   return (
-    <div className="chat-prose">
+    <div className="prose prose-holos max-w-none">
       <ReactMarkdown remarkPlugins={[remarkGfm]} allowedElements={ALLOWED} unwrapDisallowed
                      skipHtml components={COMPONENTS} urlTransform={() => null}>
         {text}

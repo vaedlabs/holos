@@ -1,10 +1,19 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Silk from '@/components/Silk'
+import { CircleAlert } from 'lucide-react'
+
 import Turnstile from '@/components/Turnstile'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { startGuest } from '@/lib/api'
+
+// The moving silk is for this landing page only (owner, 23 Nov 2026): three.js loads here and
+// nowhere else, and only in the browser
+const Silk = dynamic(() => import('@/components/Silk'), { ssr: false })
 
 // The managed widget first; the interactive one when the server asks for it (C.12)
 const SITE_KEYS = {
@@ -34,72 +43,32 @@ export default function Home() {
   }, [router])
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      padding: '2rem',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      <Silk
-        speed={5}
-        scale={1}
-        color="#295eff"
-        noiseIntensity={1.5}
-        rotation={0}
-      />
-      <div className="card glassmorphism" style={{ 
-        maxWidth: '600px', 
-        width: '100%', 
-        textAlign: 'center',
-        animation: 'fadeIn 0.5s ease-in'
-      }}>
-        <h1 style={{ 
-          marginBottom: 'var(--spacing-md)', 
-          color: 'white',
-          fontSize: '8rem',
-          fontWeight: '700',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-        }}>
-          Holos
-        </h1>
-        <p style={{ 
-          fontSize: '1.125rem', 
-          color: 'rgba(255, 255, 255, 0.9)', 
-          marginBottom: 'var(--spacing-2xl)',
-          lineHeight: '1.6',
-          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
-        }}>
+    <div className="relative isolate flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-10">
+      <Silk speed={5} scale={1} noiseIntensity={1.5} rotation={0} />
+      <main className="flex w-full max-w-xl flex-col items-center gap-6 rounded-2xl border bg-card/95 px-6 py-10 text-center text-card-foreground shadow-popover backdrop-blur sm:px-10">
+        <h1 className="m-0 font-heading text-6xl font-bold tracking-tight sm:text-7xl">Holos</h1>
+        <p className="m-0 max-w-md text-lg text-foreground-secondary">
           AI-powered fitness application with specialized agents for physical fitness, nutrition, and mental wellness.
         </p>
-        <div style={{ 
-          display: 'flex', 
-          gap: 'var(--spacing-md)', 
-          justifyContent: 'center', 
-          flexWrap: 'wrap' 
-        }}>
-          <button type="button" className="btn btn-primary" style={{ minWidth: '120px' }}
-                  onClick={() => setChecking((now) => now || 'managed')}>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button type="button" size="lg" onClick={() => setChecking((prev) => prev || 'managed')}>
             Try Holos as a guest
-          </button>
-          <a href="/login" className="btn btn-outline" style={{ textDecoration: 'none', minWidth: '120px' }}>
-            Sign in
-          </a>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <Link href="/login">Sign in</Link>
+          </Button>
         </div>
         {checking && (
-          <div style={{ marginTop: 'var(--spacing-lg)', display: 'flex', justifyContent: 'center' }}>
-            <Turnstile key={checking} siteKey={SITE_KEYS[checking]} onToken={onToken}
-                       onError={setError} resetRef={reset} />
-          </div>
+          <Turnstile key={checking} siteKey={SITE_KEYS[checking]} onToken={onToken}
+                     onError={setError} resetRef={reset} />
         )}
         {error && (
-          <div className="alert alert-error" style={{ marginTop: 'var(--spacing-md)' }}>{error}</div>
+          <Alert variant="destructive" className="text-left">
+            <CircleAlert />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
-      </div>
+      </main>
     </div>
   )
 }
-

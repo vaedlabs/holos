@@ -117,6 +117,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
+import ChatPreview from './ChatPreview'
+
 // Class names are written out in full so Tailwind finds them
 const SURFACES = [
   { role: 'background', className: 'bg-background' },
@@ -173,13 +175,12 @@ function Row({ children }) {
   return <div className="flex flex-wrap items-center gap-3">{children}</div>
 }
 
-export default function Styleguide() {
+export default function Styleguide({ streams }) {
   const [calories, setCalories] = useState(1840)
   const [food, setFood] = useState('')
 
   return (
-    // Own background, font and text colour: the old body rule in legacy.css still styles every page (R7 removes it)
-    <div className="min-h-screen bg-background font-sans text-base text-foreground scheme-light-dark">
+    <div className="min-h-dvh">
       <main className="mx-auto flex w-full max-w-page flex-col gap-12 px-4 py-10 sm:px-8">
         <header className="flex flex-col gap-2">
           <h1 className="m-0 font-heading text-3xl font-bold">Holos styleguide</h1>
@@ -188,6 +189,10 @@ export default function Styleguide() {
             Switch the device between light and dark to check both modes. Dev only.
           </p>
         </header>
+
+        <Section title="Chat">
+          <ChatPreview streams={streams} />
+        </Section>
 
         <Section title="Colour roles">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

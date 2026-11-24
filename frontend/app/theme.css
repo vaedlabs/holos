@@ -95,11 +95,15 @@
 
   /* States */
   --destructive: light-dark(var(--red-700), var(--red-300));
+  --caution: light-dark(var(--amber-800), var(--amber-400)); /* a safety caution on an item or entry */
 
   /* The three pillars: coach names, chips, log groups */
   --fitness: light-dark(var(--blue-700), var(--blue-300));
   --nutrition: light-dark(var(--amber-800), var(--amber-400));
   --mind: light-dark(var(--violet-600), var(--violet-300));
+
+  /* The moving silk behind the home page (components/Silk.jsx reads it; a plain colour, no text on it) */
+  --silk: light-dark(var(--teal-700), var(--green-950));
 
   /* Crisis replies: fixed, never tied to the brand roles, so a rebrand can't weaken them (E072) */
   --crisis-background: light-dark(var(--red-50), var(--red-900));
@@ -115,6 +119,8 @@
   --control-height-sm: 2rem;
   --control-height-lg: 2.75rem;
   --control-height-xs: 1.75rem;
+  /* Text in fields on phones: iOS zooms into a field whose text is under 16px (wider screens use text-sm) */
+  --control-text: 1rem;
 
   /* Headings sit slightly tighter than body text */
   --heading-tracking: -0.015em;
@@ -127,6 +133,7 @@
   --duration-base: 200ms;
   --duration-slow: 320ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.23, 1, 0.32, 1); /* quick start, long settle: things arriving */
 
   /* Layout */
   --header-height: 3.5rem;
@@ -175,6 +182,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-caution: var(--caution);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -230,6 +238,95 @@
   /* Content widths: max-w-chat, max-w-page */
   --container-chat: 48rem;
   --container-page: 72rem;
+
+  /* Animations for the AI components (animate-fade-up and the rest), from the motion values above.
+     Under prefers-reduced-motion each one jumps to its end (the rule at the bottom of this file). */
+  --animate-fade-up: fade-up var(--duration-slow) var(--ease-emphasized) both;
+  --animate-pop-in: pop-in var(--duration-base) var(--ease-emphasized) both;
+  --animate-shimmer-text: shimmer-text 1.4s linear infinite;
+  --animate-pixel-on: pixel-on 650ms ease-in-out infinite;
+
+  /* New words settle up out of a light blur */
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+      filter: blur(2px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  /* A light band sweeps across the loading label */
+  @keyframes shimmer-text {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+  /* One cell of the loading grid lights and dims; ends dim, so reduced motion leaves it dim */
+  @keyframes pixel-on {
+    0%,
+    100% {
+      opacity: 0.15;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
+/* A coach's words (`prose prose-holos`): the typography plugin's colours as theme roles, so replies
+   follow light and dark; its spacing is tightened for a chat. Written as `.prose.prose-holos`, not as
+   an @utility: Tailwind places the plugin's own `.prose` after an @utility of the same weight, so
+   its default greys would win (R7 round 2). */
+@layer utilities {
+  .prose.prose-holos {
+    font-size: var(--text-base);
+    line-height: 1.6;
+    --tw-prose-body: var(--foreground);
+    --tw-prose-headings: var(--foreground);
+    --tw-prose-lead: var(--foreground-secondary);
+    --tw-prose-links: var(--primary);
+    --tw-prose-bold: var(--foreground);
+    --tw-prose-counters: var(--muted-foreground);
+    --tw-prose-bullets: var(--muted-foreground);
+    --tw-prose-hr: var(--border);
+    --tw-prose-quotes: var(--foreground-secondary);
+    --tw-prose-quote-borders: var(--border);
+    --tw-prose-captions: var(--muted-foreground);
+    --tw-prose-code: var(--foreground);
+    --tw-prose-pre-code: var(--foreground);
+    --tw-prose-pre-bg: var(--raised);
+    --tw-prose-th-borders: var(--border);
+    --tw-prose-td-borders: var(--border);
+    & :where(p, ul, ol, table, blockquote) {
+      margin-block: 0.5em;
+    }
+    & :where(li) {
+      margin-block: 0.15em;
+    }
+    & > :first-child {
+      margin-top: 0;
+    }
+    & > :last-child {
+      margin-bottom: 0;
+    }
+  }
 }
 
 @layer base {

@@ -2,7 +2,16 @@
 
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Silk from '@/components/Silk'
+import { CircleAlert } from 'lucide-react'
+
+import AuthShell from '@/components/AuthShell'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Spinner } from '@/components/ui/spinner'
 import { acceptInvite } from '@/lib/api'
 
 // DRAFT: the owner approves the privacy wording in P7.5 (CONSENT_VERSION "2026-10-draft")
@@ -38,40 +47,33 @@ export default function InvitePage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', padding: '2rem', position: 'relative',
-                  overflow: 'hidden' }}>
-      <Silk speed={5} scale={1} color="#295eff" noiseIntensity={1.5} rotation={0} />
-      <div className="card container-sm glassmorphism" style={{ maxWidth: '420px', width: '100%' }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--text-light)',
-                     textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)' }}>
-          Join Holos
-        </h1>
-        <form onSubmit={handleSubmit}
-              style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">Email</label>
-            <input id="email" type="email" autoComplete="email" required className="form-input"
-                   value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
-            <input id="password" type="password" autoComplete="new-password" required
-                   className="form-input" value={password}
-                   onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start',
-                          color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem' }}>
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)}
-                   style={{ marginTop: '0.2rem' }} />
-            <span>{CONSENT}</span>
-          </label>
-          {error && <div className="alert alert-error">{error}</div>}
-          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%' }}>
-            {loading ? 'Creating your account...' : 'Create account'}
-          </button>
-        </form>
-      </div>
-    </div>
+    <AuthShell title="Join Holos">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Field>
+          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <Input id="email" type="email" autoComplete="email" required value={email}
+                 onChange={(e) => setEmail(e.target.value)} />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <Input id="password" type="password" autoComplete="new-password" required value={password}
+                 onChange={(e) => setPassword(e.target.value)} />
+        </Field>
+        <div className="flex items-start gap-2.5">
+          <Checkbox id="consent" checked={consent} onCheckedChange={(next) => setConsent(next === true)}
+                    className="mt-0.5" />
+          <Label htmlFor="consent" className="leading-snug font-normal text-foreground-secondary">{CONSENT}</Label>
+        </div>
+        {error && (
+          <Alert variant="destructive">
+            <CircleAlert />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <Button type="submit" size="lg" disabled={loading} className="w-full">
+          {loading ? <><Spinner /> Creating your account…</> : 'Create account'}
+        </Button>
+      </form>
+    </AuthShell>
   )
 }

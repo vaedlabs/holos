@@ -11,28 +11,9 @@ const THEME = 'app/theme.css'
 const SCANNED_DIRS = ['app', 'components', 'hooks', 'lib']
 const SCANNED_EXT = /\.(js|jsx|mjs|css)$/
 
-// Screens not yet rebuilt still carry their old colours. R7 removes each file from this list in its
-// redesign pass; the list is empty when R7 ends.
-export const LEGACY = new Set([
-  'app/legacy.css',
-  'app/dashboard/page.js',
-  'app/invite/[token]/page.js',
-  'app/login/page.js',
-  'app/onboarding/page.js',
-  'app/page.js',
-  'app/preferences/page.js',
-  'app/profile/page.js',
-  'components/AuthImage.jsx',
-  'components/ButtonSelector.jsx',
-  'components/HealthProfile.jsx',
-  'components/LogsPanel.jsx',
-  'components/Silk.jsx',
-  'components/Turnstile.jsx',
-  'components/chat/Answer.jsx',
-  'components/chat/Card.jsx',
-  'components/chat/Items.jsx',
-  'components/chat/Prose.jsx',
-])
+// Files allowed colour literals while R7 rebuilt them; R7 ended with none, and app/legacy.css deleted.
+// Keep it empty: a new colour goes in theme.css.
+export const LEGACY = new Set([])
 
 // Hex colours, CSS colour functions, and Tailwind arbitrary colours like bg-[#fff]
 const LITERAL = /(?<![\w&/-])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/g
@@ -45,7 +26,7 @@ const NAMED_LITERAL = new RegExp(`\\b${COLOUR_PROP}\\s*:\\s*['"\`]?[^;'"\`}\\n]*
 
 // [text role, surface role, minimum ratio]. 4.5 is AA for text; 3 is for a control's edge or focus
 // ring against what's around it (WCAG 1.4.11).
-const TEXT_ROLES = ['foreground', 'foreground-secondary', 'muted-foreground', 'primary', 'destructive', 'fitness', 'nutrition', 'mind']
+const TEXT_ROLES = ['foreground', 'foreground-secondary', 'muted-foreground', 'primary', 'destructive', 'caution', 'fitness', 'nutrition', 'mind']
 const SURFACES = ['background', 'card', 'raised', 'primary-tint']
 export const PAIRS = [
   ...TEXT_ROLES.flatMap((text) => SURFACES.map((surface) => [text, surface, 4.5])),

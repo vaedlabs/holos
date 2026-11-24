@@ -3,9 +3,18 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { signIn } from '@/lib/api'
+import { CircleAlert } from 'lucide-react'
+
+import AuthShell from '@/components/AuthShell'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import { useRedirectIfAuthenticated } from '@/hooks/useAuth'
-import Silk from '@/components/Silk'
+import { signIn } from '@/lib/api'
+
+const looksLikeEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
 export default function LoginPage() {
   const router = useRouter()
@@ -14,42 +23,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [validationErrors, setValidationErrors] = useState({})
+  const [invalid, setInvalid] = useState({}) // {email, password}: what to fix before sending
 
-  // Don't render until mounted (redirect will happen if authenticated)
-  if (!mounted) {
-    return null
-  }
-
-  // Validation functions
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
+  // Someone already signed in is sent on to the chat
+  if (!mounted) return null
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    setValidationErrors({})
-
-    // Validate fields
     const errors = {}
-    if (!email.trim()) {
-      errors.email = 'Email is required'
-    } else if (!validateEmail(email)) {
-      errors.email = 'Please enter a valid email address'
-    }
-    if (!password.trim()) {
-      errors.password = 'Password is required'
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors)
-      return
-    }
+    if (!email.trim()) errors.email = 'Email is required'
+    else if (!looksLikeEmail(email)) errors.email = 'Please enter a valid email address'
+    if (!password.trim()) errors.password = 'Password is required'
+    setInvalid(errors)
+    if (Object.keys(errors).length > 0) return
 
     setLoading(true)
-
     try {
       await signIn(email, password)
       router.push('/dashboard')
@@ -61,111 +50,44 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      padding: '2rem',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* Holos Logo */}
-      <div style={{
-        position: 'absolute',
-        top: '2rem',
-        left: '2rem',
-        zIndex: 10
-      }}>
-        <h1 style={{ 
-          color: 'white',
-          fontSize: '2rem',
-          fontWeight: '700',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-          margin: 0
-        }}>
-          Holos
-        </h1>
-      </div>
-      <Silk
-        speed={5}
-        scale={1}
-        color="#295eff"
-        noiseIntensity={1.5}
-        rotation={0}
-      />
-      <div className="card container-sm glassmorphism" style={{ 
-        maxWidth: '400px', 
-        width: '100%'
-      }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--text-light)', textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)' }}>Login</h1>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                if (validationErrors.email) {
-                  setValidationErrors({ ...validationErrors, email: '' })
-                }
-              }}
-              required
-              className={`form-input ${validationErrors.email ? 'form-input-error' : ''}`}
-            />
-            {validationErrors.email && (
-              <div className="text-error" style={{ fontSize: '0.875rem', marginTop: '0.0625rem', color: 'var(--danger-color)' }}>
-                {validationErrors.email}
-              </div>
-            )}
-          </div>
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                if (validationErrors.password) {
-                  setValidationErrors({ ...validationErrors, password: '' })
-                }
-              }}
-              required
-              className={`form-input ${validationErrors.password ? 'form-input-error' : ''}`}
-            />
-            {validationErrors.password && (
-              <div className="text-error" style={{ fontSize: '0.875rem', marginTop: '0.0625rem', color: 'var(--danger-color)' }}>
-                {validationErrors.password}
-              </div>
-            )}
-          </div>
-          {error && (
-            <div className="alert alert-error">
-              {error}
-            </div>
-          )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary"
-            style={{ width: '100%' }}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        <p style={{ marginTop: '1.5rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.9)', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>
+    <AuthShell
+      title="Login"
+      footer={(
+        <>
           Accounts are by invite: open the link you were sent. Or{' '}
-          <Link href="/" style={{ color: '#00d4ff', textDecoration: 'none', fontWeight: '600' }}>try Holos as a guest</Link>.
-        </p>
-      </div>
-    </div>
+          <Link href="/" className="font-medium text-primary underline underline-offset-2">try Holos as a guest</Link>.
+        </>
+      )}>
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+        <Field data-invalid={invalid.email ? true : undefined}>
+          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <Input id="email" type="email" autoComplete="email" value={email} aria-invalid={invalid.email ? true : undefined}
+                 onChange={(e) => {
+                   setEmail(e.target.value)
+                   setInvalid((prev) => ({ ...prev, email: '' }))
+                 }} />
+          {invalid.email && <FieldError>{invalid.email}</FieldError>}
+        </Field>
+        <Field data-invalid={invalid.password ? true : undefined}>
+          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <Input id="password" type="password" autoComplete="current-password" value={password}
+                 aria-invalid={invalid.password ? true : undefined}
+                 onChange={(e) => {
+                   setPassword(e.target.value)
+                   setInvalid((prev) => ({ ...prev, password: '' }))
+                 }} />
+          {invalid.password && <FieldError>{invalid.password}</FieldError>}
+        </Field>
+        {error && (
+          <Alert variant="destructive">
+            <CircleAlert />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <Button type="submit" size="lg" disabled={loading} className="w-full">
+          {loading ? <><Spinner /> Logging in…</> : 'Login'}
+        </Button>
+      </form>
+    </AuthShell>
   )
 }
-

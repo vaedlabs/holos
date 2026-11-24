@@ -1,228 +1,76 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useId, useState } from 'react'
+import { Check } from 'lucide-react'
 
-export default function ButtonSelector({ 
-  label, 
-  options, 
-  value, 
-  onChange, 
-  placeholder = "Type comma-separated values...",
-  conflicts = {} // Object mapping option names to arrays of conflicting option names
+import { Input } from '@/components/ui/input'
+import { Toggle } from '@/components/ui/toggle'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+
+/**
+ * Pick any of `options`, plus your own under Other, as one comma-separated `value` (the
+ * preferences fields). An option that conflicts with one already picked (`conflicts`, e.g.
+ * Vegan and Pescatarian) can't be picked, and says why. The picked options are read from
+ * `value` each render; only the Other text is kept here, as typed.
+ */
+
+const split = (text) => (text ? text.split(',').map((v) => v.trim()).filter(Boolean) : [])
+const same = (a, b) => a.toLowerCase() === b.toLowerCase()
+
+// The picked look from the chosen design: the primary tint, its outline and a check
+const PICKED = 'data-[state=on]:border-primary data-[state=on]:bg-primary-tint data-[state=on]:text-primary'
+
+export default function ButtonSelector({
+  label, options, value, onChange, placeholder = 'Type comma-separated values...', conflicts = {},
 }) {
-  const [selectedOptions, setSelectedOptions] = useState(new Set())
-  const [otherValue, setOtherValue] = useState('')
-  const [showOther, setShowOther] = useState(false)
-  const [isInitialized, setIsInitialized] = useState(false)
+  const id = useId()
+  const parts = split(value)
+  const picked = options.filter((o) => parts.some((p) => same(p, o)))
+  const others = parts.filter((p) => !options.some((o) => same(p, o)))
+  const [otherOpen, setOtherOpen] = useState(others.length > 0)
+  const [otherText, setOtherText] = useState(others.join(', '))
 
-  // Parse initial value on mount or when value changes
-  useEffect(() => {
-    if (value) {
-      const values = value.split(',').map(v => v.trim()).filter(v => v)
-      const selected = new Set()
-      const other = []
-      
-      values.forEach(val => {
-        const found = options.find(opt => opt.toLowerCase() === val.toLowerCase())
-        if (found) {
-          selected.add(found)
-        } else {
-          other.push(val)
-        }
-      })
-      
-      setSelectedOptions(selected)
-      setOtherValue(other.join(', '))
-      setShowOther(other.length > 0)
-    } else {
-      setSelectedOptions(new Set())
-      setOtherValue('')
-      setShowOther(false)
-    }
-    setIsInitialized(true)
-  }, [value, options])
-
-  // Update parent when selection changes (but not on initial load)
-  useEffect(() => {
-    if (!isInitialized) return
-    
-    const selectedArray = Array.from(selectedOptions)
-    const otherValues = otherValue 
-      ? otherValue.split(',').map(v => v.trim()).filter(v => v)
-      : []
-    const allValues = showOther && otherValues.length > 0
-      ? [...selectedArray, ...otherValues]
-      : selectedArray
-    
-    const newValue = allValues.length > 0 ? allValues.join(', ') : ''
-    // Only update if value actually changed to avoid loops
-    if (newValue !== value) {
-      onChange(newValue)
-    }
-  }, [selectedOptions, otherValue, showOther, isInitialized, value, onChange])
-
-  // Check if an option is disabled due to conflicts
-  const isOptionDisabled = (option) => {
-    if (!conflicts || Object.keys(conflicts).length === 0) return false
-    
-    // Check if any selected option conflicts with this option
-    for (const selectedOption of selectedOptions) {
-      const conflictingOptions = conflicts[selectedOption] || []
-      if (conflictingOptions.includes(option)) {
-        return true
-      }
-    }
-    return false
+  const emit = (nextPicked, nextOther, open) => {
+    onChange([...nextPicked, ...(open ? split(nextOther) : [])].join(', '))
   }
-
-  // Get conflict explanation for tooltip
-  const getConflictReason = (option) => {
-    if (!conflicts || Object.keys(conflicts).length === 0) return ''
-    
-    for (const selectedOption of selectedOptions) {
-      const conflictingOptions = conflicts[selectedOption] || []
-      if (conflictingOptions.includes(option)) {
-        return `Cannot select "${option}" because "${selectedOption}" is already selected`
-      }
-    }
-    return ''
-  }
-
-  const toggleOption = (option) => {
-    // Don't allow toggling if disabled
-    if (isOptionDisabled(option)) return
-    
-    const newSelected = new Set(selectedOptions)
-    if (newSelected.has(option)) {
-      newSelected.delete(option)
-    } else {
-      newSelected.add(option)
-    }
-    setSelectedOptions(newSelected)
-  }
-
-  const handleOtherToggle = () => {
-    setShowOther(!showOther)
-    if (!showOther) {
-      setOtherValue('')
-    }
-  }
+  const blockedBy = (option) => picked.find((p) => (conflicts[p] || []).includes(option))
+  const blocked = options.filter((o) => !picked.includes(o) && blockedBy(o))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      <label className="form-label" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-        {label}
-      </label>
-      
-      {/* Button options */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-        {options.map((option) => {
-          const isSelected = selectedOptions.has(option)
-          const isDisabled = isOptionDisabled(option)
-          const conflictReason = getConflictReason(option)
-          
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => toggleOption(option)}
-              disabled={isDisabled}
-              title={isDisabled ? conflictReason : ''}
-              className={!isSelected && !isDisabled ? 'glassmorphism' : ''}
-              style={{
-                padding: '0.625rem 1.25rem',
-                background: isSelected 
-                  ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
-                  : isDisabled
-                  ? 'rgba(82, 82, 82, 0.3)'
-                  : undefined,
-                color: isSelected ? 'var(--text-light)' : isDisabled ? 'rgba(255, 255, 255, 0.4)' : 'var(--text-light)',
-                border: isSelected 
-                  ? '1px solid var(--primary-color)' 
-                  : isDisabled
-                  ? '1px solid rgba(82, 82, 82, 0.3)'
-                  : undefined,
-                borderRadius: 'var(--border-radius-lg)',
-                cursor: isDisabled ? 'not-allowed' : 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: isSelected ? '500' : '400',
-                transition: 'all 0.2s ease',
-                whiteSpace: 'nowrap',
-                boxShadow: isSelected ? 'var(--shadow-sm)' : undefined,
-                textShadow: !isSelected && !isDisabled ? '0 1px 2px rgba(0, 0, 0, 0.3)' : undefined,
-                opacity: isDisabled ? 0.5 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (!isSelected && !isDisabled) {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.1)'
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSelected && !isDisabled) {
-                  e.target.style.background = 'rgba(23, 23, 23, 0.05)'
-                  e.target.style.borderColor = 'rgba(82, 82, 82, 0.2)'
-                }
-              }}
-            >
+    <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-2.5">
+      <p id={`${id}-label`} className="m-0 text-sm font-medium">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        <ToggleGroup type="multiple" variant="outline" spacing={2} className="contents"
+                     value={picked} onValueChange={(next) => emit(options.filter((o) => next.includes(o)), otherText, otherOpen)}>
+          {options.map((option) => (
+            <ToggleGroupItem key={option} value={option} disabled={Boolean(blockedBy(option))}
+                             className={`rounded-full ${PICKED}`}>
+              {picked.includes(option) && <Check aria-hidden="true" />}
               {option}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Other option */}
-      <div>
-        <button
-          type="button"
-          onClick={handleOtherToggle}
-          className={!showOther ? 'glassmorphism' : ''}
-          style={{
-            padding: '0.625rem 1.25rem',
-            background: showOther 
-              ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)'
-              : undefined,
-            color: showOther ? 'var(--text-light)' : 'var(--text-light)',
-            border: showOther 
-              ? '1px solid var(--primary-color)' 
-              : undefined,
-            borderRadius: 'var(--border-radius-lg)',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            fontWeight: showOther ? '500' : '400',
-            marginBottom: showOther ? 'var(--spacing-sm)' : '0',
-            transition: 'all 0.2s ease',
-            boxShadow: showOther ? 'var(--shadow-sm)' : undefined,
-            textShadow: !showOther ? '0 1px 2px rgba(0, 0, 0, 0.3)' : undefined
-          }}
-          onMouseEnter={(e) => {
-            if (!showOther) {
-              e.target.style.background = 'rgba(255, 255, 255, 0.1)'
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!showOther) {
-              e.target.style.background = 'rgba(23, 23, 23, 0.05)'
-              e.target.style.borderColor = 'rgba(82, 82, 82, 0.2)'
-            }
-          }}
-        >
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <Toggle variant="outline" pressed={otherOpen} className={`rounded-full ${PICKED}`}
+                onPressedChange={(open) => {
+                  setOtherOpen(open)
+                  emit(picked, otherText, open)
+                }}>
+          {otherOpen && <Check aria-hidden="true" />}
           Other
-        </button>
-        
-        {showOther && (
-          <input
-            type="text"
-            value={otherValue}
-            onChange={(e) => setOtherValue(e.target.value)}
-            placeholder={placeholder}
-            className="form-input"
-            style={{ marginTop: 'var(--spacing-sm)' }}
-          />
-        )}
+        </Toggle>
       </div>
+      {blocked.length > 0 && (
+        <p className="m-0 text-sm text-muted-foreground">
+          {blocked.map((o) => `${o} can't go with ${blockedBy(o)}`).join('; ')}.
+        </p>
+      )}
+      {otherOpen && (
+        <Input aria-label={`${label}: other`} value={otherText} placeholder={placeholder}
+               onChange={(e) => {
+                 setOtherText(e.target.value)
+                 emit(picked, e.target.value, true)
+               }} />
+      )}
     </div>
   )
 }
-

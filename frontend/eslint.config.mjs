@@ -5,13 +5,6 @@ const config = [
   ...nextCoreWebVitals,
   // Downloads/ holds third-party source kept only as a reference while porting (R7)
   { ignores: ['coverage/', 'Downloads/'] },
-  // react-hooks 7 (Next 16) flags 6 places in the components R7 rewrites; warnings until R7 fixes them
-  {
-    rules: {
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/immutability': 'warn',
-    },
-  },
 ]
 
 export default config

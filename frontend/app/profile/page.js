@@ -1,9 +1,9 @@
 'use client'
 
 import { useMemo } from 'react'
-import Link from 'next/link'
 
 import HealthProfile from '@/components/HealthProfile'
+import PageShell from '@/components/PageShell'
 import { useRequireAuth } from '@/hooks/useAuth'
 import { guestStore } from '@/lib/guestStore'
 
@@ -14,19 +14,10 @@ export default function ProfilePage() {
   const store = useMemo(() => (guest ? guestStore() : null), [guest])
   if (!mounted || !isAuthenticated) return null
   return (
-    <div className="profile-page">
-      <header className="chat-header">
-        <span className="chat-brand">Holos</span>
-        <Link href="/dashboard" className="btn btn-outline">Back to chat</Link>
-      </header>
-      <main className="profile-main">
-        <h1>Your health profile</h1>
-        <p className="legacy-text-muted">
-          Holos checks every plan against what you pick here.{guest &&
-          ' As a guest, it stays in this browser.'}
-        </p>
-        <HealthProfile mode={guest ? 'guest' : 'account'} store={store} />
-      </main>
-    </div>
+    <PageShell
+      title="Your health profile"
+      description={`Holos checks every plan against what you pick here.${guest ? ' As a guest, it stays in this browser.' : ''}`}>
+      <HealthProfile mode={guest ? 'guest' : 'account'} store={store} />
+    </PageShell>
   )
 }

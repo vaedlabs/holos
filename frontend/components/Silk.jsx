@@ -1,32 +1,30 @@
 'use client'
 
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { forwardRef, useRef, useMemo, useLayoutEffect } from 'react'
-import { Color } from 'three'
+// The moving silk behind the home page (owner, 23 Nov 2026: this page only). One full-screen
+// shader plane drawn with three.js directly: no React renderer for three (and so no THREE.Clock,
+// which @react-three/fiber 9 still creates and three deprecates). R7.
+import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { Color, Mesh, OrthographicCamera, PlaneGeometry, Scene, ShaderMaterial, WebGLRenderer } from 'three'
 
-const hexToNormalizedRGB = hex => {
-  hex = hex.replace('#', '')
-  return [
-    parseInt(hex.slice(0, 2), 16) / 255,
-    parseInt(hex.slice(2, 4), 16) / 255,
-    parseInt(hex.slice(4, 6), 16) / 255
-  ]
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+
+const hexToNormalizedRGB = (hex) => {
+  const h = hex.replace('#', '')
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
 }
 
+// The plane already spans the screen (-1 to 1), so no camera transform is needed
 const vertexShader = `
 varying vec2 vUv;
-varying vec3 vPosition;
 
 void main() {
-  vPosition = position;
   vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  gl_Position = vec4(position.xy, 0.0, 1.0);
 }
 `
 
 const fragmentShader = `
 varying vec2 vUv;
-varying vec3 vPosition;
 
 uniform float uTime;
 uniform vec3  uColor;
@@ -70,48 +68,91 @@ void main() {
 }
 `
 
-const SilkPlane = forwardRef(function SilkPlane({ uniforms }, ref) {
-  const { viewport } = useThree()
-
-  useLayoutEffect(() => {
-    if (ref.current) {
-      ref.current.scale.set(viewport.width, viewport.height, 1)
-    }
-  }, [ref, viewport])
-
-  useFrame((_, delta) => {
-    ref.current.material.uniforms.uTime.value += 0.1 * delta
-  })
-
-  return (
-    <mesh ref={ref}>
-      <planeGeometry args={[1, 1, 1, 1]} />
-      <shaderMaterial uniforms={uniforms} vertexShader={vertexShader} fragmentShader={fragmentShader} />
-    </mesh>
-  )
-})
-SilkPlane.displayName = 'SilkPlane'
-
-const Silk = ({ speed = 5, scale = 1, color = '#7B7481', noiseIntensity = 1.5, rotation = 0 }) => {
-  const meshRef = useRef()
-
-  const uniforms = useMemo(
-    () => ({
-      uSpeed: { value: speed },
-      uScale: { value: scale },
-      uNoiseIntensity: { value: noiseIntensity },
-      uColor: { value: new Color(...hexToNormalizedRGB(color)) },
-      uRotation: { value: rotation },
-      uTime: { value: 0 }
-    }),
-    [speed, scale, noiseIntensity, color, rotation]
-  )
-
-  return (
-    <Canvas dpr={[1, 2]} frameloop="always" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: -1 }}>
-      <SilkPlane ref={meshRef} uniforms={uniforms} />
-    </Canvas>
-  )
+// The theme's --silk colour for the current mode (app/theme.css): the shader needs a hex, not a
+// role, so it's read from the page, and read again when the device switches light and dark
+function themeSilk() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--silk').trim()
+}
+function onSchemeChange(onChange) {
+  const scheme = window.matchMedia('(prefers-color-scheme: dark)')
+  scheme.addEventListener('change', onChange)
+  return () => scheme.removeEventListener('change', onChange)
 }
 
-export default Silk
+export default function Silk({ speed = 5, scale = 1, noiseIntensity = 1.5, rotation = 0 }) {
+  const box = useRef(null)
+  const material = useRef(null)
+  const draw = useRef(null)
+  const color = useSyncExternalStore(onSchemeChange, themeSilk, () => '')
+  const still = useMediaQuery('(prefers-reduced-motion: reduce)')
+  const hex = /^#[0-9a-f]{6}$/i.test(color)
+
+  // The scene: built once the box is there, sized with it, freed when it goes
+  useEffect(() => {
+    const el = box.current
+    if (!el) return undefined
+    const renderer = new WebGLRenderer({ antialias: false })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    el.appendChild(renderer.domElement)
+    const geometry = new PlaneGeometry(2, 2)
+    const mat = new ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        uTime: { value: 0 }, uColor: { value: new Color() }, uSpeed: { value: 0 }, uScale: { value: 1 },
+        uRotation: { value: 0 }, uNoiseIntensity: { value: 0 },
+      },
+    })
+    const scene = new Scene()
+    scene.add(new Mesh(geometry, mat))
+    const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    material.current = mat
+    draw.current = () => renderer.render(scene, camera)
+    const resize = () => {
+      renderer.setSize(el.clientWidth, el.clientHeight, false)
+      draw.current()
+    }
+    const observer = new ResizeObserver(resize)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      material.current = null
+      draw.current = null
+      geometry.dispose()
+      mat.dispose()
+      renderer.dispose()
+      renderer.domElement.remove()
+    }
+  }, [hex])
+
+  // The look follows the props and the theme colour (set as the old renderer did: linear RGB)
+  useEffect(() => {
+    const m = material.current
+    if (!m || !hex) return
+    m.uniforms.uSpeed.value = speed
+    m.uniforms.uScale.value = scale
+    m.uniforms.uNoiseIntensity.value = noiseIntensity
+    m.uniforms.uRotation.value = rotation
+    m.uniforms.uColor.value.setRGB(...hexToNormalizedRGB(color))
+    draw.current?.()
+  }, [speed, scale, noiseIntensity, rotation, color, hex])
+
+  // It moves on each frame, unless the person prefers reduced motion: then it holds still
+  useEffect(() => {
+    if (still || !hex) return undefined
+    let frame
+    let last = performance.now()
+    const tick = (now) => {
+      const m = material.current
+      if (m) m.uniforms.uTime.value += 0.1 * ((now - last) / 1000)
+      last = now
+      draw.current?.()
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [still, hex])
+
+  if (!hex) return null // the theme's colour didn't read as a hex: no silk rather than a wrong one
+  return <div ref={box} aria-hidden="true" className="absolute inset-0 -z-10 [&>canvas]:block [&>canvas]:size-full" />
+}

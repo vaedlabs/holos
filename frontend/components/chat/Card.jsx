@@ -1,12 +1,24 @@
 'use client'
 
 import { useState } from 'react'
+import { CircleCheck } from 'lucide-react'
+
+import ApprovalCard from '@/components/ai/ApprovalCard'
+import ToolChip from '@/components/ai/ToolChip'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+
+import { Caution } from './Items'
 
 /**
  * An entry's card (C.17; Part E #50, #58). Logged: its "Logged" line, or the coach's
  * sentence about it once that arrives. Held: what conflicts, then Confirm with the date,
  * time and (a meal) the meal it happened, and what the person left out; or "Don't log".
- * Only a waiting card can be decided; every other state says what happened.
+ * Only a waiting card can be decided; every other state says what happened, in one line.
  */
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -25,12 +37,24 @@ export function localInput(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+/** What happened to a decided entry: logged as a chip, anything else as a quiet line. */
+function Decided({ state, text }) {
+  if (state === 'logged') return <ToolChip>{text}</ToolChip>
+  return <p className="m-0 text-sm text-foreground-secondary">{text}</p>
+}
+
 export default function Card({ card, onConfirm, onDiscard }) {
   if (card.type === 'logged') {
     return (
-      <div className="chat-card chat-card-logged">
-        <p>{card.note || card.summary}</p>
-        {card.warnings.map((w, i) => <p key={i} className="chat-caveat">{w}</p>)}
+      <div className="flex flex-col gap-1.5">
+        {card.note ? (
+          // The coach's sentence about it, in place of the "Logged" line (#58): a sentence, so not a pill
+          <p className="m-0 flex items-start gap-2">
+            <CircleCheck aria-hidden="true" className="mt-0.5 size-4.5 shrink-0 text-primary" />
+            {card.note}
+          </p>
+        ) : <ToolChip>{card.summary}</ToolChip>}
+        {card.warnings.map((w, i) => <Caution key={i}>{w}</Caution>)}
       </div>
     )
   }
@@ -44,6 +68,7 @@ function HeldCard({ card, onConfirm, onDiscard }) {
   const [leftOut, setLeftOut] = useState([])
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const id = `entry-${card.write_id ?? card.index}`
 
   const decide = async (action) => {
     setBusy(true)
@@ -58,53 +83,60 @@ function HeldCard({ card, onConfirm, onDiscard }) {
   }
   const confirm = () => decide(() => onConfirm(card, {
     at: new Date(when).toISOString(), meal: card.meal ? meal : undefined, leftOut }))
-  const toggle = (a) => setLeftOut((now) => (now.includes(a) ? now.filter((x) => x !== a)
-                                                              : [...now, a]))
+  const toggle = (a) => setLeftOut((prev) => (prev.includes(a) ? prev.filter((x) => x !== a)
+                                                                : [...prev, a]))
+  const waiting = state === 'waiting'
+
   return (
-    <div className={`chat-card chat-card-held chat-card-${state}`}>
-      <p className="chat-card-summary">{card.summary}</p>
-      {card.warnings.map((w, i) => <p key={i} className="chat-caveat">{w}</p>)}
-      {state !== 'waiting' ? (
-        <p className="chat-card-state">{STATES[state]}</p>
-      ) : (
-        <div className="chat-card-form">
-          <label>
-            When
-            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-          </label>
-          {card.time_guessed && <span className="chat-hint">No time was given: pick when.</span>}
+    <ApprovalCard
+      eyebrow="Check before logging"
+      title={card.summary}
+      status={waiting
+        ? message && <p role="alert" className="m-0 text-sm text-destructive">{message}</p>
+        : <Decided state={state} text={message || STATES[state]} />}
+      actions={waiting && (
+        <>
+          <Button type="button" disabled={busy} onClick={confirm}>Confirm</Button>
+          <Button type="button" variant="outline" disabled={busy}
+                  onClick={() => decide(() => onDiscard(card))}>
+            Don&apos;t log
+          </Button>
+        </>
+      )}>
+      {card.warnings.map((w, i) => <Caution key={i}>{w}</Caution>)}
+      {waiting && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor={`${id}-when`}>When</FieldLabel>
+            <Input id={`${id}-when`} type="datetime-local" value={when}
+                   onChange={(e) => setWhen(e.target.value)} />
+            {card.time_guessed && <FieldDescription>No time was given: pick when.</FieldDescription>}
+          </Field>
           {card.meal && (
-            <label>
-              Meal
-              <select value={meal} onChange={(e) => setMeal(e.target.value)}>
-                {MEALS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </label>
+            <Field>
+              <FieldLabel htmlFor={`${id}-meal`}>Meal</FieldLabel>
+              <NativeSelect id={`${id}-meal`} className="w-full" value={meal}
+                            onChange={(e) => setMeal(e.target.value)}>
+                {MEALS.map((m) => <NativeSelectOption key={m} value={m}>{m}</NativeSelectOption>)}
+              </NativeSelect>
+            </Field>
           )}
           {card.attributes?.length > 0 && (
-            <fieldset>
-              <legend>I left out</legend>
-              {card.attributes.map((a) => (
-                <label key={a}>
-                  <input type="checkbox" checked={leftOut.includes(a)} onChange={() => toggle(a)} />
-                  {a.replace('_', ' ')}
-                </label>
-              ))}
-            </fieldset>
+            <FieldSet className="sm:col-span-2">
+              <FieldLegend variant="label">I left out</FieldLegend>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {card.attributes.map((a) => (
+                  <div key={a} className="flex items-center gap-2">
+                    <Checkbox id={`${id}-${a}`} checked={leftOut.includes(a)} onCheckedChange={() => toggle(a)} />
+                    <Label htmlFor={`${id}-${a}`}>{a.replace('_', ' ')}</Label>
+                  </div>
+                ))}
+              </div>
+            </FieldSet>
           )}
-          <div className="chat-card-actions">
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={confirm}>
-              Confirm
-            </button>
-            <button type="button" className="btn btn-outline" disabled={busy}
-                    onClick={() => decide(() => onDiscard(card))}>
-              Don&apos;t log
-            </button>
-          </div>
         </div>
       )}
-      {message && <p className="chat-card-message">{message}</p>}
-    </div>
+    </ApprovalCard>
   )
 }
 
@@ -141,9 +173,9 @@ export function RepeatCard({ cards, onConfirm, onDiscard }) {
       for (const [i, card] of cards.entries()) {
         if (states[i] !== 'waiting') continue
         const result = await action(card)
-        if (result.state) setStates((now) => now.map((s, j) => (j === i ? result.state : s)))
-        if (replace && result.state === 'logged') setSwapped((now) => [...now, i])
-        if (result.message && !result.state) setMessages((now) => [...now, result.message])
+        if (result.state) setStates((prev) => prev.map((s, j) => (j === i ? result.state : s)))
+        if (replace && result.state === 'logged') setSwapped((prev) => [...prev, i])
+        if (result.message && !result.state) setMessages((prev) => [...prev, result.message])
       }
     } finally {
       setBusy(false)
@@ -153,39 +185,45 @@ export function RepeatCard({ cards, onConfirm, onDiscard }) {
     at: card.at, meal: card.meal ?? undefined, replace }), replace)
 
   return (
-    <div className="chat-card chat-card-held chat-card-repeat">
-      <ul className="chat-card-repeats">
+    <ApprovalCard
+      aria-label="Possible repeat"
+      eyebrow="Possible repeat"
+      status={messages.length > 0 && messages.map((m, i) => (
+        <p key={i} role="alert" className="m-0 text-sm text-destructive">{m}</p>
+      ))}
+      actions={waiting.length > 0 && (
+        <>
+          <span className="mr-auto text-sm font-medium">
+            {waiting.length === 1 ? 'Log it again?' : 'Log them again?'}
+          </span>
+          <Button type="button" disabled={busy} onClick={() => confirm(false)}>Log again</Button>
+          {replaceable && (
+            <Button type="button" variant="outline" disabled={busy} onClick={() => confirm(true)}>
+              {waiting.length === 1 ? 'Replace the earlier one' : 'Replace the earlier ones'}
+            </Button>
+          )}
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => decide(onDiscard)}>
+            Don&apos;t log
+          </Button>
+        </>
+      )}>
+      <ul className="m-0 flex list-none flex-col gap-3 p-0">
         {cards.map((c, i) => (
-          <li key={c.index ?? i}>
-            <p className="chat-card-summary">{c.summary} · {whenShort(c.at)}</p>
-            <p className="chat-hint">
+          <li key={c.index ?? i} className="flex flex-col gap-1">
+            <p className="m-0 font-medium">
+              {c.summary} · {whenShort(c.at)}
+            </p>
+            <p className="m-0 text-sm text-foreground-secondary">
               {c.repeat_of.this_turn ? 'Also earlier in this answer.'
                 : `Already logged: ${c.repeat_of.summary} · ${whenShort(c.repeat_of.at)}`}
             </p>
             {states[i] !== 'waiting' && (
-              <p className="chat-card-state">
-                {swapped.includes(i) ? REPLACED_EARLIER : STATES[states[i]]}
-              </p>
+              <Decided state={states[i]}
+                       text={swapped.includes(i) ? REPLACED_EARLIER : STATES[states[i]]} />
             )}
           </li>
         ))}
       </ul>
-      {waiting.length > 0 && (
-        <div className="chat-card-actions">
-          <span>{waiting.length === 1 ? 'Log it again?' : 'Log them again?'}</span>
-          <button type="button" className="btn btn-primary" disabled={busy}
-                  onClick={() => confirm(false)}>Log again</button>
-          {replaceable && (
-            <button type="button" className="btn btn-outline" disabled={busy}
-                    onClick={() => confirm(true)}>
-              {waiting.length === 1 ? 'Replace the earlier one' : 'Replace the earlier ones'}
-            </button>
-          )}
-          <button type="button" className="btn btn-outline" disabled={busy}
-                  onClick={() => decide(onDiscard)}>Don&apos;t log</button>
-        </div>
-      )}
-      {messages.map((m, i) => <p key={i} className="chat-card-message">{m}</p>)}
-    </div>
+    </ApprovalCard>
   )
 }

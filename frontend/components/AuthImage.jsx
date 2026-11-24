@@ -9,10 +9,10 @@ import { API_URL } from '@/lib/api'
  * Props:
  *   imagePath  - the history's `photo` ("/conversation/images/{name}"), or an old
  *                stored path ("images/{name}")
- *   style      - optional inline styles forwarded to <img>
+ *   className  - classes for the <img>
  *   alt        - alt text
  */
-export default function AuthImage({ imagePath, style, alt = 'Uploaded image' }) {
+export default function AuthImage({ imagePath, className, alt = 'Uploaded image' }) {
   const [src, setSrc] = useState(null)
   const blobUrlRef = useRef(null)
 
@@ -44,5 +44,7 @@ export default function AuthImage({ imagePath, style, alt = 'Uploaded image' }) 
   }, [imagePath])
 
   if (!src) return null
-  return <img src={src} style={style} alt={alt} />
+  // A blob: URL fetched with the session cookie, which next/image can't optimise
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} className={className} alt={alt} />
 }

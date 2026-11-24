@@ -110,11 +110,20 @@ describe('cards', () => {
     fireEvent.change(screen.getByLabelText('Meal'), { target: { value: 'lunch' } })
     fireEvent.click(screen.getByLabelText('peanut'))
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(screen.getByText('Logged.')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Logged: Lunch: Poha')).toBeTruthy())
     const [, body] = onConfirm.mock.calls[0]
     expect(body).toMatchObject({ meal: 'lunch', leftOut: ['peanut'] })
     expect(Date.parse(body.at)).toBe(Date.parse('2026-11-15T03:30:00Z'))
-    expect(screen.getByText('Logged: Lunch: Poha')).toBeTruthy()
+    // One line says it was logged, not "Logged." as well (D062 B5)
+    expect(screen.getAllByText(/^Logged/)).toHaveLength(1)
+  })
+
+  it('a confirmed card with no words from the server says Logged.', async () => {
+    const onConfirm = vi.fn().mockResolvedValue({ state: 'logged', message: '' })
+    draw([held()], { onConfirm })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(screen.getAllByText(/^Logged/)).toHaveLength(1))
+    expect(screen.getByText('Logged.')).toBeTruthy()
   })
 
   it('a refused date keeps it waiting, with the reason', async () => {
@@ -140,8 +149,8 @@ describe('the repeat card (Part E #67)', () => {
                                      log_id: String(i), this_turn: false }, ...fields })
 
   it("an answer's repeats are one card naming each earlier entry", () => {
-    const { container } = draw([repeat(1), repeat(2)])
-    expect(container.querySelectorAll('.chat-card-repeat')).toHaveLength(1)
+    draw([repeat(1), repeat(2)])
+    expect(screen.getAllByRole('region', { name: 'Possible repeat' })).toHaveLength(1)
     expect(screen.getAllByText(/^Already logged: Lunch: Dal · /)).toHaveLength(2)
     expect(screen.getByText('Log them again?')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull()
@@ -149,7 +158,7 @@ describe('the repeat card (Part E #67)', () => {
 
   it('each entry shows its own time: a correction differs only in that', () => {
     draw([repeat(1)])
-    const card = document.querySelector('.chat-card-repeat')
+    const card = screen.getByRole('region', { name: 'Possible repeat' })
     expect(card.textContent).toContain(`Lunch: Dal 1 · ${whenShort('2026-11-15T07:30:00Z')}`)
     expect(card.textContent).toContain(`Already logged: Lunch: Dal · ${whenShort('2026-11-15T06:30:00Z')}`)
   })
