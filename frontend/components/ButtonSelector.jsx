@@ -4,8 +4,7 @@ import { useId, useState } from 'react'
 import { Check } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
-import { Toggle } from '@/components/ui/toggle'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { optionLabel } from '@/lib/preferenceOptions'
 
 /**
  * Pick any of `options`, plus your own under Other, as one comma-separated `value` (the
@@ -17,11 +16,9 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 const split = (text) => (text ? text.split(',').map((v) => v.trim()).filter(Boolean) : [])
 const same = (a, b) => a.toLowerCase() === b.toLowerCase()
 
-// The picked look from the chosen design: the primary tint, its outline and a check
-const PICKED = 'data-[state=on]:border-primary data-[state=on]:bg-primary-tint data-[state=on]:text-primary'
-
 export default function ButtonSelector({
   label, options, value, onChange, placeholder = 'Type comma-separated values...', conflicts = {},
+  optional = false,
 }) {
   const id = useId()
   const parts = split(value)
@@ -38,30 +35,37 @@ export default function ButtonSelector({
 
   return (
     <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-2.5">
-      <p id={`${id}-label`} className="m-0 text-sm font-medium">{label}</p>
+      <p id={`${id}-label`} className="m-0 text-sm font-medium">
+        {/* ml-2: the gap a FieldLabel leaves before its "(optional)" */}
+        {label}{optional && <span className="ml-2 font-normal text-muted-foreground">(optional)</span>}
+      </p>
       <div className="flex flex-wrap gap-2">
-        <ToggleGroup type="multiple" variant="outline" spacing={2} className="contents"
-                     value={picked} onValueChange={(next) => emit(options.filter((o) => next.includes(o)), otherText, otherOpen)}>
-          {options.map((option) => (
-            <ToggleGroupItem key={option} value={option} disabled={Boolean(blockedBy(option))}
-                             className={`rounded-full ${PICKED}`}>
-              {picked.includes(option) && <Check aria-hidden="true" />}
-              {option}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <Toggle variant="outline" pressed={otherOpen} className={`rounded-full ${PICKED}`}
-                onPressedChange={(open) => {
-                  setOtherOpen(open)
-                  emit(picked, otherText, open)
-                }}>
+        {/* The theme's chip (app/theme.css), as the health profile's pickers */}
+        {options.map((option) => {
+          const on = picked.includes(option)
+          return (
+            <label key={option} className="chip">
+              <input type="checkbox" className="sr-only" checked={on} disabled={Boolean(blockedBy(option))}
+                     onChange={() => emit(options.filter((o) => (o === option ? !on : picked.includes(o))),
+                                          otherText, otherOpen)} />
+              {on && <Check aria-hidden="true" />}
+              {optionLabel(option)}
+            </label>
+          )
+        })}
+        <label className="chip">
+          <input type="checkbox" className="sr-only" checked={otherOpen}
+                 onChange={(e) => {
+                   setOtherOpen(e.target.checked)
+                   emit(picked, otherText, e.target.checked)
+                 }} />
           {otherOpen && <Check aria-hidden="true" />}
           Other
-        </Toggle>
+        </label>
       </div>
       {blocked.length > 0 && (
         <p className="m-0 text-sm text-muted-foreground">
-          {blocked.map((o) => `${o} can't go with ${blockedBy(o)}`).join('; ')}.
+          {blocked.map((o) => `${optionLabel(o)} can't go with ${optionLabel(blockedBy(o))}`).join('; ')}.
         </p>
       )}
       {otherOpen && (

@@ -11,8 +11,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { startGuest } from '@/lib/api'
 
-// The moving silk is for this landing page only (owner, 23 Nov 2026): three.js loads here and
-// nowhere else, and only in the browser
+// The moving silk is for this landing page and the sign-in pages (owner, 23 and 25 Nov 2026):
+// three.js loads only there, and only in the browser
 const Silk = dynamic(() => import('@/components/Silk'), { ssr: false })
 
 // The managed widget first; the interactive one when the server asks for it (C.12)

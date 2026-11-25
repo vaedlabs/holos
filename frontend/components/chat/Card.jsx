@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { CircleCheck } from 'lucide-react'
+import { Ban, Check, CircleCheck, RefreshCw, X } from 'lucide-react'
 
 import ApprovalCard from '@/components/ai/ApprovalCard'
+import DateTimePicker, { DateTimeField } from '@/components/DateTimePicker'
 import ToolChip from '@/components/ai/ToolChip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 
@@ -18,7 +18,7 @@ import { Caution } from './Items'
  * An entry's card (C.17; Part E #50, #58). Logged: its "Logged" line, or the coach's
  * sentence about it once that arrives. Held: what conflicts, then Confirm with the date,
  * time and (a meal) the meal it happened, and what the person left out; or "Don't log".
- * Only a waiting card can be decided; every other state says what happened, in one line.
+ * Only a waiting card can be decided; every other state says what happened, in one chip.
  */
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -37,10 +37,11 @@ export function localInput(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** What happened to a decided entry: logged as a chip, anything else as a quiet line. */
+// What happened to a decided entry, always as the same chip so every settled card reads alike;
+// the icon says which (owner, 24 Nov 2026)
+const DECIDED_ICONS = { logged: Check, discarded: X, replaced: RefreshCw, blocked: Ban, closed: Ban }
 function Decided({ state, text }) {
-  if (state === 'logged') return <ToolChip>{text}</ToolChip>
-  return <p className="m-0 text-sm text-foreground-secondary">{text}</p>
+  return <ToolChip icon={DECIDED_ICONS[state] ?? Check}>{text}</ToolChip>
 }
 
 export default function Card({ card, onConfirm, onDiscard }) {
@@ -105,36 +106,39 @@ function HeldCard({ card, onConfirm, onDiscard }) {
       )}>
       {card.warnings.map((w, i) => <Caution key={i}>{w}</Caution>)}
       {waiting && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor={`${id}-when`}>When</FieldLabel>
-            <Input id={`${id}-when`} type="datetime-local" value={when}
-                   onChange={(e) => setWhen(e.target.value)} />
-            {card.time_guessed && <FieldDescription>No time was given: pick when.</FieldDescription>}
-          </Field>
-          {card.meal && (
-            <Field>
-              <FieldLabel htmlFor={`${id}-meal`}>Meal</FieldLabel>
-              <NativeSelect id={`${id}-meal`} className="w-full" value={meal}
-                            onChange={(e) => setMeal(e.target.value)}>
-                {MEALS.map((m) => <NativeSelectOption key={m} value={m}>{m}</NativeSelectOption>)}
-              </NativeSelect>
+        // The date picker opens by the When field, centred across this area, which spans the card
+        <DateTimePicker value={when} onChange={setWhen}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Alone on its row (no meal), it takes the whole row */}
+            <Field className={card.meal ? undefined : 'sm:col-span-2'}>
+              <FieldLabel htmlFor={`${id}-when`}>When</FieldLabel>
+              <DateTimeField id={`${id}-when`} value={when} />
+              {card.time_guessed && <FieldDescription>No time was given: pick when.</FieldDescription>}
             </Field>
-          )}
-          {card.attributes?.length > 0 && (
-            <FieldSet className="sm:col-span-2">
-              <FieldLegend variant="label">I left out</FieldLegend>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {card.attributes.map((a) => (
-                  <div key={a} className="flex items-center gap-2">
-                    <Checkbox id={`${id}-${a}`} checked={leftOut.includes(a)} onCheckedChange={() => toggle(a)} />
-                    <Label htmlFor={`${id}-${a}`}>{a.replace('_', ' ')}</Label>
-                  </div>
-                ))}
-              </div>
-            </FieldSet>
-          )}
-        </div>
+            {card.meal && (
+              <Field>
+                <FieldLabel htmlFor={`${id}-meal`}>Meal</FieldLabel>
+                <NativeSelect id={`${id}-meal`} className="w-full" value={meal}
+                              onChange={(e) => setMeal(e.target.value)}>
+                  {MEALS.map((m) => <NativeSelectOption key={m} value={m}>{m}</NativeSelectOption>)}
+                </NativeSelect>
+              </Field>
+            )}
+            {card.attributes?.length > 0 && (
+              <FieldSet className="sm:col-span-2">
+                <FieldLegend variant="label">I left out</FieldLegend>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {card.attributes.map((a) => (
+                    <div key={a} className="flex items-center gap-2">
+                      <Checkbox id={`${id}-${a}`} checked={leftOut.includes(a)} onCheckedChange={() => toggle(a)} />
+                      <Label htmlFor={`${id}-${a}`}>{a.replace('_', ' ')}</Label>
+                    </div>
+                  ))}
+                </div>
+              </FieldSet>
+            )}
+          </div>
+        </DateTimePicker>
       )}
     </ApprovalCard>
   )
@@ -196,12 +200,17 @@ export function RepeatCard({ cards, onConfirm, onDiscard }) {
           <span className="mr-auto text-sm font-medium">
             {waiting.length === 1 ? 'Log it again?' : 'Log them again?'}
           </span>
-          <Button type="button" disabled={busy} onClick={() => confirm(false)}>Log again</Button>
+          {/* Replace leads when it can be done (owner, 25 Nov 2026): right for a correction, and
+              harmless for a repeat said twice; Log again stays a click away */}
           {replaceable && (
-            <Button type="button" variant="outline" disabled={busy} onClick={() => confirm(true)}>
+            <Button type="button" disabled={busy} onClick={() => confirm(true)}>
               {waiting.length === 1 ? 'Replace the earlier one' : 'Replace the earlier ones'}
             </Button>
           )}
+          <Button type="button" variant={replaceable ? 'outline' : 'default'} disabled={busy}
+                  onClick={() => confirm(false)}>
+            Log again
+          </Button>
           <Button type="button" variant="ghost" disabled={busy} onClick={() => decide(onDiscard)}>
             Don&apos;t log
           </Button>
@@ -210,16 +219,20 @@ export function RepeatCard({ cards, onConfirm, onDiscard }) {
       <ul className="m-0 flex list-none flex-col gap-3 p-0">
         {cards.map((c, i) => (
           <li key={c.index ?? i} className="flex flex-col gap-1">
-            <p className="m-0 font-medium">
+            {/* The same title as a held card's */}
+            <h4 className="m-0 font-heading text-base font-semibold">
               {c.summary} · {whenShort(c.at)}
-            </p>
+            </h4>
             <p className="m-0 text-sm text-foreground-secondary">
               {c.repeat_of.this_turn ? 'Also earlier in this answer.'
                 : `Already logged: ${c.repeat_of.summary} · ${whenShort(c.repeat_of.at)}`}
             </p>
             {states[i] !== 'waiting' && (
-              <Decided state={states[i]}
-                       text={swapped.includes(i) ? REPLACED_EARLIER : STATES[states[i]]} />
+              // mt-2 on the row's gap-1: the chip sits as far below its lines as on a held card (gap-3)
+              <div className="mt-2">
+                <Decided state={states[i]}
+                         text={swapped.includes(i) ? REPLACED_EARLIER : STATES[states[i]]} />
+              </div>
             )}
           </li>
         ))}

@@ -5,7 +5,8 @@
 
 export default function ApprovalCard({ eyebrow, title, meta, children, actions, status, ...props }) {
   return (
-    <section className="flex flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-card"
+    <section data-slot="approval-card"
+             className="flex flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-card"
              {...props}>
       <div className="flex flex-col gap-3 p-4">
         {eyebrow && (

@@ -34,9 +34,9 @@ it('finishing with the optional answers left empty saves them as not given', asy
   }))
   render(<OnboardingPage />)
   fireEvent.click(await screen.findByRole('button', { name: /next/i }))
-  fireEvent.click(await screen.findByRole('button', { name: 'Save' }))
+  // Nothing changed on the health step: it goes straight on
   fireEvent.click(await screen.findByRole('button', { name: 'Continue' }))
-  fireEvent.click(await screen.findByRole('button', { name: /Complete Setup/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /Complete setup/ }))
   await waitFor(() => expect(push).toHaveBeenCalledWith('/dashboard'))
   const last = posts.filter((p) => p.route === 'POST /preferences').at(-1).body
   expect(last.age).toBeNull()

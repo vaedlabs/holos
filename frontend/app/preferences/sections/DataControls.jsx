@@ -56,16 +56,19 @@ export default function DataControls() {
   }
 
   return (
-    <section aria-labelledby="your-data" className="flex flex-col gap-4 rounded-xl border p-5">
+    // A card like the others, its outline marking the danger area (owner, 25 Nov 2026)
+    <section aria-labelledby="your-data"
+             className="flex flex-col gap-4 rounded-xl border border-destructive/40 bg-card p-5 text-card-foreground shadow-card">
       <div className="flex flex-col gap-1">
         <h2 id="your-data" className="m-0 font-heading text-lg font-semibold">Your data</h2>
         <p className="m-0 text-sm text-foreground-secondary">Neither of these can be undone.</p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      {/* Full width and stacked on a phone; side by side on the right from sm up */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button type="button" variant="outline" disabled={clearing}>
-              {clearing ? 'Clearing…' : 'Clear Conversation History'}
+            <Button type="button" variant="outline" disabled={clearing} className="w-full sm:w-auto">
+              {clearing ? 'Clearing…' : 'Clear conversation history'}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
@@ -82,8 +85,8 @@ export default function DataControls() {
 
         <AlertDialog onOpenChange={(open) => { if (!open) setTyped('') }}>
           <AlertDialogTrigger asChild>
-            <Button type="button" variant="destructive" disabled={deleting}>
-              {deleting ? 'Deleting…' : 'Delete Account'}
+            <Button type="button" variant="destructive" disabled={deleting} className="w-full sm:w-auto">
+              {deleting ? 'Deleting…' : 'Delete account'}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>

@@ -11,12 +11,18 @@ export const EXERCISE_TYPES = ['Calisthenics', 'Weight Lifting', 'Cardio', 'High
                                'Pilates', 'Running', 'Cycling', 'Swimming', 'Powerlifting', 'CrossFit', 'Boxing',
                                'Martial Arts', 'Dancing', 'Stretching']
 
-export const ACTIVITY_LEVELS = [['light', 'Light'], ['moderate', 'Moderate'], ['high', 'High'], ['very_high', 'Very High']]
+export const ACTIVITY_LEVELS = [['light', 'Light'], ['moderate', 'Moderate'], ['high', 'High'], ['very_high', 'Very high']]
 
-export const GENDERS = [['XX', 'XX (Biological Female)'], ['XY', 'XY (Biological Male)'], ['other', 'Other']]
+export const GENDERS = [['XX', 'XX (biological female)'], ['XY', 'XY (biological male)'], ['other', 'Other']]
 
-export const LIFESTYLES = [['sedentary', 'Sedentary'], ['active', 'Active'], ['very_active', 'Very Active'],
+export const LIFESTYLES = [['sedentary', 'Sedentary'], ['active', 'Active'], ['very_active', 'Very active'],
                            ['athlete', 'Athlete']]
+
+// A goal or exercise type in sentence case, as the rest of the app writes (owner, 25 Nov 2026).
+// Only the words shown: what's stored stays "Build Muscle", so saved answers still match
+const KEEP_CASE = new Set(['CrossFit'])
+export const optionLabel = (option) => (KEEP_CASE.has(option) ? option
+  : option.charAt(0) + option.slice(1).toLowerCase())
 
 /** The words for a stored value, or the value itself when it isn't one of the choices. */
 export function choiceLabel(choices, value) {

@@ -5,18 +5,19 @@ import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { logWhen } from '@/lib/logs'
 
-/** One log: its title and details, when it happened, its notes, and Delete. */
-export default function LogItem({ title, detail, when, notes, onDelete, children }) {
+/** One log: its title and details, when it happened, its notes, and Delete (`name`: what Delete
+ * calls it, when the title is only its kind, e.g. "Breakfast"). */
+export default function LogItem({ title, name = title, detail, when, notes, onDelete, children }) {
   return (
     <li className="flex gap-3 rounded-lg border bg-card p-3">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="m-0 font-medium">{title}</p>
-        {detail && <p className="m-0 font-mono text-sm text-foreground-secondary">{detail}</p>}
+        {detail && <p className="m-0 text-sm text-foreground-secondary tabular-nums">{detail}</p>}
         {children}
         {notes && <p className="m-0 text-sm text-foreground-secondary">{notes}</p>}
         <p className="m-0 text-xs text-muted-foreground">{logWhen(when)}</p>
       </div>
-      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Delete ${title}`}
+      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Delete ${name}`}
               className="shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete}>
         <Trash2 />
       </Button>

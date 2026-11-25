@@ -43,18 +43,21 @@ export default function LoginPage() {
       await signIn(email, password)
       router.push('/dashboard')
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.')
+      setError(err.message || "Couldn't sign in. Please check your email and password.")
     } finally {
       setLoading(false)
     }
   }
 
   return (
+    // "Sign in", as the landing page and the menu's Sign out say; the silk, as on the invite page
+    // (owner, 25 Nov 2026)
     <AuthShell
-      title="Login"
+      title="Sign in"
+      silk
       footer={(
         <>
-          Accounts are by invite: open the link you were sent. Or{' '}
+          Accounts are invite-only: open the link you were sent. Or{' '}
           <Link href="/" className="font-medium text-primary underline underline-offset-2">try Holos as a guest</Link>.
         </>
       )}>
@@ -85,7 +88,7 @@ export default function LoginPage() {
           </Alert>
         )}
         <Button type="submit" size="lg" disabled={loading} className="w-full">
-          {loading ? <><Spinner /> Logging in…</> : 'Login'}
+          {loading ? <><Spinner /> Signing in…</> : 'Sign in'}
         </Button>
       </form>
     </AuthShell>

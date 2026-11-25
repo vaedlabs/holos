@@ -1,6 +1,6 @@
 'use client'
 
-// The moving silk behind the home page (owner, 23 Nov 2026: this page only). One full-screen
+// The moving silk behind the home page and the sign-in pages (owner, 23 and 25 Nov 2026). One full-screen
 // shader plane drawn with three.js directly: no React renderer for three (and so no THREE.Clock,
 // which @react-three/fiber 9 still creates and three deprecates). R7.
 import { useEffect, useRef, useSyncExternalStore } from 'react'

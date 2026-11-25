@@ -5,7 +5,7 @@
  * an account saves reads back as the same pickers.
  */
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import catalogue from '../../../contracts/catalogue.json'
@@ -46,7 +46,7 @@ describe('an account', () => {
     fireEvent.change(await screen.findByLabelText('Other conditions or injuries'),
                      { target: { value: 'torn ACL left knee' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(screen.getByText(/Knee ligament injury ✓/)).toBeTruthy())
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Holos understood' })).getByText('Knee ligament injury')).toBeTruthy())
     expect(calls.find((c) => c.route === 'POST /medical/history').body.conditions)
       .toBe('torn ACL left knee')
   })
@@ -71,7 +71,7 @@ describe('an account', () => {
     server({ 'POST /medical/history': (b) => b, 'POST /preferences': (b) => b,
              'GET /profile/check': NONE })
     render(<HealthProfile mode="account" />)
-    fireEvent.change(await screen.findByLabelText(/Anything else/),
+    fireEvent.change(await screen.findByLabelText('Anything else'),
                      { target: { value: 'very little free time' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.getByText(/Holos understood/)).toBeTruthy())
@@ -99,11 +99,34 @@ describe('onboarding', () => {
              'GET /profile/check': { ...NONE, unchecked: ['menopause'] } })
     const onSaved = vi.fn()
     render(<HealthProfile mode="account" onSaved={onSaved} />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Save' }))
+    await screen.findByRole('button', { name: 'Continue' })
+    // A change since the last check: Save again before going on, one action at a time
+    fireEvent.click(screen.getByLabelText('Asthma'))
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.getByText(/couldn.t check/)).toBeTruthy())
     expect(onSaved).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }))
     expect(onSaved).toHaveBeenCalledOnce()
+  })
+
+  it('Back goes to the step before', async () => {
+    server({ 'GET /profile/check': NONE })
+    const onBack = vi.fn()
+    render(<HealthProfile mode="account" onSaved={vi.fn()} onBack={onBack} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(onBack).toHaveBeenCalledOnce()
+  })
+})
+
+describe('saving on the profile page', () => {
+  it('Save waits for a change', async () => {
+    server({ 'GET /profile/check': NONE })
+    render(<HealthProfile mode="account" />)
+    const save = await screen.findByRole('button', { name: 'Save' })
+    expect(save.disabled).toBe(true)
+    fireEvent.click(screen.getByLabelText('Asthma'))
+    expect(save.disabled).toBe(false)
   })
 })
 
@@ -114,7 +137,7 @@ describe('a guest', () => {
     render(<HealthProfile mode="guest" store={store} />)
     fireEvent.click(screen.getByRole('button', { name: 'Knee injury' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(screen.getByText(/Knee ligament injury ✓/)).toBeTruthy())
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Holos understood' })).getByText('Knee ligament injury')).toBeTruthy())
     expect(store.setProfile).toHaveBeenCalledWith({ condition_ids: ['knee_ligament_injury'],
                                                     allergen_tags: [], diet_tags: [], notes: '' })
     expect(screen.queryByLabelText('Medications')).toBeNull() // a guest's profile is IDs and notes

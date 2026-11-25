@@ -6,10 +6,30 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
 
+// Holos (owner, 25 Nov 2026): every box closes on Esc and on a click outside it, like the
+// drawer, and its action ignores clicks for a moment after it opens, so the double-click that
+// opened it can't also confirm it. Radix's alert dialog itself ignores outside clicks.
+const ARM_MS = 400
+const CloseContext = React.createContext(null)
+
 function AlertDialog({
+  open: openProp,
+  defaultOpen = false,
+  onOpenChange,
   ...props
 }) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+  const [inner, setInner] = React.useState(defaultOpen)
+  const controlled = openProp !== undefined
+  const open = controlled ? openProp : inner
+  const set = (next) => {
+    if (!controlled) setInner(next)
+    onOpenChange?.(next)
+  }
+  return (
+    <CloseContext.Provider value={() => set(false)}>
+      <AlertDialogPrimitive.Root data-slot="alert-dialog" open={open} onOpenChange={set} {...props} />
+    </CloseContext.Provider>
+  )
 }
 
 function AlertDialogTrigger({
@@ -47,14 +67,23 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  overlayClassName,
   ...props
 }) {
+  const close = React.useContext(CloseContext)
+  const [armed, setArmed] = React.useState(false)
+  React.useEffect(() => {
+    const timer = setTimeout(() => setArmed(true), ARM_MS)
+    return () => clearTimeout(timer)
+  }, [])
   return (
     <AlertDialogPortal>
-      <AlertDialogOverlay />
+      {/* overlayClassName (Holos): a box over a drawer dims just the drawer */}
+      <AlertDialogOverlay className={overlayClassName} onClick={() => close?.()} />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         data-size={size}
+        data-armed={armed}
         className={cn(
           "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
@@ -155,7 +184,7 @@ function AlertDialogAction({
     <Button variant={variant} size={size} asChild>
       <AlertDialogPrimitive.Action
         data-slot="alert-dialog-action"
-        className={cn(className)}
+        className={cn("group-data-[armed=false]/alert-dialog-content:pointer-events-none", className)}
         {...props}
       />
     </Button>

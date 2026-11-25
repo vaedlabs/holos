@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { CircleAlert } from 'lucide-react'
+import { CircleAlert, Info } from 'lucide-react'
 
 import AuthShell from '@/components/AuthShell'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -11,12 +11,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Spinner } from '@/components/ui/spinner'
 import { acceptInvite } from '@/lib/api'
 
-// DRAFT: the owner approves the privacy wording in P7.5 (CONSENT_VERSION "2026-10-draft")
-const CONSENT = 'I agree that Holos keeps what I enter (my profile, chats and logs) to answer ' +
-                'me, and that I can delete all of it at any time.'
+// DRAFT: the owner approves the privacy wording in P7.5 (CONSENT_VERSION "2026-10-draft"). The
+// checkbox says it in short; the full wording opens from the (i) beside it (owner, 25 Nov 2026)
+const CONSENT = 'Holos stores the information you provide, including your profile, chats, and logs. This information is used to answer your questions. You can delete all your data at any time.'
 
 /** An invite link (Plan C.18): the person picks their email and password and agrees. */
 export default function InvitePage() {
@@ -32,7 +33,7 @@ export default function InvitePage() {
     e.preventDefault()
     setError('')
     if (!consent) {
-      setError('Please agree to the privacy note to continue.')
+      setError('Please agree to the terms and conditions to continue.')
       return
     }
     setLoading(true)
@@ -47,7 +48,7 @@ export default function InvitePage() {
   }
 
   return (
-    <AuthShell title="Join Holos">
+    <AuthShell title="Join Holos" silk>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -61,8 +62,27 @@ export default function InvitePage() {
         </Field>
         <div className="flex items-start gap-2.5">
           <Checkbox id="consent" checked={consent} onCheckedChange={(next) => setConsent(next === true)}
-                    className="mt-0.5" />
-          <Label htmlFor="consent" className="leading-snug font-normal text-foreground-secondary">{CONSENT}</Label>
+                    aria-labelledby="consent-words consent-last" className="mt-0.5" />
+          {/* The (i) stays on the last word's line, so on a phone it never sits alone. It's in the
+              label, but a button there doesn't tick the box; the box is named by the words only */}
+          <Label htmlFor="consent" className="inline text-sm font-normal leading-snug text-foreground-secondary">
+            <span id="consent-words">I agree to the Holos terms and</span>{' '}
+            <span className="whitespace-nowrap">
+              <span id="consent-last">conditions</span>{' '}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon-xs" aria-label="Read the terms"
+                          className="-my-1 align-middle text-muted-foreground">
+                    <Info />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" className="text-sm text-foreground-secondary">
+                  <p className="m-0 font-medium text-foreground">Terms and conditions</p>
+                  <p className="m-0">{CONSENT}</p>
+                </PopoverContent>
+              </Popover>
+            </span>
+          </Label>
         </div>
         {error && (
           <Alert variant="destructive">

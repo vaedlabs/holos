@@ -13,6 +13,8 @@
  * `{code, message}` body, shown to the person as it is.
  */
 
+import { forgetTab } from './logsTab'
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS'])
@@ -155,6 +157,7 @@ export async function signOut(fetchImpl = fetch) {
     // already gone, or offline: the cookie ends with the session anyway
   } finally {
     forgetSession()
+    forgetTab() // the Logs drawer's remembered tab is this account's
   }
 }
 

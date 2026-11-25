@@ -4,7 +4,7 @@
 // in light and dark before looking through the app (R7). Dev only: app/styleguide/page.js.
 import { useState } from 'react'
 import NumberFlow from '@number-flow/react'
-import { Dumbbell, Info, Salad, Sparkles, Trash2 } from 'lucide-react'
+import { Check, Dumbbell, Info, Salad, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -114,7 +114,6 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 import ChatPreview from './ChatPreview'
@@ -331,12 +330,7 @@ export default function Styleguide({ streams }) {
               </div>
             </RadioGroup>
           </Row>
-          <ToggleGroup type="multiple" variant="outline" defaultValue={['veg']} aria-label="Diet">
-            <ToggleGroupItem value="veg">Vegetarian</ToggleGroupItem>
-            <ToggleGroupItem value="vegan">Vegan</ToggleGroupItem>
-            <ToggleGroupItem value="jain">Jain</ToggleGroupItem>
-            <ToggleGroupItem value="halal">Halal</ToggleGroupItem>
-          </ToggleGroup>
+          <Chips />
           <div className="max-w-sm rounded-xl border">
             <Command>
               <CommandInput placeholder="Search foods…" />
@@ -575,6 +569,28 @@ export default function Styleguide({ streams }) {
           </Row>
         </Section>
       </main>
+    </div>
+  )
+}
+
+/** The theme's chip (app/theme.css `chip`): pickers, then a display chip of what was picked. */
+function Chips() {
+  const [picked, setPicked] = useState(['Vegetarian'])
+  const toggle = (name) => setPicked((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]))
+  return (
+    <div className="flex flex-col gap-2">
+      <div role="group" aria-label="Diet" className="flex flex-wrap gap-2">
+        {['Vegetarian', 'Vegan', 'Jain', 'Halal'].map((name) => (
+          <label key={name} className="chip">
+            <input type="checkbox" className="sr-only" checked={picked.includes(name)} onChange={() => toggle(name)} />
+            {picked.includes(name) && <Check aria-hidden="true" />}
+            {name}
+          </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <span className="chip" data-picked=""><Check aria-hidden="true" />Peanut</span>
+      </div>
     </div>
   )
 }

@@ -27,10 +27,16 @@ export function humanize(slug) {
 
 const minutes = (value) => (value ? `${Math.round(value)} min` : null)
 
-/** One exercise's amount: "3 × 8", "30 min" or nothing. */
+/**
+ * One exercise's amount, from whatever the person said: "3 × 8", "15 reps", "3 sets", "30 min",
+ * or nothing when none was given (owner, 25 Nov 2026: reps alone were dropped).
+ */
 function amount(exercise) {
-  if (exercise.sets && exercise.reps) return `${exercise.sets} × ${exercise.reps}`
-  if (exercise.duration_s) return minutes(exercise.duration_s / 60)
+  const { sets, reps, duration_s: seconds } = exercise
+  if (sets && reps) return `${sets} × ${reps}`
+  if (reps) return `${reps} ${reps === 1 ? 'rep' : 'reps'}`
+  if (sets) return `${sets} ${sets === 1 ? 'set' : 'sets'}`
+  if (seconds) return minutes(seconds / 60)
   return null
 }
 

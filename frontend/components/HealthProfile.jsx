@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, CircleAlert } from 'lucide-react'
+import { Check, CircleAlert, Info, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { toast } from 'sonner'
 
 import catalogue from '../../contracts/catalogue.json'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import { api, request } from '@/lib/api'
 
@@ -86,12 +88,14 @@ function guestForm(store) {
                notes: p.notes } : EMPTY
 }
 
-export default function HealthProfile({ mode, store, onSaved }) {
+export default function HealthProfile({ mode, store, onSaved, onBack }) {
   const account = mode === 'account'
   const [form, setForm] = useState(() => (account ? EMPTY : guestForm(store)))
   const [understood, setUnderstood] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  // Changed since Holos last checked it: onboarding asks for Save again before Continue
+  const [dirty, setDirty] = useState(false)
 
   const check = useCallback(async (next) => {
     if (account) return setUnderstood(await request('/profile/check'))
@@ -118,8 +122,12 @@ export default function HealthProfile({ mode, store, onSaved }) {
     return () => { live = false }
   }, [account, check])
 
-  const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }))
-  const toggle = (field, id) => setForm((prev) => ({ ...prev, [field]: prev[field].includes(id)
+  const change = (update) => {
+    setDirty(true)
+    setForm(update)
+  }
+  const set = (field) => (e) => change((prev) => ({ ...prev, [field]: e.target.value }))
+  const toggle = (field, id) => change((prev) => ({ ...prev, [field]: prev[field].includes(id)
     ? prev[field].filter((x) => x !== id) : [...prev[field], id] }))
 
   const save = async (e) => {
@@ -135,7 +143,9 @@ export default function HealthProfile({ mode, store, onSaved }) {
         await store.setProfile({ condition_ids: form.conditions, allergen_tags: form.allergens,
                                  diet_tags: form.diets, notes: form.notes })
       }
+      toast.success('Health profile saved')
       await check(form)
+      setDirty(false)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -144,12 +154,12 @@ export default function HealthProfile({ mode, store, onSaved }) {
   }
 
   /** "Couldn't check: menopause" → the condition they meant, in place of the phrase. */
-  const meant = (phrase, id) => setForm((prev) => ({
+  const meant = (phrase, id) => change((prev) => ({
     ...prev, conditions: prev.conditions.includes(id) ? prev.conditions : [...prev.conditions, id],
     otherConditions: without(prev.otherConditions, phrase), limitations: without(prev.limitations, phrase),
     otherFood: without(prev.otherFood, phrase) }))
 
-  const sample = (profile) => setForm({ ...EMPTY, conditions: profile.condition_ids || [],
+  const sample = (profile) => change({ ...EMPTY, conditions: profile.condition_ids || [],
                                         allergens: profile.allergen_tags || [] })
 
   return (
@@ -182,7 +192,7 @@ export default function HealthProfile({ mode, store, onSaved }) {
                 onChange={set('medications')} />
         </div>
       )}
-      <Text id="notes" label="Anything else (Holos reads this, but can't safety-check it)"
+      <Text id="notes" label="Anything else" hint="Holos reads this, but can't safety-check it."
             value={form.notes} onChange={set('notes')} textarea />
       {error && (
         <Alert variant="destructive">
@@ -191,21 +201,25 @@ export default function HealthProfile({ mode, store, onSaved }) {
         </Alert>
       )}
       {understood && <Understood view={understood} onMeant={meant} />}
-      <div className="flex flex-wrap gap-2">
-        {/* In onboarding, Save shows what Holos understood and Continue goes on: one is primary */}
-        <Button type="submit" variant={understood && onSaved ? 'outline' : 'default'} disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
-        </Button>
-        {understood && onSaved && <Button type="button" onClick={onSaved}>Continue</Button>}
-      </div>
+      {onSaved ? (
+        // Onboarding: one action at a time. Save shows what Holos understood; once nothing has
+        // changed since, it's Continue. Back and the action on the right, as on every step
+        <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+          {onBack && <Button type="button" size="lg" variant="outline" onClick={onBack}>Back</Button>}
+          {understood && !dirty
+            ? <Button type="button" size="lg" onClick={onSaved}>Continue</Button>
+            : <Button type="submit" size="lg" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>}
+        </div>
+      ) : (
+        // On the right as on every form; it waits for a change, so it says whether there's
+        // anything to save (owner, 25 Nov 2026)
+        <div className="flex justify-end">
+          <Button type="submit" size="lg" disabled={saving || !dirty}>{saving ? 'Saving…' : 'Save'}</Button>
+        </div>
+      )}
     </form>
   )
 }
-
-// A picked chip: the primary tint and outline, with a check, as in the chosen design
-const CHIP = 'flex h-(--control-height-sm) cursor-pointer items-center gap-1.5 rounded-full border border-input px-3 text-sm select-none ' +
-  'hover:bg-muted has-checked:border-primary has-checked:bg-primary-tint has-checked:font-medium has-checked:text-primary ' +
-  'has-focus-visible:ring-3 has-focus-visible:ring-ring/50'
 
 function Pickers({ legend, items, picked, onToggle }) {
   return (
@@ -213,9 +227,10 @@ function Pickers({ legend, items, picked, onToggle }) {
       <legend className="mb-2.5 p-0 text-sm font-medium">{legend}</legend>
       <div className="flex flex-wrap gap-2">
         {items.map((x) => (
-          <label key={x.id} className={CHIP}>
+          // The theme's chip (app/theme.css)
+          <label key={x.id} className="chip">
             <input type="checkbox" className="sr-only" checked={picked.includes(x.id)} onChange={() => onToggle(x.id)} />
-            {picked.includes(x.id) && <Check aria-hidden="true" className="size-3.5" />}
+            {picked.includes(x.id) && <Check aria-hidden="true" />}
             {x.name}
           </label>
         ))}
@@ -224,32 +239,82 @@ function Pickers({ legend, items, picked, onToggle }) {
   )
 }
 
-function Text({ id, label, value, onChange, textarea }) {
+function Text({ id, label, hint, value, onChange, textarea }) {
   const Control = textarea ? Textarea : Input
   return (
     <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      {hint ? (
+        // The hint opens from an (i) beside the label, outside it so it doesn't focus the box
+        // (owner, 25 Nov 2026)
+        <div className="flex items-center gap-1">
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-xs" aria-label={`About ${label}`}
+                      className="text-muted-foreground">
+                <Info />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="start" className="w-max max-w-80 text-sm text-foreground-secondary">{hint}</PopoverContent>
+          </Popover>
+        </div>
+      ) : <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <Control id={id} value={value} onChange={onChange} maxLength={textarea ? 1000 : 300} />
     </Field>
   )
 }
 
+/** What Holos took from the profile: each kind as checked chips, then what it couldn't check. */
 function Understood({ view, onMeant }) {
-  const found = [...view.conditions.map((c) => c.name),
-                 ...view.allergens.map((a) => NAMES[a] || a), ...view.diets.map((d) => NAMES[d] || d)]
+  const groups = [
+    ['Conditions', view.conditions.map((c) => c.name)],
+    ['Allergies', view.allergens.map((a) => NAMES[a] || a)],
+    ['Diet', view.diets.map((d) => NAMES[d] || d)],
+  ].filter(([, names]) => names.length > 0)
   // Medications are always only read, never checked (C.8): no picker for them
   const unclear = view.unchecked.filter((u) => !u.startsWith('medications:'))
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-raised/50 p-4" aria-live="polite">
-      <p className="m-0"><strong>Holos understood:</strong>{' '}
-        {found.length ? found.map((n) => `${n} ✓`).join(', ') : 'nothing to check yet'}</p>
+    <section aria-live="polite" aria-labelledby="understood-title"
+             className="flex flex-col gap-4 rounded-xl border bg-card p-4 text-card-foreground shadow-card sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-tint text-primary">
+          <ShieldCheck aria-hidden="true" className="size-5" />
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <h2 id="understood-title" className="m-0 font-heading text-base font-semibold">Holos understood</h2>
+          <p className="m-0 text-sm text-foreground-secondary">
+            {groups.length > 0 ? 'Every plan and meal is checked against these.' : 'Nothing to check yet.'}
+          </p>
+        </div>
+      </div>
+      {groups.length > 0 && (
+        <dl className="m-0 flex flex-col gap-3">
+          {groups.map(([kind, names]) => (
+            <div key={kind} className="flex flex-col gap-1.5">
+              <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{kind}</dt>
+              <dd className="m-0 flex flex-wrap gap-1.5">
+                {names.map((name) => (
+                  // The same chip as the pickers above, picked
+                  <span key={name} className="chip" data-picked="">
+                    <Check aria-hidden="true" />
+                    {name}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
       {view.unchecked.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="m-0"><strong>Holos couldn&apos;t check:</strong></p>
+        <div className="flex flex-col gap-2.5 rounded-lg border border-dashed border-caution/60 p-3">
+          <p className="m-0 flex items-center gap-2 text-sm font-medium text-caution">
+            <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
+            Holos couldn&apos;t check these
+          </p>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {view.unchecked.map((u) => (
-              <li key={u} className="flex flex-wrap items-center gap-2">
-                &ldquo;{u}&rdquo;
+              <li key={u} className="flex flex-wrap items-center gap-2 text-sm">
+                <span>&ldquo;{u}&rdquo;</span>
                 {unclear.includes(u) && (
                   <NativeSelect aria-label={`What did you mean by ${u}?`} defaultValue=""
                                 onChange={(e) => e.target.value && onMeant(u, e.target.value)}>
@@ -262,6 +327,6 @@ function Understood({ view, onMeant }) {
           </ul>
         </div>
       )}
-    </div>
+    </section>
   )
 }

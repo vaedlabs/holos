@@ -15,7 +15,7 @@ import { ACTIVITY_LEVELS, EXERCISE_TYPES, GENDERS, GOALS, LIFESTYLES } from '@/l
 
 const Optional = () => <span className="font-normal text-muted-foreground">(optional)</span>
 
-/** The preferences as a form, starting from what's saved (L50); Save Changes sends them,
+/** The preferences as a form, starting from what's saved (L50); Save changes sends them,
  * with an empty field as "not given" (null). */
 export default function PreferencesForm({ preferences, onSaved, onCancel }) {
   const [form, setForm] = useState(() => ({
@@ -58,21 +58,14 @@ export default function PreferencesForm({ preferences, onSaved, onCancel }) {
   return (
     <form onSubmit={submit}
           className="flex flex-col gap-5 rounded-xl border bg-card p-5 text-card-foreground shadow-card sm:p-6">
-      <ButtonSelector label="Fitness Goals" options={GOALS} value={form.goals}
+      <ButtonSelector label="Fitness goals" optional options={GOALS} value={form.goals}
                       onChange={(value) => setForm((prev) => ({ ...prev, goals: value }))}
                       placeholder="Type other goals (comma-separated)..." />
-      <ButtonSelector label="Preferred Exercise Types" options={EXERCISE_TYPES} value={form.exercise_types}
+      <ButtonSelector label="Preferred exercise types" optional options={EXERCISE_TYPES} value={form.exercise_types}
                       onChange={(value) => setForm((prev) => ({ ...prev, exercise_types: value }))}
                       placeholder="Type other exercise types (comma-separated)..." />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field>
-          <FieldLabel htmlFor="activity_level">Activity Level</FieldLabel>
-          <FieldDescription>The level of fitness activity you want to do</FieldDescription>
-          <NativeSelect id="activity_level" name="activity_level" className="w-full" value={form.activity_level} onChange={change}>
-            <NativeSelectOption value="">Select activity level</NativeSelectOption>
-            {ACTIVITY_LEVELS.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
-          </NativeSelect>
-        </Field>
+        {/* Paired so each row's boxes line up: the two with a description share a row */}
         <Field data-invalid={ageOutOfRange || undefined}>
           <FieldLabel htmlFor="age">Age <Optional /></FieldLabel>
           <Input id="age" name="age" type="number" inputMode="numeric" min="13" max="120" value={form.age}
@@ -80,15 +73,24 @@ export default function PreferencesForm({ preferences, onSaved, onCancel }) {
           {ageOutOfRange && <FieldError>Age must be between 13 and 120</FieldError>}
         </Field>
         <Field>
-          <FieldLabel htmlFor="gender">Gender/Sex <Optional /></FieldLabel>
+          <FieldLabel htmlFor="gender">Sex <Optional /></FieldLabel>
           <NativeSelect id="gender" name="gender" className="w-full" value={form.gender} onChange={change}>
-            <NativeSelectOption value="">Select gender/sex</NativeSelectOption>
+            <NativeSelectOption value="">Select sex</NativeSelectOption>
             {GENDERS.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
             <NativeSelectOption value="">Prefer not to say</NativeSelectOption>
           </NativeSelect>
         </Field>
         <Field>
+          <FieldLabel htmlFor="activity_level">Activity level <Optional /></FieldLabel>
+          <FieldDescription>How much exercise you want to do</FieldDescription>
+          <NativeSelect id="activity_level" name="activity_level" className="w-full" value={form.activity_level} onChange={change}>
+            <NativeSelectOption value="">Select activity level</NativeSelectOption>
+            {ACTIVITY_LEVELS.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
+          </NativeSelect>
+        </Field>
+        <Field>
           <FieldLabel htmlFor="lifestyle">Lifestyle <Optional /></FieldLabel>
+          <FieldDescription>How active your days are, apart from exercise</FieldDescription>
           <NativeSelect id="lifestyle" name="lifestyle" className="w-full" value={form.lifestyle} onChange={change}>
             <NativeSelectOption value="">Select lifestyle</NativeSelectOption>
             {LIFESTYLES.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
@@ -106,9 +108,10 @@ export default function PreferencesForm({ preferences, onSaved, onCancel }) {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={saving}>{saving ? <><Spinner /> Saving…</> : 'Save Changes'}</Button>
-        <Button type="button" variant="outline" disabled={saving} onClick={onCancel}>Cancel</Button>
+      {/* On the right, the main action last, as on every form */}
+      <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+        <Button type="button" size="lg" variant="outline" disabled={saving} onClick={onCancel}>Cancel</Button>
+        <Button type="submit" size="lg" disabled={saving}>{saving ? <><Spinner /> Saving…</> : 'Save changes'}</Button>
       </div>
     </form>
   )

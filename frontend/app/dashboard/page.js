@@ -1,35 +1,20 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { CircleAlert, List, Menu, MessageCircle, RotateCcw } from 'lucide-react'
+import { CircleAlert, List, MessageCircle, RotateCcw } from 'lucide-react'
 
 import AuthImage from '@/components/AuthImage'
-import LogsPanel, { PANEL_ID } from '@/components/logs/LogsPanel'
+import HeaderMenu from '@/components/HeaderMenu'
+import LogsPanel from '@/components/logs/LogsPanel'
 import PromptBar from '@/components/ai/PromptBar'
 import AnswerEntry from '@/components/chat/AnswerEntry'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { useRequireAuth } from '@/hooks/useAuth'
-import { api, signOut } from '@/lib/api'
+import { api } from '@/lib/api'
 import { guestStore } from '@/lib/guestStore'
 import { shrinkPhoto } from '@/lib/image'
 import { NOT_ATTACHED, retryId, sendChat } from '@/lib/stream'
@@ -54,7 +39,6 @@ export default function ChatPage() {
 }
 
 function Chat({ guest }) {
-  const router = useRouter()
   const store = useMemo(() => (guest ? guestStore() : null), [guest])
 
   const [entries, setEntries] = useState(() => (store ? guestEntries(store) : [])) // {key, role, text, photo, events, traceId, live}
@@ -65,8 +49,10 @@ function Chat({ guest }) {
   const [status, setStatus] = useState('')
   const [failed, setFailed] = useState(null) // {message, input, again}: the message stays
   const [sending, setSending] = useState(false)
-  const [logsOpen, setLogsOpen] = useState(false)
-  const [confirmClear, setConfirmClear] = useState(false)
+  // An account's history has come (or failed): until then the chat isn't known to be empty, so
+  // the prompt bar waits rather than showing in the middle and jumping down
+  const [loaded, setLoaded] = useState(guest)
+  const empty = loaded && entries.length === 0
   const bottom = useRef(null)
   const following = useRef(true)
 
@@ -79,6 +65,7 @@ function Chat({ guest }) {
       setEntries(page.messages.map(fromHistory))
       setBefore(page.before)
     }).catch((err) => live && setFailed({ message: err.message }))
+      .finally(() => live && setLoaded(true))
     return () => { live = false }
   }, [guest])
 
@@ -94,6 +81,17 @@ function Chat({ guest }) {
   useEffect(() => {
     if (following.current) bottom.current?.scrollIntoView?.({ block: 'end' })
   }, [entries])
+  // And as it grows after that (a card popping in, a block fading in), so nothing stops
+  // half-hidden behind the prompt bar (owner, 25 Nov 2026)
+  const thread = useRef(null)
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined' || !thread.current) return undefined
+    const grown = new ResizeObserver(() => {
+      if (following.current) bottom.current?.scrollIntoView?.({ block: 'end' })
+    })
+    grown.observe(thread.current)
+    return () => grown.disconnect()
+  }, [])
 
   const older = useCallback(async () => {
     if (!before) return
@@ -155,7 +153,19 @@ function Chat({ guest }) {
     setDraft('')
     const image = photo
     setPhoto(null)
-    await send({ message, image, agents: coaches })
+    const go = () => send({ message, image, agents: coaches })
+    // The first message: the prompt bar glides from the middle to the foot of the page where the
+    // browser can (a view transition); elsewhere, or with reduced motion, it moves at once
+    if (empty && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      let answering
+      await document.startViewTransition(() => flushSync(() => { answering = go() })).updateCallbackDone
+      // The box moved, so it's a new one: it takes the focus back as soon as it's there, not
+      // once the answer has come
+      document.querySelector('textarea[aria-label="Message"]')?.focus()
+      await answering
+      return
+    }
+    await go()
   }
 
   const attach = async (e) => {
@@ -169,61 +179,66 @@ function Chat({ guest }) {
     }
   }
 
-  const leave = async () => {
-    if (guest) await store.clearMyData()
-    else await signOut()
-    router.push('/')
-  }
+  // The prompt bar and what failed: in the middle under the empty chat, then at the foot of the page
+  // once there are messages (owner, 25 Nov 2026). One name for both places, so the move can glide
+  const composer = (
+    <div className="flex flex-col gap-2 [view-transition-name:prompt]">
+      {failed && (
+        <Alert variant="destructive">
+          <CircleAlert />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            {failed.message}
+            {failed.input && (
+              <Button type="button" variant="outline" size="sm" disabled={sending}
+                      onClick={() => send(failed.input, failed.again)}>
+                <RotateCcw /> Retry
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      <PromptBar value={draft} onChange={setDraft} onSubmit={submit} sending={sending}
+                 photo={photo} onPhoto={attach} onRemovePhoto={() => setPhoto(null)}
+                 coaches={COACHES} chosen={coaches} onChoose={setCoaches} />
+    </div>
+  )
 
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-(--z-header) border-b bg-card/90 backdrop-blur supports-backdrop-filter:bg-card/75">
-        <div className="relative mx-auto flex h-(--header-height) max-w-chat items-center justify-between px-4">
-          <span className="font-heading text-xl font-bold tracking-tight">Holos</span>
+        <div className="mx-auto flex h-(--header-height) max-w-chat items-center justify-between px-4">
+          <Link href="/dashboard" className="font-heading text-xl font-bold tracking-tight text-foreground no-underline">Holos</Link>
           <nav className="flex items-center gap-1" aria-label="Main">
-            {/* A guest has it too: their panel says the logs come with signing in (owner, 24 Nov 2026) */}
-            <Button type="button" variant="ghost" aria-expanded={logsOpen} aria-controls={PANEL_ID}
-                    onClick={() => setLogsOpen((prev) => !prev)}>
-              <List /> Logs
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" aria-label="Menu"><Menu /></Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem asChild><Link href="/profile">Health profile</Link></DropdownMenuItem>
-                {!guest && <DropdownMenuItem asChild><Link href="/preferences">Preferences</Link></DropdownMenuItem>}
-                {guest ? (
-                  <DropdownMenuItem variant="destructive" onSelect={() => setConfirmClear(true)}>
-                    Clear my data
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onSelect={leave}>Sign out</DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* A guest has it too: their drawer says the logs come with signing in (owner, 24 Nov 2026) */}
+            <LogsPanel guest={guest}>
+              <Button type="button" variant="ghost"><List /> Logs</Button>
+            </LogsPanel>
+            <HeaderMenu guest={guest} />
           </nav>
-          <LogsPanel open={logsOpen} guest={guest} />
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-chat flex-1 flex-col gap-6 px-4 pt-6 pb-4" aria-live="polite">
+      <main ref={thread} className="mx-auto flex w-full max-w-chat flex-1 flex-col gap-6 px-4 pt-6 pb-4" aria-live="polite">
         {before && (
           <Button type="button" variant="ghost" className="self-center" onClick={older}>
             Show earlier messages
           </Button>
         )}
-        {entries.length === 0 && (
-          <Empty className="my-auto">
-            <EmptyHeader>
-              <EmptyMedia variant="icon"><MessageCircle /></EmptyMedia>
-              <EmptyTitle>Ask about a workout, a meal or how you feel</EmptyTitle>
-              <EmptyDescription>
-                Holos checks every answer against your health profile.{' '}
-                {guest && <Link href="/profile" className="text-primary underline underline-offset-2">Add your health profile</Link>}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+        {empty && (
+          <div className="my-auto flex flex-col gap-6">
+            <Empty className="p-0">
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><MessageCircle /></EmptyMedia>
+                <EmptyTitle>Ask about a workout, a meal or how you feel</EmptyTitle>
+                <EmptyDescription>
+                  Holos checks every answer against your health profile.{' '}
+                  {guest && <Link href="/profile" className="text-primary underline underline-offset-2">Add your health profile</Link>}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+            {/* -mx-1: as wide as at the foot of the page, whose gutter is px-3 to this one's px-4 */}
+            <div className="-mx-1">{composer}</div>
+          </div>
         )}
         {entries.map((e) => (e.role === 'user' ? (
           <div key={e.key}
@@ -240,45 +255,16 @@ function Chat({ guest }) {
                        onRetry={e.saved || e.live ? null
                          : (agent) => send({ ...e.asked, agents: [agent] })} />
         )))}
-        <div ref={bottom} />
       </main>
 
-      <div className="sticky bottom-0 bg-linear-to-t from-background from-70% to-transparent pt-4">
-        <div className="mx-auto flex max-w-chat flex-col gap-2 px-3 pb-3">
-          {failed && (
-            <Alert variant="destructive">
-              <CircleAlert />
-              <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-                {failed.message}
-                {failed.input && (
-                  <Button type="button" variant="outline" size="sm" disabled={sending}
-                          onClick={() => send(failed.input, failed.again)}>
-                    <RotateCcw /> Retry
-                  </Button>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
-          <PromptBar value={draft} onChange={setDraft} onSubmit={submit} sending={sending}
-                     photo={photo} onPhoto={attach} onRemovePhoto={() => setPhoto(null)}
-                     coaches={COACHES} chosen={coaches} onChoose={setCoaches} />
+      {!empty && loaded && (
+        <div className="sticky bottom-0 bg-linear-to-t from-background from-70% to-transparent pt-4">
+          <div className="mx-auto max-w-chat px-3 pb-3">{composer}</div>
         </div>
-      </div>
+      )}
+      {/* Under the prompt bar, not the messages: scrolled to, it leaves the newest in view above the bar */}
+      <div ref={bottom} />
 
-      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear your data from this browser?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your chat, logs and health profile are kept only here. Clearing them can&apos;t be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep them</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={leave}>Clear my data</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

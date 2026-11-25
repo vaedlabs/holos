@@ -6,6 +6,7 @@ import { CircleAlert } from 'lucide-react'
 
 import ButtonSelector from '@/components/ButtonSelector'
 import HealthProfile from '@/components/HealthProfile'
+import PageShell from '@/components/PageShell'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
@@ -104,108 +105,108 @@ export default function OnboardingPage() {
   )
 
   return (
-    <div className="flex min-h-dvh flex-col items-center px-4 py-10">
-      <main className="flex w-full max-w-chat flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          <span className="font-heading text-xl font-bold tracking-tight">Holos</span>
-          <h1 className="m-0 font-heading text-2xl font-bold tracking-tight">Welcome! Let&apos;s set up your profile</h1>
-          <p className="m-0 text-sm font-medium text-foreground-secondary">Step {step + 1} of {STEPS.length} · {STEPS[step]}</p>
-          <Progress value={((step + 1) / STEPS.length) * 100} aria-label={`Step ${step + 1} of ${STEPS.length}`} />
-        </div>
+    // The header bar every page has, with no Chat yet; the step's name is its card's title, so the
+    // step line only counts (owner, 25 Nov 2026)
+    <PageShell end={false} title="Welcome! Let's set up your profile">
+      <div className="flex flex-col gap-2">
+        <p className="m-0 text-sm font-medium text-foreground-secondary">Step {step + 1} of {STEPS.length}</p>
+        <Progress value={((step + 1) / STEPS.length) * 100} aria-label={`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`} />
+      </div>
 
-        {!loaded ? (
-          <p role="status" className="m-0 text-foreground-secondary">Loading your profile…</p>
-        ) : (
-          <section className="flex flex-col gap-5 rounded-xl border bg-card p-5 text-card-foreground shadow-card sm:p-6">
-            {step === 0 && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <h2 className="m-0 font-heading text-lg font-semibold">Demographics</h2>
-                  <p className="m-0 text-foreground-secondary">Tell us a bit about yourself to personalize your experience.</p>
+      {!loaded ? (
+        <p role="status" className="m-0 text-foreground-secondary">Loading your profile…</p>
+      ) : (
+        <section className="flex flex-col gap-5 rounded-xl border bg-card p-5 text-card-foreground shadow-card sm:p-6">
+          {step === 0 && (
+            <>
+              <div className="flex flex-col gap-1">
+                <h2 className="m-0 font-heading text-lg font-semibold">Demographics</h2>
+                <p className="m-0 text-foreground-secondary">Tell us a bit about yourself to personalise your experience.</p>
+              </div>
+              <form onSubmit={handleDemographicsSubmit} className="flex flex-col gap-4">
+                <Field data-invalid={ageOutOfRange || undefined}>
+                  <FieldLabel htmlFor="age">Age <Optional /></FieldLabel>
+                  <Input id="age" name="age" type="number" inputMode="numeric" min="13" max="120"
+                         value={demographicsData.age} onChange={handleDemographicsChange}
+                         placeholder="Enter your age" aria-invalid={ageOutOfRange || undefined} />
+                  {ageOutOfRange && <FieldError>Age must be between 13 and 120</FieldError>}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="gender">Sex <Optional /></FieldLabel>
+                  <NativeSelect id="gender" name="gender" className="w-full" value={demographicsData.gender}
+                                onChange={handleDemographicsChange}>
+                    <NativeSelectOption value="">Select sex</NativeSelectOption>
+                    {GENDERS.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
+                    <NativeSelectOption value="">Prefer not to say</NativeSelectOption>
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="lifestyle">Lifestyle <Optional /></FieldLabel>
+                  <FieldDescription>How active your days are, apart from exercise</FieldDescription>
+                  <NativeSelect id="lifestyle" name="lifestyle" className="w-full" value={demographicsData.lifestyle}
+                                onChange={handleDemographicsChange}>
+                    <NativeSelectOption value="">Select lifestyle</NativeSelectOption>
+                    {LIFESTYLES.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
+                  </NativeSelect>
+                </Field>
+                {failed}
+                <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+                  <Button type="submit" size="lg">Next</Button>
                 </div>
-                <form onSubmit={handleDemographicsSubmit} className="flex flex-col gap-4">
-                  <Field data-invalid={ageOutOfRange || undefined}>
-                    <FieldLabel htmlFor="age">Age <Optional /></FieldLabel>
-                    <Input id="age" name="age" type="number" inputMode="numeric" min="13" max="120"
-                           value={demographicsData.age} onChange={handleDemographicsChange}
-                           placeholder="Enter your age" aria-invalid={ageOutOfRange || undefined} />
-                    {ageOutOfRange && <FieldError>Age must be between 13 and 120</FieldError>}
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="gender">Gender/Sex <Optional /></FieldLabel>
-                    <NativeSelect id="gender" name="gender" className="w-full" value={demographicsData.gender}
-                                  onChange={handleDemographicsChange}>
-                      <NativeSelectOption value="">Select gender/sex</NativeSelectOption>
-                      {GENDERS.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
-                      <NativeSelectOption value="">Prefer not to say</NativeSelectOption>
-                    </NativeSelect>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="lifestyle">Lifestyle <Optional /></FieldLabel>
-                    <FieldDescription>Your daily lifestyle and activity patterns</FieldDescription>
-                    <NativeSelect id="lifestyle" name="lifestyle" className="w-full" value={demographicsData.lifestyle}
-                                  onChange={handleDemographicsChange}>
-                      <NativeSelectOption value="">Select lifestyle</NativeSelectOption>
-                      {LIFESTYLES.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
-                    </NativeSelect>
-                  </Field>
-                  {failed}
-                  <Button type="submit" size="lg" className="w-full sm:w-auto sm:self-end">Next</Button>
-                </form>
-              </>
-            )}
+              </form>
+            </>
+          )}
 
-            {step === 1 && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <h2 className="m-0 font-heading text-lg font-semibold">Your health</h2>
-                  <p className="m-0 text-foreground-secondary">This information helps us recommend safe exercises for you.</p>
-                </div>
-                <HealthProfile mode="account" onSaved={() => setStep(2)} />
-              </>
-            )}
+          {step === 1 && (
+            <>
+              <div className="flex flex-col gap-1">
+                <h2 className="m-0 font-heading text-lg font-semibold">Your health</h2>
+                <p className="m-0 text-foreground-secondary">This information helps us recommend safe exercises and meals for you.</p>
+              </div>
+              <HealthProfile mode="account" onSaved={() => setStep(2)} onBack={() => setStep(0)} />
+            </>
+          )}
 
-            {step === 2 && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <h2 className="m-0 font-heading text-lg font-semibold">Fitness Preferences</h2>
-                  <p className="m-0 text-foreground-secondary">Tell us about your fitness goals and preferences.</p>
+          {step === 2 && (
+            <>
+              <div className="flex flex-col gap-1">
+                <h2 className="m-0 font-heading text-lg font-semibold">Fitness preferences</h2>
+                <p className="m-0 text-foreground-secondary">Tell us about your fitness goals and preferences.</p>
+              </div>
+              <form onSubmit={handlePreferencesSubmit} className="flex flex-col gap-5">
+                <ButtonSelector label="Fitness goals" optional options={GOALS} value={preferencesData.goals}
+                                onChange={(value) => setPreferencesData((prev) => ({ ...prev, goals: value }))}
+                                placeholder="Type other goals (comma-separated)..." />
+                <ButtonSelector label="Preferred exercise types" optional options={EXERCISE_TYPES}
+                                value={preferencesData.exercise_types}
+                                onChange={(value) => setPreferencesData((prev) => ({ ...prev, exercise_types: value }))}
+                                placeholder="Type other exercise types (comma-separated)..." />
+                <Field>
+                  <FieldLabel htmlFor="activity_level">Activity level <Optional /></FieldLabel>
+                  <FieldDescription>How much exercise you want to do</FieldDescription>
+                  <NativeSelect id="activity_level" name="activity_level" className="w-full"
+                                value={preferencesData.activity_level} onChange={handlePreferencesChange}>
+                    <NativeSelectOption value="">Select activity level</NativeSelectOption>
+                    {ACTIVITY_LEVELS.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="location">Location <Optional /></FieldLabel>
+                  <Input id="location" name="location" type="text" value={preferencesData.location}
+                         onChange={handlePreferencesChange} placeholder="City or address" maxLength={100} />
+                </Field>
+                {failed}
+                <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+                  <Button type="button" size="lg" variant="outline" onClick={() => setStep(1)}>Back</Button>
+                  <Button type="submit" size="lg" disabled={loading}>
+                    {loading ? <><Spinner /> Saving…</> : 'Complete setup'}
+                  </Button>
                 </div>
-                <form onSubmit={handlePreferencesSubmit} className="flex flex-col gap-5">
-                  <ButtonSelector label="Fitness Goals" options={GOALS} value={preferencesData.goals}
-                                  onChange={(value) => setPreferencesData((prev) => ({ ...prev, goals: value }))}
-                                  placeholder="Type other goals (comma-separated)..." />
-                  <ButtonSelector label="Preferred Exercise Types" options={EXERCISE_TYPES}
-                                  value={preferencesData.exercise_types}
-                                  onChange={(value) => setPreferencesData((prev) => ({ ...prev, exercise_types: value }))}
-                                  placeholder="Type other exercise types (comma-separated)..." />
-                  <Field>
-                    <FieldLabel htmlFor="activity_level">Activity Level</FieldLabel>
-                    <FieldDescription>The level of fitness activity you want to do</FieldDescription>
-                    <NativeSelect id="activity_level" name="activity_level" className="w-full"
-                                  value={preferencesData.activity_level} onChange={handlePreferencesChange}>
-                      <NativeSelectOption value="">Select activity level</NativeSelectOption>
-                      {ACTIVITY_LEVELS.map(([v, label]) => <NativeSelectOption key={v} value={v}>{label}</NativeSelectOption>)}
-                    </NativeSelect>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="location">Location <Optional /></FieldLabel>
-                    <Input id="location" name="location" type="text" value={preferencesData.location}
-                           onChange={handlePreferencesChange} placeholder="City or address" maxLength={100} />
-                  </Field>
-                  {failed}
-                  <div className="grid grid-cols-[1fr_2fr] gap-2.5">
-                    <Button type="button" size="lg" variant="outline" onClick={() => setStep(1)}>Back</Button>
-                    <Button type="submit" size="lg" disabled={loading}>
-                      {loading ? <><Spinner /> Saving…</> : 'Complete Setup'}
-                    </Button>
-                  </div>
-                </form>
-              </>
-            )}
-          </section>
-        )}
-      </main>
-    </div>
+              </form>
+            </>
+          )}
+        </section>
+      )}
+    </PageShell>
   )
 }

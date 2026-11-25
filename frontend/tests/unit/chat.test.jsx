@@ -177,6 +177,18 @@ describe('the repeat card (Part E #67)', () => {
     expect(screen.queryByRole('button', { name: 'Log again' })).toBeNull()
   })
 
+  it('Replace leads when the earlier entry can be replaced; else Log again', () => {
+    draw([repeat(1)])
+    const lead = (name) => screen.getByRole('button', { name }).dataset.variant
+    expect(lead('Replace the earlier one')).toBe('default')
+    expect(lead('Log again')).toBe('outline')
+    cleanup()
+    draw([repeat(1, { repeat_of: { summary: 'Lunch: Dal', at: '2026-11-15T06:30:00Z', log_id: null,
+                                   this_turn: true } })])
+    expect(screen.queryByRole('button', { name: /Replace/ })).toBeNull()
+    expect(lead('Log again')).toBe('default')
+  })
+
   it("Don't log drops them all", async () => {
     const onDiscard = vi.fn().mockResolvedValue({ state: 'discarded', message: '' })
     draw([repeat(1), repeat(2)], { onDiscard })

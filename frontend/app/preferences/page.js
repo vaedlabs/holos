@@ -1,22 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { CircleAlert, House, Menu } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 
+import HeaderMenu from '@/components/HeaderMenu'
 import PageShell from '@/components/PageShell'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRequireAuth } from '@/hooks/useAuth'
-import { api, signOut } from '@/lib/api'
+import { api } from '@/lib/api'
 
 import DataControls from './sections/DataControls'
 import PreferencesForm from './sections/PreferencesForm'
@@ -24,7 +16,6 @@ import PreferencesSummary from './sections/PreferencesSummary'
 
 /** An account's preferences: what's saved, a form to change it, and the account's data controls. */
 export default function PreferencesPage() {
-  const router = useRouter()
   const { mounted, isAuthenticated } = useRequireAuth()
   const [preferences, setPreferences] = useState(undefined) // undefined while loading, null when none yet
   const [editing, setEditing] = useState(false)
@@ -46,35 +37,8 @@ export default function PreferencesPage() {
 
   if (!mounted || !isAuthenticated) return null
 
-  const logout = async () => {
-    await signOut()
-    router.push('/login')
-  }
-
-  // The header it had: Home and the page's title, then its menu
-  const start = (
-    <>
-      <Button asChild variant="ghost" size="icon" aria-label="Home">
-        <Link href="/dashboard"><House /></Link>
-      </Button>
-      <h1 className="m-0 truncate font-heading text-lg font-semibold">User Preferences</h1>
-    </>
-  )
-  const end = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" aria-label="Menu"><Menu /></Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem asChild><Link href="/profile">Health profile</Link></DropdownMenuItem>
-        <DropdownMenuItem asChild><Link href="/preferences">User Preferences</Link></DropdownMenuItem>
-        <DropdownMenuItem onSelect={logout}>Logout</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-
   return (
-    <PageShell start={start} end={end} title="Your Fitness Preferences" titleAs="h2">
+    <PageShell section="Preferences" end={<HeaderMenu />} title="Your preferences">
       {error && (
         <Alert variant="destructive">
           <CircleAlert />

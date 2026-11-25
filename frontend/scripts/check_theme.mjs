@@ -39,6 +39,7 @@ export const PAIRS = [
   ['ring', 'background', 3],
   ['ring', 'card', 3],
   ['crisis-border', 'crisis-background', 3],
+  ['on-silk', 'silk', 4.5], // the wordmark on the sign-in pages' silk, at its brightest
 ]
 
 export function findLiterals(text) {

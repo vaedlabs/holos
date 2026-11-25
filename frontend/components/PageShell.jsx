@@ -1,28 +1,40 @@
 'use client'
 
 import Link from 'next/link'
+import { MessageCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
 /**
- * A settings page's frame (profile, preferences). Each page keeps the header it had: by default
- * the wordmark with Back to chat (the profile), or its own `start` and `end` (the preferences'
- * Home button, title and menu). Below it, the page's heading and its content in one column.
+ * A settings page's frame (profile, preferences, onboarding). The header: the wordmark (to the
+ * chat), then with `section` "/ Health profile" as the page's name; at the end, on any page with
+ * a `section`, Chat, since the wordmark isn't plainly a way back (owner, 25 Nov 2026), then the
+ * page's own `end` (the menu; `end={false}` for nothing, as on onboarding). Below it, the page's
+ * heading (an h2 under a `section`) and its content in one column.
  */
-export default function PageShell({ start, end, title, titleAs: Title = 'h1', description, children }) {
+export default function PageShell({ section, end, title, titleAs, description, children }) {
+  const Title = titleAs ?? (section ? 'h2' : 'h1')
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-(--z-header) border-b bg-card/90 backdrop-blur supports-backdrop-filter:bg-card/75">
         <div className="mx-auto flex h-(--header-height) max-w-chat items-center justify-between gap-2 px-4">
           <div className="flex min-w-0 items-center gap-2">
-            {start ?? <span className="font-heading text-xl font-bold tracking-tight">Holos</span>}
+            <Link href="/dashboard" className="font-heading text-xl font-bold tracking-tight text-foreground no-underline">Holos</Link>
+            {section && (
+              <>
+                <span aria-hidden="true" className="text-muted-foreground">/</span>
+                <h1 className="m-0 truncate font-heading text-lg font-semibold">{section}</h1>
+              </>
+            )}
           </div>
           <nav className="flex items-center gap-1" aria-label="Main">
-            {end ?? (
-              <Button asChild variant="outline">
-                <Link href="/dashboard">Back to chat</Link>
+            {/* Where the chat has Logs: an icon and its word, the same style */}
+            {section && (
+              <Button asChild variant="ghost">
+                <Link href="/dashboard"><MessageCircle /> Chat</Link>
               </Button>
             )}
+            {end || null}
           </nav>
         </div>
       </header>

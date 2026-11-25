@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 
 import HealthProfile from '@/components/HealthProfile'
+import HeaderMenu from '@/components/HeaderMenu'
 import PageShell from '@/components/PageShell'
 import { useRequireAuth } from '@/hooks/useAuth'
 import { guestStore } from '@/lib/guestStore'
@@ -15,9 +16,14 @@ export default function ProfilePage() {
   if (!mounted || !isAuthenticated) return null
   return (
     <PageShell
+      section="Health profile"
+      end={<HeaderMenu guest={guest} />}
       title="Your health profile"
-      description={`Holos checks every plan against what you pick here.${guest ? ' As a guest, it stays in this browser.' : ''}`}>
-      <HealthProfile mode={guest ? 'guest' : 'account'} store={store} />
+      description={`Holos checks every plan and meal against what you pick here.${guest ? ' As a guest, it stays in this browser.' : ''}`}>
+      {/* In a card, as on onboarding and the preferences page */}
+      <section className="rounded-xl border bg-card p-5 text-card-foreground shadow-card sm:p-6">
+        <HealthProfile mode={guest ? 'guest' : 'account'} store={store} />
+      </section>
     </PageShell>
   )
 }

@@ -102,8 +102,13 @@
   --nutrition: light-dark(var(--amber-800), var(--amber-400));
   --mind: light-dark(var(--violet-600), var(--violet-300));
 
-  /* The moving silk behind the home page (components/Silk.jsx reads it; a plain colour, no text on it) */
-  --silk: light-dark(var(--teal-700), var(--green-950));
+  /* The moving silk behind the home page (components/Silk.jsx reads it; a plain colour, no text on it).
+     The shader only darkens it (to 20%), so it starts mid-bright in both modes: as bright as the old
+     blue (owner, 24 Nov 2026) */
+  --silk: var(--teal-700);
+  /* Text right on the silk (the wordmark above the sign-in card): light in both modes, as the
+     silk is dark teal in both (owner, 25 Nov 2026) */
+  --on-silk: var(--white);
 
   /* Crisis replies: fixed, never tied to the brand roles, so a rebrand can't weaken them (E072) */
   --crisis-background: light-dark(var(--red-50), var(--red-900));
@@ -189,6 +194,7 @@
   --color-fitness: var(--fitness);
   --color-nutrition: var(--nutrition);
   --color-mind: var(--mind);
+  --color-on-silk: var(--on-silk);
   --color-crisis-background: var(--crisis-background);
   --color-crisis-border: var(--crisis-border);
   --color-crisis-foreground: var(--crisis-foreground);
@@ -326,6 +332,32 @@
     & > :last-child {
       margin-bottom: 0;
     }
+  }
+}
+
+/* A chip (`chip`): the one look for every pick-several list and for what was picked (owner, 25 Nov
+   2026). A small outlined pill. Picked, it takes the primary tint, its outline and medium text: a
+   picker's chip when the checkbox inside it is ticked, a display chip with `data-picked`. A picker
+   is a <label class="chip"> around an sr-only checkbox, so the box gives it focus and state. */
+@utility chip {
+  @apply inline-flex h-(--control-height-sm) items-center gap-1.5 rounded-full border border-input px-3 text-sm whitespace-nowrap select-none;
+  & svg {
+    @apply size-3.5 shrink-0;
+  }
+  &:has(input) {
+    @apply cursor-pointer;
+  }
+  &:has(input:not(:checked)):hover {
+    @apply bg-muted;
+  }
+  &:has(:focus-visible) {
+    @apply ring-3 ring-ring/50;
+  }
+  &:is([data-picked], :has(:checked)) {
+    @apply border-primary bg-primary-tint font-medium text-primary;
+  }
+  &:has(:disabled) {
+    @apply cursor-not-allowed opacity-50;
   }
 }
 

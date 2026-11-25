@@ -37,6 +37,15 @@ describe('reading a log', () => {
                                             macros: { protein: 21, carbs: 70, fat: 12 } })
   })
 
+  it('a workout shows each count the person gave, and none it didn\'t', () => {
+    const with_ = (fields) => ({ ...run, duration_minutes: null,
+      exercises: JSON.stringify([{ name: 'Bodyweight squat', sets: null, reps: null, duration_s: null, ...fields }]) })
+    expect(workoutView(with_({ reps: 15 })).detail).toBe('15 reps')
+    expect(workoutView(with_({ sets: 3 })).detail).toBe('3 sets')
+    expect(workoutView(with_({ sets: 3, reps: 8 })).detail).toBe('3 × 8')
+    expect(workoutView(with_({})).detail).toBe('')
+  })
+
   it('anything unreadable falls back to a plain name', () => {
     expect(workoutView({ ...run, exercises: 'not json' }).title).toBe('Running')
     expect(mealView({ ...lunch, foods: '{"oops"', macros: null }).title).toBe('Lunch')
@@ -56,9 +65,12 @@ describe('the lists', () => {
     expect(container.textContent).not.toContain('catalogue_id')
   })
 
-  it('a meal log renders its foods by name', () => {
+  it('a meal log is its meal, then its foods by name with their portions, once each', () => {
     const { container } = render(<MealLogs logs={[lunch]} onDelete={vi.fn()} />)
-    expect(screen.getByText('Rotis, Dal')).toBeTruthy()
+    expect(screen.getByText('Lunch')).toBeTruthy()
+    expect(screen.getByText('Rotis · 2 rotis')).toBeTruthy()
+    expect(screen.queryByText('Rotis, Dal')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Delete Rotis, Dal' })).toBeTruthy()
     expect(container.textContent).toContain('490 kcal')
     expect(container.textContent).not.toContain('"name"')
   })
