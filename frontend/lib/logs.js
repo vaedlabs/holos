@@ -74,13 +74,11 @@ export function mealView(log) {
   }
 }
 
-/** A practice: its kind ("Mindfulness meditation"), how long, and the mood around it. */
+/** A practice: its kind ("Mindfulness meditation") and how long. */
 export function practiceView(log) {
   return {
     title: humanize(log.activity_type) || 'Practice',
     detail: minutes(log.duration_minutes) || '',
-    mood: log.mood_before && log.mood_after ? `${log.mood_before} → ${log.mood_after}`
-      : log.mood_after || log.mood_before || '',
     when: log.activity_date,
     notes: log.notes || '',
   }

@@ -40,24 +40,6 @@
       "title": "Duration Min",
       "type": "integer"
     },
-    "mood_after": {
-      "maximum": 5,
-      "minimum": 1,
-      "title": "Mood After",
-      "type": [
-        "integer",
-        "null"
-      ]
-    },
-    "mood_before": {
-      "maximum": 5,
-      "minimum": 1,
-      "title": "Mood Before",
-      "type": [
-        "integer",
-        "null"
-      ]
-    },
     "note": {
       "description": "At most 120 characters.",
       "title": "Note",
@@ -125,8 +107,6 @@
   "required": [
     "catalogue_id",
     "duration_min",
-    "mood_before",
-    "mood_after",
     "note",
     "when"
   ],

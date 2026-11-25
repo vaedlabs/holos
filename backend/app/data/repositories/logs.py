@@ -67,5 +67,4 @@ class NutritionLogRepository(_LogRepository):
 class MentalLogRepository(_LogRepository):
     model = MentalFitnessLog
     date_column = "activity_date"
-    fields = {"activity_date", "activity_type", "duration_minutes", "mood_before", "mood_after",
-              "notes", "warnings"}
+    fields = {"activity_date", "activity_type", "duration_minutes", "notes", "warnings"}

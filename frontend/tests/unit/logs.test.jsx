@@ -24,7 +24,7 @@ const lunch = { id: 3, meal_date: '2026-11-23T08:00:00Z', meal_type: 'lunch', ca
   foods: '[{"name": "Rotis", "portion": "2 rotis", "calories": 220.0}, {"name": "Dal", "portion": "1 bowl", "calories": 270.0}]',
   macros: '{"protein_g": 21.0, "carbs_g": 70.0, "fat_g": 12.0, "complete": true}', notes: null }
 const meditation = { id: 4, activity_date: '2026-11-16T01:15:00Z', activity_type: 'mindfulness_meditation',
-  duration_minutes: 10, mood_before: null, mood_after: null, notes: 'Dhyan' }
+  duration_minutes: 10, notes: 'Dhyan' }
 
 describe('reading a log', () => {
   it('a workout reads as what was done, never as JSON', () => {

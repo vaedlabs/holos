@@ -205,6 +205,34 @@ def test_who_answered_becomes_a_list_and_comes_back(fresh):
             "physical,mental", "physical,nutrition,mental"]
 
 
+def test_the_mood_rating_goes_and_practice_logs_stay(fresh):
+    """5c6d7e8f9a07 (Part E #73): the guessed mood rating's columns go; every practice log
+    keeps the rest. The downgrade brings the columns back empty."""
+    alembic("upgrade", "4b5c6d7e8f96")
+    before = _shape(fresh, "mental_fitness_logs")
+    with fresh.begin() as conn:
+        conn.execute(text("INSERT INTO users (id, email, username, password_hash) "
+                          "VALUES (1, 'a@x.io', 'a', 'h')"))
+        conn.execute(text("INSERT INTO mental_fitness_logs (user_id, activity_type, "
+                          "duration_minutes, mood_before, mood_after, notes) VALUES "
+                          "(1, 'body_scan', 10, '2', '4', 'before bed'), "
+                          "(1, 'box_breathing', 5, NULL, NULL, NULL)"))
+    alembic("upgrade", "head")
+    columns = {c["name"] for c in inspect(fresh).get_columns("mental_fitness_logs")}
+    assert not columns & {"mood_before", "mood_after"}
+    rows = "SELECT activity_type, duration_minutes, notes FROM mental_fitness_logs ORDER BY id"
+    with fresh.connect() as conn:
+        assert conn.execute(text(rows)).all() == [("body_scan", 10.0, "before bed"),
+                                                  ("box_breathing", 5.0, None)]
+    alembic("downgrade", "4b5c6d7e8f96")
+    after = _shape(fresh, "mental_fitness_logs")  # the columns come back at the end
+    assert (sorted(after[0]), after[1:]) == (sorted(before[0]), before[1:])
+    with fresh.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM mental_fitness_logs WHERE "
+                                 "mood_before IS NOT NULL OR mood_after IS NOT NULL")).scalar() == 0
+        assert len(conn.execute(text(rows)).all()) == 2
+
+
 def test_schema_matches_models(migrated):
     with migrated.connect() as conn:
         diff = compare_metadata(

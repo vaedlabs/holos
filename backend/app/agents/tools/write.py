@@ -75,11 +75,13 @@ HELD_TIME = ("Not saved yet: the person didn't say what time, so it waits on the
              "briefly. Don't say it was refused, couldn't be saved, or was logged.")
 # Part E #67: the entry matches one already logged, so it waits on the repeat card; the
 # coach may answer "is it logged?" truthfully, in words the claim check doesn't remove,
-# and point to Replace for a correction (one already saved can be replaced)
-REPEAT = ("Already in the person's log ({}), so it wasn't logged again. If they asked "
-          "whether it is logged, say what they had or did and when, without the words "
-          "logged, saved, recorded or noted. Don't say you logged, saved, changed or "
-          "updated anything.")
+# and point to Replace for a correction (one already saved can be replaced). Told "so it
+# wasn't logged again", it said "there's no duplicate" over the card (D064, Part E #73)
+REPEAT = ("It matches an entry already in the person's log ({}), so it waits for the "
+          "person to choose whether to log it. If they asked whether it is logged, say "
+          "what they had or did and when, without the words logged, saved, recorded or "
+          "noted. Don't say it isn't a duplicate or a repeat, or that it wasn't added. "
+          "Don't say you logged, saved, changed or updated anything.")
 # Owner (16 Nov 2026, Part E #67): told nothing of the card, the coach answered a
 # correction with "I couldn't change its time to 11:30" over a card offering Replace
 REPEAT_SAVED = (" A card below your reply lets them log it again, replace the earlier entry "

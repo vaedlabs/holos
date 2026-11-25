@@ -131,8 +131,15 @@ function Chat({ guest }) {
     setStatus('')
     setSending(false)
     if (result.outcome === 'done') {
-      if (guest) store.recordTurn(events)
-      setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, live: false } : e)))
+      // A guest's earlier cards that this answer's entries replaced redraw from the store at
+      // once, not after a reload (D064)
+      const replaced = guest ? store.recordTurn(events) : []
+      const shown = new Map(guest ? store.data().turns.map((t) => [t.trace_id, t.display]) : [])
+      setEntries((prev) => prev.map((e) => {
+        if (e.key === key) return { ...e, live: false }
+        if (replaced.includes(e.traceId) && shown.get(e.traceId)) return { ...e, events: shown.get(e.traceId) }
+        return e
+      }))
       return
     }
     if (again?.requestId && NOT_ATTACHED.has(result.code)) { // no answer to attach to

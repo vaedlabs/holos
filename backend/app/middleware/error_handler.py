@@ -1,5 +1,7 @@
 """One error body for every route: `{code, message}` (C.2, `routers/errors.py`), plus
-`details` on a 422 (Part E #57). No body carries an exception's text; the log does.
+`details` on a 422 (Part E #57) and `fields`, each body field's reason in words, for a
+form to show under that field (Part E #73). No body carries an exception's text; the
+log does.
 
     HTTPException (Starlette's 404 and 405 too)  → its status, a code for the status
     RequestValidationError                        → 422 bad_request with the field list
@@ -48,7 +50,7 @@ def register_error_handlers(app) -> None:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={"code": "bad_request", "message": "Some of what was sent isn't valid.",
-                     "details": details})
+                     "details": details, "fields": field_reasons(exc.errors())})
 
     async def database_unavailable(request: Request, exc: Exception):
         """The database refused, timed out or has no free connection (failure library,
@@ -83,6 +85,30 @@ def register_error_handlers(app) -> None:
             content={"code": "server_error",
                      "message": "Something went wrong. Please try again."},
             headers=headers)
+
+
+def field_reasons(errors: list[dict]) -> dict[str, str]:
+    """A body field's first error in a few words ("not a valid address"), for the error
+    types the forms meet; any other error leaves the field out and the general message
+    stands. Live, 25 Nov 2026 (D064): "Some of what was sent isn't valid" named no field,
+    and pydantic's own words are long ("The part after the @-sign is a special-use...")."""
+    reasons: dict[str, str] = {}
+    for error in errors:
+        loc, kind, ctx = error.get("loc") or (), error.get("type"), error.get("ctx") or {}
+        if len(loc) != 2 or loc[0] != "body" or not isinstance(loc[1], str):
+            continue
+        if kind == "missing" or (kind == "string_too_short" and ctx.get("min_length") == 1):
+            reason = "required"
+        elif kind == "string_too_short":
+            reason = f"at least {ctx.get('min_length')} characters"
+        elif kind == "string_too_long":
+            reason = f"at most {ctx.get('max_length')} characters"
+        elif kind == "value_error" and "email address" in str(error.get("msg", "")):
+            reason = "not a valid address"
+        else:
+            continue
+        reasons.setdefault(loc[1], reason)
+    return reasons
 
 
 def _phrase(status_code: int) -> str:

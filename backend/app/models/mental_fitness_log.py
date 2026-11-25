@@ -9,7 +9,6 @@ allowing users to log multiple mental fitness activities over time.
 Key Features:
 - Activity type categorization
 - Duration tracking
-- Mood tracking (before and after activity)
 - Activity date and timestamp tracking
 - Notes for additional activity information
 """
@@ -26,7 +25,7 @@ class MentalFitnessLog(Base):
     
     This model stores individual mental wellness activities completed by users.
     Each log entry represents a single activity session with details about the
-    activity type, duration, and mood changes. The model has a many-to-one
+    activity type and duration. The model has a many-to-one
     relationship with User model.
     
     Attributes:
@@ -35,8 +34,6 @@ class MentalFitnessLog(Base):
         activity_date: Date and time when activity was performed (timezone-aware)
         activity_type: Type of mental wellness activity
         duration_minutes: Duration of activity in minutes (Float for partial minutes)
-        mood_before: User's mood or mental state before the activity
-        mood_after: User's mood or mental state after the activity
         notes: Additional notes about the activity (free-form text)
         created_at: Timestamp when log entry was created
         updated_at: Timestamp when log entry was last updated
@@ -54,20 +51,10 @@ class MentalFitnessLog(Base):
         - "gratitude_practice": Gratitude exercises
         - "stress_management": Stress management activities
         
-    Mood Tracking:
-        Mood can be tracked using:
-        - Numeric scale: "1" to "10" (1 = very low, 10 = very high)
-        - Descriptive text: "anxious", "calm", "energized", "relaxed", etc.
-        - Combination: "7 - calm and focused"
-        
-        Tracking mood before and after activities helps users and agents
-        understand the effectiveness of different mental wellness practices.
-        
     Note:
         - Multiple mental fitness logs can exist per user (many-to-one relationship)
         - Activity type helps categorize activities for analysis and recommendations
         - Duration can be fractional (e.g., 15.5 minutes)
-        - Mood tracking is optional but helps measure activity effectiveness
         - Activity date defaults to current time but can be set to past dates
         - Used by Mental Fitness Agent to track patterns and provide recommendations
     """
@@ -106,22 +93,6 @@ class MentalFitnessLog(Base):
     # Helps agents understand user's commitment to mental wellness practices
     # Nullable to allow activities without duration tracking
     duration_minutes = Column(Float, nullable=True)
-    
-    # Mood before - user's mood or mental state before the activity
-    # Format: Numeric scale (1-10) or descriptive text, or combination
-    # Examples: "5", "anxious", "7 - stressed", "calm"
-    # Used to establish baseline mood before mental wellness activity
-    # Helps measure the effectiveness of activities by comparing with mood_after
-    # Nullable to allow activities without mood tracking
-    mood_before = Column(String, nullable=True)  # Scale or description
-    
-    # Mood after - user's mood or mental state after the activity
-    # Format: Numeric scale (1-10) or descriptive text, or combination
-    # Examples: "8", "relaxed", "9 - energized", "calm and focused"
-    # Used to measure the impact of mental wellness activities
-    # Comparison with mood_before helps identify effective practices
-    # Nullable to allow activities without mood tracking
-    mood_after = Column(String, nullable=True)  # Scale or description
     
     # Notes - additional information about the activity
     # Format: Free-form text for any additional context

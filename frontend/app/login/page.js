@@ -12,7 +12,7 @@ import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { useRedirectIfAuthenticated } from '@/hooks/useAuth'
-import { signIn } from '@/lib/api'
+import { formErrors, signIn } from '@/lib/api'
 
 const looksLikeEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
@@ -43,7 +43,11 @@ export default function LoginPage() {
       await signIn(email, password)
       router.push('/dashboard')
     } catch (err) {
-      setError(err.message || "Couldn't sign in. Please check your email and password.")
+      const { fields, message } = formErrors(err, ['email', 'password'])
+      setInvalid(fields)
+      if (message || !Object.keys(fields).length) {
+        setError(message || "Couldn't sign in. Please check your email and password.")
+      }
     } finally {
       setLoading(false)
     }

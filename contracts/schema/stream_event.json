@@ -1019,32 +1019,6 @@
           "title": "Duration Min",
           "type": "integer"
         },
-        "mood_after": {
-          "anyOf": [
-            {
-              "maximum": 5,
-              "minimum": 1,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Mood After"
-        },
-        "mood_before": {
-          "anyOf": [
-            {
-              "maximum": 5,
-              "minimum": 1,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Mood Before"
-        },
         "note": {
           "maxLength": 120,
           "title": "Note",
@@ -1058,8 +1032,6 @@
       "required": [
         "catalogue_id",
         "duration_min",
-        "mood_before",
-        "mood_after",
         "note",
         "when"
       ],

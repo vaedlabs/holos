@@ -27,8 +27,7 @@ _FIELDS = {
     "workout": ("workout_date",
                 ["exercise_type", "exercises", "duration_minutes", "notes", "warnings"]),
     "meal": ("meal_date", ["meal_type", "foods", "calories", "macros", "notes", "warnings"]),
-    "practice": ("activity_date", ["activity_type", "duration_minutes", "mood_before",
-                                   "mood_after", "notes", "warnings"]),
+    "practice": ("activity_date", ["activity_type", "duration_minutes", "notes", "warnings"]),
 }
 
 

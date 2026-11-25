@@ -184,7 +184,12 @@ async def confirm_write(
 
     async def commit(session, payload: dict) -> dict:
         write = confirmed(payload)
-        at = body.at or write.at or payload["staged_at"]
+        if body.replace and write.time_guessed:
+            # Only guessed, and the repeat card has no time to pick: the earlier entry's
+            # time stands (D064: a correction moved breakfast from 9:34 to 8:00, Part E #73)
+            at = write.repeat_of.at
+        else:
+            at = body.at or write.at or payload["staged_at"]
         write = write.model_copy(update={"at": at, "time_guessed": False})
         if body.replace:  # gone already (deleted on the logs screen): logged all the same
             await delete_log(session, user_id, write.kind, int(write.repeat_of.log_id))

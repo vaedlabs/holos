@@ -398,8 +398,7 @@ async def test_a_tool_round_and_the_reply_take_one_call_each():
      {"meal": "lunch", "foods": [_logged(_food("Dal and rice", ["lentils", "rice"]))]},
      _nutrition(kind="log_ack", summary="Lunch noted.")),
     (MentalAgent, "log_practice",
-     {"catalogue_id": "box_breathing", "duration_min": 5, "mood_before": 2, "mood_after": 4,
-      "note": ""},
+     {"catalogue_id": "box_breathing", "duration_min": 5, "note": ""},
      MentalReply(kind="log_ack", summary="Well done.", items=[], notes=[], source_ids=[],
                  follow_up=None, risk_flag=False)),
 ])

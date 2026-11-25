@@ -14,8 +14,10 @@ import the app's schemas. A reply is told from a write by its `summary` field.
 2. Prose: each sentence that recommends a blocked item is removed. Negated
    mentions ("avoid squats") don't count. Self-harm phrases are removed too.
 3. Links and "logged"/"saved" claims are removed from all prose. While an entry waits
-   for the person's confirmation, so are claims it couldn't be saved; when the turn's
-   entries were all logged, so is sending the person to a confirm card (Part E #52).
+   for the person's confirmation, so are claims it couldn't be saved, and while a repeat
+   waits, claims it isn't one (Part E #73); when the turn's entries were all logged, so is
+   sending the person to a confirm card (Part E #52), and when no card waits, any pointer
+   to one (Part E #73).
 
 Items are judged, not removed: BaseAgent retries first, then drops blocked items
 (Plan C.10). Every decision carries a rule ID and the rules version.
@@ -119,6 +121,39 @@ REFUSAL_CLAIM = re.compile(
 CARD_CLAIM = re.compile(
     r"^(?=.*(?:\bconfirm|कन्फर्म|पुष्टि))"
     r"(?=.*(?:\bcards?\b|\ba?wait|\bbelow\b|\bneeche\b|कार्ड|इंतज़ार|इंतजार|नीचे))")
+# A card's buttons or the card itself, pointed to: false when no card waits this turn
+# (Part E #73). Live, 25 Nov 2026 (D064): "Use Replace on the card below" with no card.
+# "Replace" counts only as a button ("tap Replace") or with the entry it replaces: a
+# nutrition coach replaces white rice with millet
+CARD_POINTER = re.compile(
+    r"\b(?:cards?|button)\b(?=.*\b(?:below|neeche)\b)|\b(?:below|neeche)\b(?=.*\bcards?\b)"
+    r"|\b(?:on|in|from|via|use|using|tap|press|click|check|see|open) (?:the|this|that|your) "
+    r"(?:\w+ )?cards?\b"
+    r"|\b(?:tap|press|click|hit|use|choose|select|pick) (?:on )?(?:the )?[\"']?"
+    r"(?:replace|log again|don't log|do not log|confirm)\b"
+    r"|\b(?:replace|log again|don't log|confirm)[\"']? (?:button|option)\b"
+    r"|\breplace (?:the |your )?(?:(?:earlier|previous|existing) (?:entry|one|log)"
+    r"|(?:old|older|first) (?:entry|log))\b"
+    r"|\bcard (?:par|pe|mein|me)\b|\b(?:replace|confirm) (?:dabao|dabaiye|dabayein|daba do)\b"
+    r"|(?<!\w)(?:कार्ड|रिप्लेस (?:दबा|पर))")
+# A card from an earlier message may still wait, and the gate knows only this turn's
+# (owner, 25 Nov 2026, Part E #73): a pointer back is kept
+CARD_BEHIND = re.compile(
+    r"\b(?:above|upar|ooper)\b|\b(?:earlier|previous|last|older) cards?\b"
+    r"|\bcards? (?:\w+ ){0,3}from (?:earlier|before|your last|the last|the previous)\b"
+    r"|(?<!\w)(?:ऊपर|पिछल)")
+# "There's no duplicate", "it wasn't added": false while a repeat waits on its card
+# (Part E #73). Live, 25 Nov 2026 (D064): "It matches the earlier snack entry, so there's
+# no duplicate" over a Possible repeat card
+REPEAT_DENIAL = re.compile(
+    r"\b(?:no|not a|not an|isn't a|is not a) (?:\w+ )?(?:duplicate|repeat|double)\b"
+    r"|\bnothing (?:was |has been |got )?(?:added|logged|saved|recorded|duplicated)\b"
+    r"|\b(?:wasn't|was not|isn't|is not|hasn't been|has not been|weren't|were not"
+    r"|haven't been|have not been|didn't get|did not get) (?:\w+ )?"
+    r"(?:added|logged|saved|recorded|duplicated)\b"
+    r"|\b(?:duplicate|double) (?:nahi|nahin|nhi)\b"
+    r"|\b(?:dobara|phir se) (?:\w+ )?(?:add|log) (?:nahi|nahin|nhi)\b"
+    r"|(?<!\w)(?:डुप्लिकेट नहीं|दोबारा (?:\S+ )?नहीं)")
 # A logged entry or a photo's own food may be named: it is what the person had (Part E
 # #31, #45). A sentence that also looks ahead recommends it, so it is checked like any
 # other (Part E #62: "Keep doing back squats" passed for a knee injury). Measured on 16
@@ -158,7 +193,9 @@ class _Check:
         rules = guardrails.rules
         self.purpose = purpose
         self.held = False  # an entry this turn waits for confirmation
+        self.repeat = False  # one of them waits on the repeat card
         self.logged = False  # the turn logged entries, and none of them waits
+        self.no_card = False  # no card waits this turn: a pointer to one is false
         self.after_save = False  # written after the save: "logged" is true
         # What the mention reader found each sentence recommends (Part E #59): read_key
         # of the sentence -> catalogue IDs and ingredient names
@@ -337,9 +374,12 @@ class _Check:
 
     def _sentence_ok(self, sentence: str, where: str) -> bool:
         folded = fold_for_matching(sentence)
+        to_card = ((self.logged and CARD_CLAIM.search(folded))
+                   or (self.no_card and CARD_POINTER.search(folded)))
         if ((WRITE_CLAIM.search(folded) and not self.after_save)
                 or (self.held and REFUSAL_CLAIM.search(folded))
-                or (self.logged and CARD_CLAIM.search(folded))):
+                or (self.repeat and REPEAT_DENIAL.search(folded))
+                or (to_card and not CARD_BEHIND.search(folded))):
             self.scrubbed.append(Scrub("write_claim", where, sentence.strip()[:200]))
             return False
         ok = True
@@ -467,6 +507,7 @@ def gate(
     held: bool = False,
     read: Mapping[str, Sequence[str]] | None = None,
     had: Sequence[Mapping[str, Any]] = (),
+    repeat: bool = False,
 ) -> GateResult:
     """Check an agent reply or a write (log_workout, log_meal, log_practice arguments).
     purpose="photo": a nutrition reply about a meal photo (C.14 step 7).
@@ -474,7 +515,9 @@ def gate(
     foods, they are what the person already had, so a sentence naming them stays: live,
     a vegan's paneer log lost its whole acknowledgement (Part E #45). A sentence that
     looks ahead ("keep doing them") is checked as usual (Part E #62).
-    held: one of them waits for the person's confirmation (Part E #52).
+    held: one of them waits for the person's confirmation (Part E #52); not held, no card
+    waits, so a pointer to one goes (Part E #73).
+    repeat: one of them waits on the repeat card: "no duplicate" goes (Part E #73).
     read: what the mention reader found each sentence recommends (read_key -> items).
     had: entries the coach read from the person's logs, named like `logged` ones (Part E
     #65: "how's my week" lost every sentence naming a logged leg press)."""
@@ -484,6 +527,7 @@ def gate(
         raise ValueError("photo mode is for nutrition replies")
     check = _new_check(guardrails, profile, purpose)
     check.held, check.logged = held, bool(logged) and not held
+    check.repeat, check.no_card = held and repeat, not held
     check.read = read or {}
     content = copy.deepcopy(dict(reply_or_write))
 
@@ -521,6 +565,6 @@ def gate_text(
     still awaiting confirmation" over a saved jog)."""
     check = _new_check(guardrails, profile)
     check.after_save = after_save
-    check.held = check.logged = closing
+    check.held = check.logged = check.no_card = check.repeat = closing
     check.read = read or {}
     return check.result(check.prose(text, "summary"), [])

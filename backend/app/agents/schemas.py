@@ -410,8 +410,6 @@ class LogMealArgs(_LogArgs):
 class LogPracticeArgs(_LogArgs):
     catalogue_id: PracticeId
     duration_min: int = Field(ge=1, le=60)
-    mood_before: int | None = Field(ge=1, le=5)
-    mood_after: int | None = Field(ge=1, le=5)
     note: str = Field(max_length=120)
     when: When = WHEN
 

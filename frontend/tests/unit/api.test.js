@@ -5,8 +5,8 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { ApiError, currentSession, forgetSession, rememberSession, request, signIn, startGuest }
-  from '@/lib/api'
+import { ApiError, currentSession, forgetSession, formErrors, rememberSession, request, signIn,
+  startGuest } from '@/lib/api'
 
 import { fakeFetch, json } from './fake_server'
 
@@ -50,6 +50,21 @@ describe('request', () => {
     const details = [{ loc: ['body', 'age'], msg: 'too young' }]
     const { fetchImpl } = fakeFetch([json(422, { code: 'bad_request', message: 'Check the form.', details })])
     expect(await request('/x', { fetchImpl }).catch((e) => e.details)).toEqual(details)
+  })
+
+  it('a field error names the field: a form shows it under that field (Part E #73)', async () => {
+    const fields = { email: 'not a valid address', token: 'at least 16 characters' }
+    const { fetchImpl } = fakeFetch([json(422, { code: 'bad_request',
+                                                  message: "Some of what was sent isn't valid.", fields })])
+    const error = await request('/x', { fetchImpl }).catch((e) => e)
+    expect(error.fields).toEqual(fields)
+    expect(formErrors(error, ['email', 'password']))
+      .toEqual({ fields: { email: 'Not a valid address' }, message: '' })
+    // None of the form's own fields: the message stands
+    expect(formErrors(error, ['password']))
+      .toEqual({ fields: {}, message: "Some of what was sent isn't valid." })
+    expect(formErrors(new ApiError(409, 'taken', 'That email is taken.'), ['email']))
+      .toEqual({ fields: {}, message: 'That email is taken.' })
   })
 
   it('no network is a message, not a crash', async () => {

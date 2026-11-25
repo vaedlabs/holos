@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 
 from app.middleware.error_handler import register_error_handlers
+from app.routers.auth import AcceptInviteRequest
 from app.schemas.preferences import UserPreferencesCreate
 
 pytestmark = pytest.mark.unit
@@ -25,6 +26,10 @@ def client():
     async def prefs(body: UserPreferencesCreate):
         return {"gender": body.gender}
 
+    @app.post("/accept")
+    async def accept(body: AcceptInviteRequest):
+        return {}
+
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -42,7 +47,29 @@ def test_custom_validator_error_is_a_readable_422_with_cors(client):
     body = resp.json()
     assert body["code"] == "bad_request" and body["message"]  # one error body (Part E #57)
     assert "Gender must be one of" in body["details"][0]["msg"]  # the field the form shows
-    assert set(body) == {"code", "message", "details"}
+    assert set(body) == {"code", "message", "details", "fields"}
+    assert body["fields"] == {}  # a reason the forms don't meet: the message stands
+
+
+TOKEN = "t" * 32
+
+
+@pytest.mark.parametrize("body, fields", [
+    # D064: "Some of what was sent isn't valid" named no field (Part E #73)
+    ({"token": TOKEN, "email": "me@home.test", "password": "pw", "consent": True},
+     {"email": "not a valid address"}),
+    ({"token": TOKEN, "email": "nope", "password": "", "consent": True},
+     {"email": "not a valid address", "password": "required"}),
+    ({"token": TOKEN, "email": "a@example.com", "password": "p" * 201, "consent": True},
+     {"password": "at most 200 characters"}),
+    ({"token": "short", "consent": True},
+     {"token": "at least 16 characters", "email": "required", "password": "required"}),
+], ids=["special-use", "bad-and-empty", "too-long", "missing"])
+def test_a_422_names_each_field_and_why(client, body, fields):
+    resp = client.post("/accept", json=body)
+    assert resp.status_code == 422
+    assert resp.json()["fields"] == fields
+    assert resp.json()["message"] == "Some of what was sent isn't valid."
 
 
 def test_valid_gender_still_works(client):

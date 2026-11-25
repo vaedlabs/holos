@@ -145,7 +145,7 @@ describe('the chat request', () => {
 describe('held entries (C.17)', () => {
   const held = async (s, ...entries) => {
     const hash = await profileHash(s.profile())
-    s.recordTurn(turnEvents({ held: entries, hash }))
+    return s.recordTurn(turnEvents({ held: entries, hash }))
   }
 
   it('a profile edit drops the entries checked against the old profile', async () => {
@@ -162,8 +162,10 @@ describe('held entries (C.17)', () => {
   it('a newer entry replaces the waiting ones of its kind; one turn waits together',
      async () => {
        const s = store()
-       await held(s, ['workout', BRIDGES], ['meal', POHA])
-       await held(s, ['workout', SQUATS], ['workout', BRIDGES])
+       expect(await held(s, ['workout', BRIDGES], ['meal', POHA])).toEqual([])
+       // The turns whose cards it replaced, for the chat to redraw at once (D064)
+       expect(await held(s, ['workout', SQUATS], ['workout', BRIDGES]))
+         .toEqual([s.data().turns[1].trace_id])
        expect(s.pending().map((p) => [p.kind, p.entry.args.catalogue_id ?? 'poha'])).toEqual(
          [['meal', 'poha'], ['workout', 'back_squat'], ['workout', 'glute_bridge']])
        const first = s.data().turns[1].display
@@ -237,12 +239,12 @@ describe('repeats (Part E #67)', () => {
     fs.readFileSync(path.join(CONTRACTS, 'schema', 'chat_payload.json'), 'utf8')))
 
   /** A turn whose held entry repeats the stored one `logId`. */
-  const repeated = async (s, logId) => {
+  const repeated = async (s, logId, fields = {}, earlier = '2026-11-15T09:00:00Z') => {
     const events = turnEvents({ held: [['workout', BRIDGES]],
                                 hash: await profileHash(s.profile()) })
     const card = events.find((e) => e.name === 'pending_write').data
-    card.repeat_of = { summary: 'Glute bridge', at: '2026-11-15T09:00:00Z', log_id: logId,
-                       this_turn: false }
+    Object.assign(card, fields)
+    card.repeat_of = { summary: 'Glute bridge', at: earlier, log_id: logId, this_turn: false }
     card.entry.repeat_of = card.repeat_of
     s.recordTurn(events)
     return s.pending()[0].id
@@ -277,6 +279,22 @@ describe('repeats (Part E #67)', () => {
     expect(logs[1].id).not.toBe(bridges.id)
     expect(logs[1].entry).not.toHaveProperty('repeat_of')
   })
+
+  it.each([
+    [true, true, '2026-11-15T09:34:00.000Z'], // only guessed: the earlier time stands (D064)
+    [false, true, '2026-11-15T08:00:00.000Z'], // a time the person gave wins
+    [true, false, '2026-11-15T08:00:00.000Z'], // Log again: its own time
+  ])('Replace keeps the earlier time over a guessed one (guessed %s, replace %s)',
+     async (guessed, replace, logged) => {
+       const s = store()
+       s.recordTurn(turnEvents({ committed: [['workout', BRIDGES]] }))
+       const id = await repeated(s, s.data().logs[0].id,
+                                 { at: '2026-11-15T08:00:00Z', time_guessed: guessed },
+                                 '2026-11-15T09:34:00Z')
+       // As the repeat card sends it: the card's own time
+       expect((await s.confirm(id, { at: '2026-11-15T08:00:00Z', replace })).ok).toBe(true)
+       expect(s.data().logs.at(-1).at).toBe(logged)
+     })
 
   it('Log again keeps both; Replace with nothing to replace is refused', async () => {
     const s = store()

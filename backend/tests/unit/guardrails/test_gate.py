@@ -373,8 +373,7 @@ def test_words_like_a_write_claim_are_kept(text):
     ("physical", workout("back_squat"), KNEE, "block", {"EX-KNEE-01"}),
     ("physical", workout("glute_bridge"), KNEE, "allow", set()),
     ("physical", workout("moon_squat"), KNEE, "block", {MALFORMED_RULE}),
-    ("mental", {**practice("box_breathing"), "mood_before": 2, "mood_after": 4}, ASTHMA,
-     "block", {"MN-BREATH-01"}),
+    ("mental", practice("box_breathing"), ASTHMA, "block", {"MN-BREATH-01"}),
     ("nutrition", {"meal": "lunch", "foods": [food("Dal", ["dal", "ghee"])]}, VEGAN,
      "block", {"DI-VEGAN-01"}),
     ("nutrition", {"meal": "lunch", "foods": [food("Dal", ["dal", "rice"])]}, VEGAN,
@@ -592,8 +591,7 @@ SQUATS_LOGGED, JUMPS_LOGGED = _workout("back_squat"), _workout("jump_squat")
 PANEER_LOGGED = [{"meal": "dinner", "foods": [PANEER]}]
 CHIKKI = food("Peanut chikki", ["peanut", "jaggery"], ["peanut"])
 CHIKKI_LOGGED = [{"meal": "snack", "foods": [CHIKKI]}]
-BOX_LOGGED = [{"catalogue_id": "box_breathing", "duration_min": 5, "mood_before": None,
-               "mood_after": None, "note": ""}]
+BOX_LOGGED = [{"catalogue_id": "box_breathing", "duration_min": 5, "note": ""}]
 
 
 @pytest.mark.parametrize(("domain", "profile", "logged", "said"), [
@@ -708,7 +706,79 @@ def test_a_confirm_card_is_only_mentioned_while_an_entry_waits(text):
     assert logged.content["summary"] == "Good game."  # it was logged: there's no card
     assert gate("physical", physical(summary=summary), NONE, logged=walk,
                 held=True).content["summary"] == summary
-    assert gate("physical", physical(summary=summary), NONE).content["summary"] == summary
+
+
+# --- A pointer to a card when none waits; a repeat said not to be one (Part E #73) ---
+
+WALK = [{"catalogue_id": "brisk_walking", "sets": None, "reps": None, "duration_s": 1800,
+         "note": ""}]
+
+
+@pytest.mark.parametrize("text", [
+    # Live, 25 Nov 2026 (D064): nothing was staged, and no card came
+    "Use Replace on the card below.", "Tap Replace to swap it for this one.",
+    "You can confirm it on the card below.", "Just press Log again if you want both.",
+    "You can replace the earlier entry with this one.", "Hit the Replace button.",
+    "Check the card for the details.", "Neeche card par Replace dabao.",
+    "नीचे कार्ड पर रिप्लेस दबाएँ।",
+])
+def test_a_card_pointer_goes_when_no_card_waits(text):
+    summary = f"Good game. {text}"
+    for logged in ((), WALK):  # nothing staged, or all of it saved
+        result = gate("physical", physical(summary=summary), NONE, logged=logged)
+        assert result.content["summary"] == "Good game.", logged
+        assert [s.kind for s in result.scrubbed] == ["write_claim"]
+    # A card waits below this reply: the pointer is true
+    assert gate("physical", physical(summary=summary), NONE, logged=WALK,
+                held=True).content["summary"] == summary
+
+
+@pytest.mark.parametrize("text", [
+    # A card from an earlier message may still wait (owner, 25 Nov 2026, Part E #73)
+    "Your snack is still on the card above.", "Use Replace on the earlier card.",
+    "The card from earlier still waits for you.", "Upar wale card par confirm kar do.",
+    # Not a card at all
+    "Replace white rice with millet for more fibre.", "Try to replace the old one with oats.",
+    "Write three things on a card before bed.", "Keep your heart rate below 140.",
+    "Confirm with your physio before you start.", "Cardio below 30 minutes is fine.",
+])
+def test_what_isnt_a_pointer_to_this_turns_card_stays(text):
+    summary = f"Good game. {text}"
+    assert gate("nutrition", reply(summary=summary), NONE).content["summary"] == summary
+    for logged in ((), WALK):
+        assert gate("physical", physical(summary=summary), NONE,
+                    logged=logged).content["summary"] == summary
+
+
+@pytest.mark.parametrize("claim", [
+    # Live, 25 Nov 2026 (D064), over a Possible repeat card
+    "It matches the earlier snack entry, so there's no duplicate.",
+    "This isn't a duplicate.", "It wasn't added again.", "Nothing was logged twice.",
+    "Your chai hasn't been added.", "It was not saved a second time.",
+    "Duplicate nahi hai.", "Ise dobara log nahi kiya.", "यह डुप्लिकेट नहीं है।",
+])
+def test_a_repeat_is_not_called_no_repeat_while_its_card_waits(claim):
+    summary = f"You had chai at 11:30. {claim} Enjoy your evening."
+    held = gate("nutrition", reply(summary=summary), NONE, held=True, repeat=True)
+    assert held.content["summary"] == "You had chai at 11:30. Enjoy your evening."
+    assert [s.kind for s in held.scrubbed] == ["write_claim"]
+    # No repeat card: the words may be true ("no duplicate" of a plan's day), so they stay
+    if "duplicate" in claim and "nahi" not in claim:
+        assert gate("nutrition", reply(summary=summary), NONE).content["summary"] == summary
+
+
+@pytest.mark.parametrize("text", [
+    "You had chai at 11:30 today.", "It looks like the chai you had at 11:30.",
+    "If the time was wrong, tap Replace on the card below.",
+])
+def test_what_a_repeat_reply_should_say_is_kept(text):
+    assert gate("nutrition", reply(summary=text), NONE, held=True,
+                repeat=True).content["summary"] == text
+
+
+def test_the_closing_summary_points_to_no_card_and_denies_no_repeat():
+    text = "Nice work today. Use Replace on the card below. There's no duplicate. Rest well."
+    assert gate_text(text, NONE, closing=True).content == "Nice work today. Rest well."
 
 
 # --- The mention reader's answer (Part E #59) ---

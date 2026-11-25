@@ -58,7 +58,6 @@ async def insert_log(session: AsyncSession, user_id: int, write: StagedWrite,
     elif isinstance(args, LogPracticeArgs):
         row = await MentalLogRepository(session, user_id).add(
             activity_type=args.catalogue_id, duration_minutes=args.duration_min,
-            mood_before=_mood(args.mood_before), mood_after=_mood(args.mood_after),
             notes=args.note or None, warnings=warnings, **dated)
     else:
         raise TypeError(f"no log table for {write.kind}")
@@ -70,6 +69,3 @@ async def delete_log(session: AsyncSession, user_id: int, kind: WriteKind,
     """False if it was gone already (deleted on the logs screen)."""
     return await _REPOS[kind](session, user_id).delete(log_id)
 
-
-def _mood(value: int | None) -> str | None:
-    return None if value is None else str(value)

@@ -10,7 +10,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.base import NOT_LOGGED
+from app.agents.base import LOG_CLAIM_RETRY, NOT_LOGGED
 from app.agents.schemas import WRITE_ARGS, StagedWrite
 from app.config.limits import GUEST_LOGS_SENT
 from app.data.state_store import StateStore
@@ -102,6 +102,32 @@ async def test_the_same_lunch_twice_waits_with_the_earlier_entry_named(store, as
     assert NOT_LOGGED not in end.get("warnings", [])
 
 
+async def test_the_coach_cant_call_a_repeat_no_duplicate_or_point_to_a_missing_card(
+        store, async_engine, lunchtime):
+    """D064 (Part E #73): "so there's no duplicate" over a Possible repeat card; "Use
+    Replace on the card below" in a turn that logged nothing."""
+    me = await account(store, async_engine)
+    await _logged(async_engine, me.user_id, "meal", LUNCH, lunchtime - timedelta(hours=1))
+    _, _, events = await _turn(
+        store, async_engine, me, "nutrition", [("log_meal", LUNCH)],
+        _lunch("It matches the earlier lunch entry, so there's no duplicate. Dal is a good "
+               "lunch."))
+    assert [n for n in _names(events) if n == "pending_write"] == ["pending_write"]
+    assert "".join(d["chunk"] for n, d in events if n == "text") == "Dal is a good lunch."
+
+    # Nothing staged: removed like a "logged" claim, so the coach is asked once more, told
+    # nothing was saved (Part E #65), and a correction it meant to log isn't missed silently
+    models = Models(router=[_route("nutrition")], nutrition=[
+        _lunch("Dal is a good lunch. Use Replace on the card below."),
+        _lunch("Dal is a good lunch.")])
+    events = _events(await _post(_writes_app(store, async_engine, models), me,
+                                 _payload("was my lunch ok?")))
+    await _settled()
+    assert "pending_write" not in _names(events)
+    assert "".join(d["chunk"] for n, d in events if n == "text") == "Dal is a good lunch."
+    assert LOG_CLAIM_RETRY in models.fakes["nutrition"].calls[1].messages[-1].text
+
+
 async def test_a_lunch_named_as_one_food_repeats_the_same_lunch_as_three(
         store, async_engine, lunchtime):
     """Live (Part E #67): the same message sent twice; the coach split the lunch into
@@ -167,8 +193,7 @@ async def test_someone_elses_entry_is_never_a_repeat(store, async_engine, luncht
 
 async def test_a_practice_repeats_too(store, async_engine, lunchtime):
     me = await account(store, async_engine)
-    meditation = {"catalogue_id": "box_breathing", "duration_min": 10, "mood_before": None,
-                  "mood_after": None, "note": ""}
+    meditation = {"catalogue_id": "box_breathing", "duration_min": 10, "note": ""}
     await _logged(async_engine, me.user_id, "practice", meditation, lunchtime - timedelta(hours=1))
     _, _, events = await _turn(store, async_engine, me, "mental",
                                [("log_practice", meditation)], _mental(),
@@ -240,6 +265,31 @@ async def test_replace_deletes_the_earlier_entry_as_it_logs_this_one(store, asyn
     [(new_id,)] = await sql(async_engine, "SELECT id FROM workout_logs")
     assert new_id != old_id
     assert response.json()["writes"][0]["write_id"] == str(new_id)
+
+
+@pytest.mark.parametrize("given, kept", [
+    (None, True),  # no time given: 1 pm was only guessed, so the earlier 12:34 stands
+    (("12:50", "pm"), False),  # a time the person gave wins
+], ids=["guessed", "given"])
+async def test_replace_keeps_the_earlier_time_over_a_guessed_one(store, async_engine,
+                                                                 lunchtime, given, kept):
+    """D064: a correction moved breakfast from 9:34 to 8:00, the slot's usual time; the
+    card has no time to pick, so it sends the guessed one (Part E #73)."""
+    me = await account(store, async_engine)
+    day = lunchtime - timedelta(days=1)
+    earlier = day.replace(hour=12, minute=34)
+    await _logged(async_engine, me.user_id, "meal", LUNCH, earlier)
+    when = {"day": "yesterday", "time": given and given[0], "ampm": given and given[1],
+            "part": None}
+    app, _, events = await _turn(store, async_engine, me, "nutrition",
+                                 [("log_meal", {**LUNCH, "when": when})], _lunch())
+    [card] = _pending(events)
+    assert card["time_guessed"] is kept
+    # As the repeat card sends it: the card's own time
+    response = await _confirm(app, me, card["write_id"], {"replace": True, "at": card["at"]})
+    assert response.status_code == 200
+    expected = earlier if kept else day.replace(hour=12, minute=50)
+    assert await sql(async_engine, "SELECT meal_date FROM nutrition_logs") == [(expected,)]
 
 
 async def test_replace_after_the_earlier_entry_was_deleted_still_logs(store, async_engine,

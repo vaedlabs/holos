@@ -3,7 +3,7 @@
  *
  *   const store = guestStore()                       // localStorage
  *   const input = store.chatInput(message)           // message + profile + last 6 turns
- *   store.recordTurn(events)                         // after `done`: history, cards, logs
+ *   const replaced = store.recordTurn(events)        // after `done`: history, cards, logs
  *   await store.confirm(id, { at, meal, leftOut })   // a held entry, dated as confirmed
  *   store.discard(id)                                // "Don't log"
  *   await store.clearMyData()                        // nothing left; the session ends
@@ -140,10 +140,14 @@ export function guestStore(storage = globalThis.localStorage,
                ...extra }
     },
 
-    /** A finished turn (`done`): the signed exchange, what was shown, logs and held entries. */
+    /**
+     * A finished turn (`done`): the signed exchange, what was shown, logs and held entries.
+     * Returns the trace IDs of earlier turns whose cards a newer entry replaced, so the chat
+     * can redraw them at once (D064).
+     */
     recordTurn(events) {
       const done = events.find((e) => e.name === 'done')
-      if (!done?.data.turn || !done.data.said) return
+      if (!done?.data.turn || !done.data.said) return []
       const data = read()
       const traceId = done.data.trace_id
       const display = events.filter((e) => SHOWN.has(e.name)).map(({ name, data: d }) => {
@@ -164,12 +168,12 @@ export function guestStore(storage = globalThis.localStorage,
         ? [{ id: `${traceId}:${card}`, turn: traceId, card, kind: e.data.entry.kind, ...e.data }]
         : []))
       const kinds = new Set(held.map((h) => h.kind))
-      for (const old of data.pending.filter((p) => kinds.has(p.kind))) {
-        setCard(data, old, 'replaced')
-      }
+      const replaced = data.pending.filter((p) => kinds.has(p.kind))
+      for (const old of replaced) setCard(data, old, 'replaced')
       data.pending = [...data.pending.filter((p) => !kinds.has(p.kind)), ...held]
       if (done.data.trace) data.traces = [...data.traces, done.data.trace].slice(-LIMITS.traces)
       write(data)
+      return [...new Set(replaced.map((p) => p.turn))]
     },
 
     pending: () => read().pending,
@@ -192,7 +196,10 @@ export function guestStore(storage = globalThis.localStorage,
       if (!leftOut.every((a) => entry.attributes.includes(a))) {
         return { ok: false, code: 'bad_request', message: MESSAGES.bad_left_out }
       }
-      const when = new Date(at ?? entry.at)
+      // Only guessed, and the repeat card has no time to pick: Replace keeps the earlier
+      // entry's time (D064: a correction moved breakfast from 9:34 to 8:00, Part E #73)
+      const kept = replace && entry.time_guessed ? entry.entry.repeat_of?.at : undefined
+      const when = new Date(kept ?? at ?? entry.at)
       const nowMs = now().getTime()
       if (Number.isNaN(when.getTime()) || when.getTime() > nowMs + LIMITS.minutesAhead * 60_000
           || when.getTime() < nowMs - LIMITS.daysBack * 86_400_000) {

@@ -104,6 +104,15 @@ describe('cards', () => {
     expect(screen.getByText('A newer entry replaced this one.')).toBeTruthy()
   })
 
+  it('a card the store settled elsewhere shows it at once (D064)', () => {
+    // A guest's newer entry replaced it: the chat redraws the answer with the stored state
+    const { rerender } = draw([held()])
+    rerender(<Answer view={turnView([held({ state: 'replaced' })])} onConfirm={vi.fn()}
+                     onDiscard={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull()
+    expect(screen.getByText('A newer entry replaced this one.')).toBeTruthy()
+  })
+
   it('Confirm sends the date, the meal and what was left out', async () => {
     const onConfirm = vi.fn().mockResolvedValue({ state: 'logged', message: 'Logged: Lunch: Poha' })
     draw([held()], { onConfirm })
@@ -187,6 +196,14 @@ describe('the repeat card (Part E #67)', () => {
                                    this_turn: true } })])
     expect(screen.queryByRole('button', { name: /Replace/ })).toBeNull()
     expect(lead('Log again')).toBe('default')
+  })
+
+  it('a repeat card the store settled elsewhere shows it at once (D064)', () => {
+    const { rerender } = draw([repeat(1)])
+    rerender(<Answer view={turnView([repeat(1, { state: 'replaced' })])} onConfirm={vi.fn()}
+                     onDiscard={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Log again' })).toBeNull()
+    expect(screen.getByText('A newer entry replaced this one.')).toBeTruthy()
   })
 
   it("Don't log drops them all", async () => {

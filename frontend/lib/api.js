@@ -32,13 +32,27 @@ const FALLBACK = {
 }
 
 export class ApiError extends Error {
-  constructor(status, code, message, retryAfter = null, details = null) {
+  constructor(status, code, message, retryAfter = null, details = null, fields = null) {
     super(message)
     this.status = status
     this.code = code
     this.retryAfter = retryAfter
     this.details = details
+    this.fields = fields // a 422's reason for each body field it can name ("not a valid address")
   }
+}
+
+/**
+ * A 422's reasons for a form's own fields, to show under each ("Not a valid address" under
+ * Email); the message only when none of them is named (Part E #73).
+ */
+export function formErrors(err, names) {
+  const fields = {}
+  for (const name of names) {
+    const reason = err?.fields?.[name]
+    if (typeof reason === 'string' && reason) fields[name] = reason[0].toUpperCase() + reason.slice(1)
+  }
+  return { fields, message: Object.keys(fields).length > 0 ? '' : err?.message || '' }
 }
 
 let csrf = null
@@ -66,7 +80,7 @@ export async function errorOf(response) {
     ? body.message
     : FALLBACK[response.status] || FALLBACK[response.status >= 500 ? 500 : 403]
   return new ApiError(response.status, body?.code || `http_${response.status}`, message,
-                      retryAfter, body?.details ?? null)
+                      retryAfter, body?.details ?? null, body?.fields ?? null)
 }
 
 export async function csrfToken(fetchImpl = fetch) {

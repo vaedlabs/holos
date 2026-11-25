@@ -183,17 +183,9 @@ class MentalFitnessLogResponse(BaseModel):
         activity_date: Date and time when activity was performed
         activity_type: Type of mental wellness activity (optional)
         duration_minutes: Duration of activity in minutes (optional)
-        mood_before: User's mood before the activity (optional)
-        mood_after: User's mood after the activity (optional)
         notes: Additional notes about the activity (optional)
         created_at: Timestamp when log entry was created
         updated_at: Timestamp when log entry was last updated (optional)
-        
-    Mood Tracking:
-        Mood fields can contain:
-        - Numeric scale: "1" to "10" (1 = very low, 10 = very high)
-        - Descriptive text: "anxious", "calm", "energized", "relaxed"
-        - Combination: "7 - calm and focused"
         
     Config:
         from_attributes = True: Allows creating schema from SQLAlchemy model
@@ -210,8 +202,6 @@ class MentalFitnessLogResponse(BaseModel):
     activity_date: datetime
     activity_type: str | None
     duration_minutes: float | None
-    mood_before: str | None
-    mood_after: str | None
     notes: str | None
     created_at: datetime
     updated_at: datetime | None

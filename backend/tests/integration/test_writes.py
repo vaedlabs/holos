@@ -812,8 +812,7 @@ PEANUT = {**KNEE, "condition_ids": [], "allergen_tags": ["peanut"]}
                                    "allergen_tags": ["milk"], "diet_tags": []}]},
      "Paneer tikka: contains an animal product", ["animal_product"]),
     ({**KNEE, "condition_ids": ["asthma"]}, "log_practice",
-     {"catalogue_id": "box_breathing", "duration_min": 5, "mood_before": None,
-      "mood_after": None, "note": ""},
+     {"catalogue_id": "box_breathing", "duration_min": 5, "note": ""},
      "Box breathing: breath-holding with a heart condition or asthma", []),
 ])
 async def test_each_kind_of_conflict_is_held_with_its_warning(store, async_engine, profile,
@@ -887,15 +886,13 @@ async def test_a_clean_log_has_no_warnings_in_its_row(store, async_engine):
     assert await sql(async_engine, "SELECT warnings FROM nutrition_logs") == [(None,)]
 
 
-@pytest.mark.parametrize(("moods", "note", "row"), [
-    ((2, 4), "before bed", ("2", "4", "before bed")),
-    ((None, None), "", (None, None, None)),  # not said: nothing made up
+@pytest.mark.parametrize(("note", "row"), [
+    ("before bed", "before bed"),
+    ("", None),  # not said: nothing made up
 ])
-async def test_a_logged_practice_keeps_its_moods_and_note(store, async_engine, moods, note,
-                                                          row):
+async def test_a_logged_practice_keeps_its_note(store, async_engine, note, row):
     me = await account(store, async_engine)
-    practice = {"catalogue_id": "body_scan", "duration_min": 10, "mood_before": moods[0],
-                "mood_after": moods[1], "note": note}
+    practice = {"catalogue_id": "body_scan", "duration_min": 10, "note": note}
     models = Models(router=[_route("mental")], mental=[
         _calls(("log_practice", practice)),
         _result(MentalReply(kind="log_ack", summary="Well done.", items=[], notes=[],
@@ -904,9 +901,8 @@ async def test_a_logged_practice_keeps_its_moods_and_note(store, async_engine, m
                                  _payload("did a 10 minute body scan")))
     await _settled()
     assert "committed" in _names(events)
-    assert await sql(async_engine, "SELECT activity_type, duration_minutes, mood_before, "
-                     "mood_after, notes, warnings FROM mental_fitness_logs") == [
-        ("body_scan", 10.0, *row, None)]
+    assert await sql(async_engine, "SELECT activity_type, duration_minutes, notes, warnings "
+                     "FROM mental_fitness_logs") == [("body_scan", 10.0, row, None)]
 
 
 async def test_unchecked_ingredients_are_recorded_but_ask_nothing(store, async_engine):

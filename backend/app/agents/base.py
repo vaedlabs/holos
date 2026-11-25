@@ -30,7 +30,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, Protocol
+from typing import Any, ClassVar, Protocol
 
 from pydantic import BaseModel
 
@@ -275,12 +275,9 @@ class BaseAgent:
 
     def _gate(self, reply: BaseModel, run: AgentRun, photo: bool,
               messages: list[Message], read: ReadResult = None) -> _Try:
-        staged = run.tools.staged_writes
-        logged = [w.args.model_dump(mode="json") for w in staged]
-        held = bool(staged) and (run.tools.untrusted or any(w.waits for w in staged))
         gated = gate(self.domain, reply.model_dump(mode="json"), run.profile or _NO_PROFILE,
-                     purpose="photo" if photo else "plan", logged=logged, held=held,
-                     read=read, had=run.tools.read_logs)
+                     purpose="photo" if photo else "plan", read=read,
+                     had=run.tools.read_logs, **_staged(run))
         run.trace.step("gate", self.domain, gated.action)
         run.decided += decisions_of(gated)
         because, why = None, ""
@@ -364,8 +361,9 @@ class BaseAgent:
         if reply is not None:
             content = {**reply.model_dump(mode="json"), "kind": "answer", "items": [],
                        "source_ids": []}
+            # The turn's cards still wait below this reply: pointing to one is true
             told = gate(self.domain, content, run.profile or _NO_PROFILE,
-                        read=await _read(run, reply))
+                        read=await _read(run, reply), **_staged(run))
             run.decided += decisions_of(told)
             if told.content.get("summary"):
                 run.trace.step("explain", self.domain, began_ms=began)
@@ -439,6 +437,17 @@ class BaseAgent:
 
 
 _NO_PROFILE = UserProfile(condition_ids=[], allergen_tags=[], diet_tags=[], notes="")
+
+
+def _staged(run: AgentRun) -> dict[str, Any]:
+    """What the gate needs of the turn's entries: what was logged, whether a card waits
+    (Part E #52), and whether it is the repeat card (Part E #73)."""
+    staged = run.tools.staged_writes
+    return {"logged": [w.args.model_dump(mode="json") for w in staged],
+            "held": bool(staged) and (run.tools.untrusted or any(w.waits for w in staged)),
+            "repeat": any(w.repeat_of is not None for w in staged)}
+
+
 def _profile_text(profile: UserProfile | None) -> str:
     """The checked fields only, from fixed lists; the person's free notes go in their
     own turn (C.9)."""
