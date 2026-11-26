@@ -6,6 +6,7 @@ import { flushSync } from 'react-dom'
 import Link from 'next/link'
 import { CircleAlert, List, MessageCircle, RotateCcw } from 'lucide-react'
 
+import AppHeader from '@/components/AppHeader'
 import AuthImage from '@/components/AuthImage'
 import DemoNotice from '@/components/DemoNotice'
 import HeaderMenu from '@/components/HeaderMenu'
@@ -252,19 +253,14 @@ function Chat({ guest }) {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-(--z-header) border-b bg-card/90 backdrop-blur supports-backdrop-filter:bg-card/75">
-        <div className="mx-auto flex h-(--header-height) max-w-chat items-center justify-between px-4">
-          <Link href="/dashboard" className="font-heading text-xl font-bold tracking-tight text-foreground no-underline">Holos</Link>
-          <nav className="flex items-center gap-1" aria-label="Main">
-            {/* A guest has it too: their drawer says the logs come with signing in (owner, 24 Nov 2026) */}
-            <LogsPanel guest={guest}>
-              <Button type="button" variant="ghost"><List /> Logs</Button>
-            </LogsPanel>
-            <HelpNow />
-            <HeaderMenu guest={guest} />
-          </nav>
-        </div>
-      </header>
+      <AppHeader>
+        {/* A guest has it too: their drawer says the logs come with signing in (owner, 24 Nov 2026) */}
+        <LogsPanel guest={guest}>
+          <Button type="button" variant="ghost"><List /> Logs</Button>
+        </LogsPanel>
+        <HelpNow />
+        <HeaderMenu guest={guest} />
+      </AppHeader>
 
       <main ref={thread} className="mx-auto flex w-full max-w-chat flex-1 flex-col gap-6 px-4 pt-6 pb-4" aria-live="polite">
         {before && (

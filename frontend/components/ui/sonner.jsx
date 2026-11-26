@@ -10,6 +10,9 @@ const Toaster = ({
     <Sonner
       // Follows the device setting like the rest of the theme; no next-themes until a toggle exists (E072)
       theme="system"
+      // On a phone, above the chat's prompt bar rather than over it: a toast that stays until closed
+      // (the AI notice) must not hide the send button (owner, 27 Nov 2026)
+      mobileOffset={{ bottom: "9.5rem" }}
       className="toaster group"
       icons={{
         success: (
