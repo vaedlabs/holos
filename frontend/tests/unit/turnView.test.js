@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { byDay, safeLink, stepStatus, turnView } from '@/lib/turnView'
+import { byDay, heldKinds, replaceWaiting, safeLink, settleCard, stepStatus, turnView } from '@/lib/turnView'
 
 const STREAMS = path.resolve(__dirname, '../../../contracts/streams')
 const SHOWN = new Set(['section_start', 'text', 'item', 'sources', 'section_end',
@@ -92,6 +92,34 @@ describe('repeats (Part E #67)', () => {
     expect(view.repeats.map((c) => [c.summary, c.index, c.state]))
       .toEqual([['Lunch', 1, 'waiting'], ['Run', 2, 'logged']])
     expect(view.sections.flatMap((s) => s.cards).map((c) => c.summary)).toEqual(['Snack'])
+  })
+})
+
+describe('a card settled after it was drawn (D067 follow-up)', () => {
+  const live = (name, data) => ({ name, data: { seq: 0, trace_id: 't', ...data } })
+  const held = (kind, extra = {}) => live('pending_write', { kind, summary: kind, at: 'x', ...extra })
+  const states = (events) => turnView(events).sections.flatMap((s) => s.cards).map((c) => c.state)
+
+  it('a decision lands on its card, by its place among what was shown', () => {
+    const events = [live('step', { name: 'routed' }), live('section_start', { agent: 'nutrition' }),
+                    held('meal'), held('workout')]
+    const view = turnView(events)
+    const workout = view.sections.flatMap((s) => s.cards).find((c) => c.summary === 'workout')
+    expect(states(settleCard(events, workout.index, 'logged'))).toEqual(['waiting', 'logged'])
+    // A saved answer, {event, data}, the same way
+    const saved = events.slice(1).map(({ name, data }) => ({ event: name, data }))
+    expect(states(settleCard(saved, workout.index, 'discarded'))).toEqual(['waiting', 'discarded'])
+  })
+
+  it("a newer entry replaces an earlier answer's waiting cards of its kind, and only those", () => {
+    const earlier = [held('meal'), held('meal', { state: 'logged' }), held('workout')]
+    expect(heldKinds([held('meal'), live('text', { chunk: 'x' })])).toEqual(new Set(['meal']))
+    expect(states(replaceWaiting(earlier, new Set(['meal'])))).toEqual(['replaced', 'logged', 'waiting'])
+    // A guest's card names its kind only in its entry
+    const guest = [held(undefined, { entry: { kind: 'meal', args: {} } })]
+    expect(states(replaceWaiting(guest, new Set(['meal'])))).toEqual(['replaced'])
+    const none = [held('workout')]
+    expect(replaceWaiting(none, new Set(['meal']))).toBe(none) // nothing to redraw
   })
 })
 

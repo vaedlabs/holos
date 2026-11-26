@@ -78,16 +78,13 @@ export default function Answer({ view, live = false, onRetry, onConfirm, onDisca
             </div>
           )}
           {s.warnings.map((w, i) => <Caution key={i}>{w}</Caution>)}
-          {/* Keyed by state: a card the store settled elsewhere (a newer entry replaced it) shows that
-              at once, not the state it was first drawn with (D064) */}
           {s.cards.map((c, i) => (
-            <Card key={`${i}-${c.state}`} card={c} onConfirm={onConfirm} onDiscard={onDiscard} />
+            <Card key={i} card={c} onConfirm={onConfirm} onDiscard={onDiscard} />
           ))}
         </section>
       ))}
       {view.repeats.length > 0 && (
-        <RepeatCard key={view.repeats.map((c) => c.state).join()} cards={view.repeats}
-                    onConfirm={onConfirm} onDiscard={onDiscard} />
+        <RepeatCard cards={view.repeats} onConfirm={onConfirm} onDiscard={onDiscard} />
       )}
       {view.summary.map((t, i) => (
         <StreamingBlock key={`sum-${i}`} live={moving}>

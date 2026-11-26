@@ -18,7 +18,7 @@ import { api } from '@/lib/api'
 import { guestStore } from '@/lib/guestStore'
 import { shrinkPhoto } from '@/lib/image'
 import { NOT_ATTACHED, retryId, sendChat } from '@/lib/stream'
-import { COACHES, stepStatus } from '@/lib/turnView'
+import { COACHES, heldKinds, replaceWaiting, settleCard, stepStatus } from '@/lib/turnView'
 
 /**
  * The chat (Plan C.5, P5.3). Guests keep their history in this browser (P5.2); an
@@ -101,6 +101,11 @@ function Chat({ guest }) {
     setBefore(page.before)
   }, [before])
 
+  // A card the person decided: its answer's events say so, so a newer entry replaces only
+  // the cards still waiting (D067 follow-up)
+  const settle = useCallback((key, index, state) => setEntries((prev) => prev.map((e) => (
+    e.key === key && e.events ? { ...e, events: settleCard(e.events, index, state) } : e))), [])
+
   // `again`: Retry after an interrupted answer, into the same place; with its request ID,
   // the server's answer if it has one, so nothing is answered or logged twice (#67)
   const send = useCallback(async function run({ message, image, agents }, again = null) {
@@ -131,13 +136,19 @@ function Chat({ guest }) {
     setStatus('')
     setSending(false)
     if (result.outcome === 'done') {
-      // A guest's earlier cards that this answer's entries replaced redraw from the store at
-      // once, not after a reload (D064)
+      // Earlier cards this answer's entries replaced say so at once, not after a reload: a guest's
+      // redraw from the store (D064); an account's waiting ones of the same kind are marked as the
+      // server marks them (D067)
       const replaced = guest ? store.recordTurn(events) : []
       const shown = new Map(guest ? store.data().turns.map((t) => [t.trace_id, t.display]) : [])
+      const kinds = guest ? new Set() : heldKinds(events)
       setEntries((prev) => prev.map((e) => {
         if (e.key === key) return { ...e, live: false }
         if (replaced.includes(e.traceId) && shown.get(e.traceId)) return { ...e, events: shown.get(e.traceId) }
+        if (kinds.size > 0 && e.role === 'assistant' && e.events) {
+          const events = replaceWaiting(e.events, kinds)
+          return events === e.events ? e : { ...e, events }
+        }
         return e
       }))
       return
@@ -258,7 +269,7 @@ function Chat({ guest }) {
             <p className="m-0 whitespace-pre-wrap">{e.text}</p>
           </div>
         ) : (
-          <AnswerEntry key={e.key} entry={e} guest={guest} store={store} status={status}
+          <AnswerEntry key={e.key} entry={e} guest={guest} store={store} status={status} onSettled={settle}
                        onRetry={e.saved || e.live ? null
                          : (agent) => send({ ...e.asked, agents: [agent] })} />
         )))}

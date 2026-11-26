@@ -1,0 +1,248 @@
+{
+  "$defs": {
+    "LoggedFoodView": {
+      "properties": {
+        "calories": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Calories"
+        },
+        "carbs_g": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Carbs G"
+        },
+        "fat_g": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fat G"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "portion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Portion"
+        },
+        "protein_g": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Protein G"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "LoggedFoodView",
+      "type": "object"
+    },
+    "MacrosView": {
+      "properties": {
+        "carbs_g": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Carbs G"
+        },
+        "complete": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Complete"
+        },
+        "fat_g": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fat G"
+        },
+        "protein_g": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Protein G"
+        }
+      },
+      "title": "MacrosView",
+      "type": "object"
+    },
+    "NutritionLogResponse": {
+      "properties": {
+        "calories": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Calories"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "foods": {
+          "items": {
+            "$ref": "#/$defs/LoggedFoodView"
+          },
+          "title": "Foods",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "macros": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MacrosView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "meal_date": {
+          "format": "date-time",
+          "title": "Meal Date",
+          "type": "string"
+        },
+        "meal_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Meal Type"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Notes"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Updated At"
+        },
+        "user_id": {
+          "title": "User Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "user_id",
+        "meal_date",
+        "meal_type",
+        "foods",
+        "calories",
+        "macros",
+        "notes",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "NutritionLogResponse",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "logs": {
+      "items": {
+        "$ref": "#/$defs/NutritionLogResponse"
+      },
+      "title": "Logs",
+      "type": "array"
+    },
+    "total": {
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "logs",
+    "total"
+  ],
+  "title": "NutritionLogsListResponse",
+  "type": "object"
+}

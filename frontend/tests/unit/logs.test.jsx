@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 /**
- * The logs as the person reads them (R7; D062 B1, B3): from the API's real shape, where a
- * workout's exercises and a meal's foods and macros come as JSON strings.
+ * The logs as the person reads them (R7; D062 B1, B3): from the API's real shape, a workout's
+ * exercises and a meal's foods as lists and its macros as an object (R9, Part E #74). The
+ * fixtures are checked against the log contracts, so they can't drift from what is sent.
  */
 
+import fs from 'node:fs'
+import path from 'node:path'
+import Ajv2020 from 'ajv/dist/2020'
+import addFormats from 'ajv-formats'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -14,17 +19,31 @@ import { mealView, practiceView, workoutView } from '@/lib/logs'
 
 afterEach(cleanup)
 
-// As the log endpoints send them (dev database, 23 Nov 2026)
-const run = { id: 1, workout_date: '2026-11-23T01:29:00Z', exercise_type: 'running', duration_minutes: 30,
-  exercises: '[{"catalogue_id": "running", "name": "Running", "sets": null, "reps": null, "duration_s": 1800}]',
+// As the log endpoints send them (dev database, 23 Nov 2026; lists since R9)
+const row = { user_id: 7, created_at: '2026-11-23T01:30:00Z', updated_at: null }
+const food = (name, portion, calories) => ({ name, portion, calories, protein_g: null, carbs_g: null, fat_g: null })
+const run = { ...row, id: 1, workout_date: '2026-11-23T01:29:00Z', exercise_type: 'running', duration_minutes: 30,
+  exercises: [{ catalogue_id: 'running', name: 'Running', sets: null, reps: null, duration_s: 1800 }],
   notes: 'About 4 km; easy run.' }
-const deadlift = { id: 2, workout_date: '2026-11-22T12:00:00Z', exercise_type: 'deadlift', duration_minutes: null,
-  exercises: '[{"catalogue_id": "deadlift", "name": "Deadlift", "sets": 3, "reps": 8, "duration_s": null}]', notes: null }
-const lunch = { id: 3, meal_date: '2026-11-23T08:00:00Z', meal_type: 'lunch', calories: 490,
-  foods: '[{"name": "Rotis", "portion": "2 rotis", "calories": 220.0}, {"name": "Dal", "portion": "1 bowl", "calories": 270.0}]',
-  macros: '{"protein_g": 21.0, "carbs_g": 70.0, "fat_g": 12.0, "complete": true}', notes: null }
-const meditation = { id: 4, activity_date: '2026-11-16T01:15:00Z', activity_type: 'mindfulness_meditation',
+const deadlift = { ...row, id: 2, workout_date: '2026-11-22T12:00:00Z', exercise_type: 'deadlift', duration_minutes: null,
+  exercises: [{ catalogue_id: 'deadlift', name: 'Deadlift', sets: 3, reps: 8, duration_s: null }], notes: null }
+const lunch = { ...row, id: 3, meal_date: '2026-11-23T08:00:00Z', meal_type: 'lunch', calories: 490,
+  foods: [food('Rotis', '2 rotis', 220), food('Dal', '1 bowl', 270)],
+  macros: { protein_g: 21, carbs_g: 70, fat_g: 12, complete: true }, notes: null }
+const meditation = { ...row, id: 4, activity_date: '2026-11-16T01:15:00Z', activity_type: 'mindfulness_meditation',
   duration_minutes: 10, notes: 'Dhyan' }
+
+const ajv = addFormats(new Ajv2020({ strict: false, allErrors: true }))
+const contract = (file) => ajv.compile(JSON.parse(fs.readFileSync(
+  path.resolve(__dirname, '../../../contracts/schema', file), 'utf8')))
+
+it('the fixtures are what the log endpoints send (their contracts)', () => {
+  expect(contract('workout_logs.json')({ logs: [run, deadlift], total: 2 })).toBe(true)
+  expect(contract('nutrition_logs.json')({ logs: [lunch], total: 1 })).toBe(true)
+  expect(contract('mental_fitness_logs.json')({ logs: [meditation], total: 1 })).toBe(true)
+  // A JSON string, as the endpoints sent before R9, is no longer the contract
+  expect(contract('nutrition_logs.json')({ logs: [{ ...lunch, foods: '[]' }], total: 1 })).toBe(false)
+})
 
 describe('reading a log', () => {
   it('a workout reads as what was done, never as JSON', () => {
@@ -39,17 +58,19 @@ describe('reading a log', () => {
 
   it('a workout shows each count the person gave, and none it didn\'t', () => {
     const with_ = (fields) => ({ ...run, duration_minutes: null,
-      exercises: JSON.stringify([{ name: 'Bodyweight squat', sets: null, reps: null, duration_s: null, ...fields }]) })
+      exercises: [{ name: 'Bodyweight squat', catalogue_id: null, sets: null, reps: null, duration_s: null, ...fields }] })
     expect(workoutView(with_({ reps: 15 })).detail).toBe('15 reps')
     expect(workoutView(with_({ sets: 3 })).detail).toBe('3 sets')
     expect(workoutView(with_({ sets: 3, reps: 8 })).detail).toBe('3 × 8')
     expect(workoutView(with_({})).detail).toBe('')
   })
 
-  it('anything unreadable falls back to a plain name', () => {
-    expect(workoutView({ ...run, exercises: 'not json' }).title).toBe('Running')
-    expect(mealView({ ...lunch, foods: '{"oops"', macros: null }).title).toBe('Lunch')
-    expect(mealView({ ...lunch, foods: null, meal_type: null }).title).toBe('Meal')
+  it('with nothing listed, a log falls back to a plain name', () => {
+    // The server leaves out what didn't read (an old row, broken text): an empty list here
+    expect(workoutView({ ...run, exercises: [] }).title).toBe('Running')
+    expect(mealView({ ...lunch, foods: [], macros: null })).toMatchObject(
+      { title: 'Lunch', macros: { protein: null, carbs: null, fat: null } })
+    expect(mealView({ ...lunch, foods: [], meal_type: null }).title).toBe('Meal')
   })
 
   it('a practice reads as its kind and length', () => {

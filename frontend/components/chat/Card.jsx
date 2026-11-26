@@ -64,6 +64,13 @@ export default function Card({ card, onConfirm, onDiscard }) {
 
 function HeldCard({ card, onConfirm, onDiscard }) {
   const [state, setState] = useState(card.state)
+  // Settled elsewhere (a newer entry replaced it): the new state shows at once, keeping what this
+  // card said itself (D064, D067); React's "adjust state when a prop changes"
+  const [given, setGiven] = useState(card.state)
+  if (card.state !== given) {
+    setGiven(card.state)
+    setState(card.state)
+  }
   const [when, setWhen] = useState(() => localInput(card.at))
   const [meal, setMeal] = useState(card.meal)
   const [leftOut, setLeftOut] = useState([])
@@ -164,6 +171,12 @@ export function whenShort(iso, now = new Date()) {
  */
 export function RepeatCard({ cards, onConfirm, onDiscard }) {
   const [states, setStates] = useState(() => cards.map((c) => c.state))
+  const given = cards.map((c) => c.state).join()
+  const [seen, setSeen] = useState(given)
+  if (given !== seen) { // settled elsewhere, as for a held card
+    setSeen(given)
+    setStates(cards.map((c) => c.state))
+  }
   const [swapped, setSwapped] = useState([]) // logged by Replace, this visit
   const [messages, setMessages] = useState([])
   const [busy, setBusy] = useState(false)

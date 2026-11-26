@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * A guest's data, kept in this browser only (Plan C.8, P5.2; Part E #50, #61).
  *
@@ -24,6 +25,26 @@
  */
 
 import { signOut } from './api'
+
+/**
+ * @typedef {import('../types/app').ChatEvent} ChatEvent
+ * @typedef {import('../types/app').ShownEvent} ShownEvent
+ * @typedef {import('../types/app').CardData} CardData
+ * @typedef {import('../types/contracts').HistoryTurn} HistoryTurn
+ * @typedef {import('../types/contracts').UserProfile} UserProfile
+ * @typedef {import('../types/contracts').TraceView} TraceView
+ * @typedef {import('../types/contracts').ImportPayload} ImportPayload
+ * @typedef {import('../types/contracts/history_page').StagedWrite} StagedWrite
+ * @typedef {HistoryTurn & { trace_id?: string, display?: ShownEvent[] | null }} StoredTurn
+ * @typedef {{ id: string, entry: StagedWrite, at: string }} StoredLog
+ * @typedef {import('../types/contracts/history_page').LogMealArgs['meal']} MealType
+ * @typedef {Omit<CardData, 'entry' | 'attributes'> & { id: string, turn: string, card: number,
+ *   kind: StagedWrite['kind'], entry: StagedWrite, attributes: string[] }} Pending
+ * @typedef {{ version: 1, profile: UserProfile | null, turns: StoredTurn[], pending: Pending[],
+ *   logs: StoredLog[], traces: TraceView[] }} GuestData
+ * @typedef {{ getItem(key: string): string | null, setItem(key: string, value: string): void,
+ *   removeItem(key: string): void }} Storage
+ */
 
 const KEY = 'holos.guest.v1'
 export const LIMITS = {
@@ -55,7 +76,11 @@ export const MESSAGES = {
 /** A stored entry's ID: what a repeat card's Replace names (Part E #67). */
 const newId = () => crypto.randomUUID()
 
-/** JSON as Python writes it with sort_keys and compact separators, non-ASCII kept. */
+/**
+ * JSON as Python writes it with sort_keys and compact separators, non-ASCII kept.
+ * @param {any} value
+ * @returns {string}
+ */
 export function canonical(value) {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
   if (value && typeof value === 'object') {
@@ -65,31 +90,45 @@ export function canonical(value) {
   return JSON.stringify(value ?? null)
 }
 
-/** The server's `profile_hash` of a guest profile (staging.profile_hash). */
+/**
+ * The server's `profile_hash` of a guest profile (staging.profile_hash).
+ * @param {UserProfile | null} profile
+ */
 export async function profileHash(profile) {
   const bytes = new TextEncoder().encode(canonical(profile ?? null))
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-/** A profile with every field, as the server's model dumps it (the hash depends on it). */
+/**
+ * A profile with every field, as the server's model dumps it (the hash depends on it).
+ * @param {Partial<UserProfile> | null} profile
+ * @returns {UserProfile | null}
+ */
 export function fullProfile(profile) {
   return profile ? { ...EMPTY_PROFILE, ...profile } : null
 }
 
+/** @returns {GuestData} */
 const fresh = () => ({ version: 1, profile: null, turns: [], pending: [], logs: [], traces: [] })
 
+/**
+ * @param {Storage} [storage]
+ * @param {{ now?: () => Date, endSession?: () => Promise<void> }} [options]
+ */
 export function guestStore(storage = globalThis.localStorage,
                            { now = () => new Date(), endSession = signOut } = {}) {
+  /** @returns {GuestData} */
   const read = () => {
     try {
-      const data = JSON.parse(storage.getItem(KEY))
+      const data = JSON.parse(storage.getItem(KEY) ?? 'null')
       return data?.version === 1 ? data : fresh()
     } catch {
       return fresh() // unreadable: start again rather than fail the chat
     }
   }
 
+  /** @param {GuestData} data */
   const write = (data) => {
     fit(data, LIMITS.bytes)
     for (;;) {
@@ -102,6 +141,11 @@ export function guestStore(storage = globalThis.localStorage,
     }
   }
 
+  /**
+   * @param {GuestData} data
+   * @param {Pending} entry
+   * @param {NonNullable<CardData['state']>} state
+   */
   const setCard = (data, entry, state) => {
     const turn = data.turns.find((t) => t.trace_id === entry.turn)
     const card = turn?.display?.[entry.card]
@@ -113,7 +157,10 @@ export function guestStore(storage = globalThis.localStorage,
 
     profile: () => read().profile,
 
-    /** Saves the profile; held entries checked against another profile can't be logged. */
+    /**
+     * Saves the profile; held entries checked against another profile can't be logged.
+     * @param {Partial<UserProfile>} profile
+     */
     async setProfile(profile) {
       const data = read()
       data.profile = fullProfile(profile)
@@ -130,6 +177,7 @@ export function guestStore(storage = globalThis.localStorage,
      * entries logged in the last 7 days (at most 50), so an entry logged again waits on
      * the repeat card (Part E #67).
      */
+    /** @param {string} message @param {Record<string, unknown>} [extra] */
     chatInput(message, extra = {}) {
       const data = read()
       const history = data.turns.slice(-LIMITS.turnsSent).map(historyTurn)
@@ -144,28 +192,33 @@ export function guestStore(storage = globalThis.localStorage,
      * A finished turn (`done`): the signed exchange, what was shown, logs and held entries.
      * Returns the trace IDs of earlier turns whose cards a newer entry replaced, so the chat
      * can redraw them at once (D064).
+     * @param {ChatEvent[]} events
+     * @returns {string[]}
      */
     recordTurn(events) {
       const done = events.find((e) => e.name === 'done')
       if (!done?.data.turn || !done.data.said) return []
       const data = read()
       const traceId = done.data.trace_id
+      /** @type {ShownEvent[]} */
       const display = events.filter((e) => SHOWN.has(e.name)).map(({ name, data: d }) => {
-        const { seq, trace_id, ...shown } = d
-        return { event: name, data: name === 'pending_write' ? { ...shown, state: 'waiting' }
-                                                               : shown }
+        const { seq: _seq, trace_id: _trace, ...shown } = /** @type {any} */ (d)
+        return /** @type {ShownEvent} */ ({
+          event: name, data: name === 'pending_write' ? { ...shown, state: 'waiting' } : shown })
       })
       data.turns.push(done.data.said) // the server's copy, as signed: never rewritten here
       data.turns.push({ ...done.data.turn, trace_id: traceId, display })
 
-      for (const write of events.filter((e) => e.name === 'committed')
-        .flatMap((e) => e.data.writes)) {
+      for (const write of events.flatMap((e) => (e.name === 'committed' ? e.data.writes : []))) {
         if (write.entry) {
           data.logs.push({ id: newId(), entry: write.entry, at: write.at ?? done.data.turn.ts })
         }
       }
-      const held = display.flatMap((e, card) => (e.event === 'pending_write'
-        ? [{ id: `${traceId}:${card}`, turn: traceId, card, kind: e.data.entry.kind, ...e.data }]
+      // A guest's held entry carries the entry itself, to log here when confirmed
+      /** @type {Pending[]} */
+      const held = display.flatMap((e, card) => (e.event === 'pending_write' && e.data.entry
+        ? [{ ...e.data, id: `${traceId}:${card}`, turn: traceId, card, kind: e.data.entry.kind,
+             entry: e.data.entry, attributes: e.data.attributes ?? [] }]
         : []))
       const kinds = new Set(held.map((h) => h.kind))
       const replaced = data.pending.filter((p) => kinds.has(p.kind))
@@ -182,6 +235,10 @@ export function guestStore(storage = globalThis.localStorage,
      * Logs a held entry as the person confirms it: when it happened (`at`, a Date or ISO
      * string with its zone), a meal's meal, and what they left out of its warnings. A
      * repeat's `replace` deletes the entry it repeats (Part E #67).
+     */
+    /**
+     * @param {string} id
+     * @param {{ at?: Date | string, meal?: MealType, leftOut?: string[], replace?: boolean }} [options]
      */
     async confirm(id, { at, meal, leftOut = [], replace = false } = {}) {
       const data = read()
@@ -213,8 +270,8 @@ export function guestStore(storage = globalThis.localStorage,
       const logged = {
         ...held,
         args: meal && entry.entry.kind === 'meal' ? { ...entry.entry.args, meal } : entry.entry.args,
-        warnings: entry.entry.warnings.map((w) => (w.kind === 'conflict'
-          && w.attributes.some((a) => leftOut.includes(a)) ? { ...w, left_out: true } : w)),
+        warnings: (entry.entry.warnings ?? []).map((w) => (w.kind === 'conflict'
+          && (w.attributes ?? []).some((a) => leftOut.includes(a)) ? { ...w, left_out: true } : w)),
         at: when.toISOString(),
         time_guessed: false,
       }
@@ -227,6 +284,7 @@ export function guestStore(storage = globalThis.localStorage,
     },
 
     /** "Don't log": the entry goes, and its card says so. */
+    /** @param {string} id */
     discard(id) {
       const data = read()
       const entry = data.pending.find((p) => p.id === id)
@@ -237,6 +295,7 @@ export function guestStore(storage = globalThis.localStorage,
     },
 
     /** POST /account/import (C.18): within its limits, the newest displays that fit. */
+    /** @returns {ImportPayload} */
     importBody(importId = crypto.randomUUID()) {
       const data = read()
       const history = data.turns.slice(-LIMITS.importTurns).map((t) => ({
@@ -259,20 +318,23 @@ export function guestStore(storage = globalThis.localStorage,
 }
 
 /** A turn as the server reads it (HistoryTurn), exactly as signed: no display, no trace ID. */
+/** @param {StoredTurn} turn @returns {HistoryTurn} */
 function historyTurn({ role, content, agents, ts, sig, prev, shown }) {
   if (role === 'user') return { role, content, ts }
   return { role, content, agents: agents ?? null, ts, sig: sig ?? null, prev: prev ?? null,
            shown: shown ?? null }
 }
 
-const size = (value) => new TextEncoder().encode(JSON.stringify(value)).length
+const size = (/** @type {unknown} */ value) => new TextEncoder().encode(JSON.stringify(value)).length
 
 /** Under `limit`: the oldest answers' displays first, then the oldest traces. */
+/** @param {GuestData} data @param {number} limit */
 function fit(data, limit) {
   let trimmed = true
   while (trimmed && size(data) > limit) trimmed = trimOldest(data)
 }
 
+/** @param {GuestData} data */
 function trimOldest(data) {
   const turn = data.turns.find((t) => t.display)
   if (turn) {

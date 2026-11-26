@@ -42,7 +42,7 @@ describe('the logs drawer', () => {
 
   it("shows an account's logs once loaded", async () => {
     api.getWorkoutLogs.mockResolvedValue({ logs: [{ id: 1, workout_date: '2026-11-23T01:29:00Z', exercise_type: 'running',
-      exercises: '[{"name": "Running", "duration_s": 1800}]', duration_minutes: 30, notes: null }] })
+      exercises: [{ name: 'Running', duration_s: 1800 }], duration_minutes: 30, notes: null }] })
     api.getNutritionLogs.mockResolvedValue({ logs: [] })
     api.getMentalFitnessLogs.mockResolvedValue({ logs: [] })
     open(false)

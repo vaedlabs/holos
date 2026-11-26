@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "MentalFitnessLogResponse": {
+      "properties": {
+        "activity_date": {
+          "format": "date-time",
+          "title": "Activity Date",
+          "type": "string"
+        },
+        "activity_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Activity Type"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "duration_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Minutes"
+        },
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Notes"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Updated At"
+        },
+        "user_id": {
+          "title": "User Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "user_id",
+        "activity_date",
+        "activity_type",
+        "duration_minutes",
+        "notes",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "MentalFitnessLogResponse",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "logs": {
+      "items": {
+        "$ref": "#/$defs/MentalFitnessLogResponse"
+      },
+      "title": "Logs",
+      "type": "array"
+    },
+    "total": {
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "logs",
+    "total"
+  ],
+  "title": "MentalFitnessLogsListResponse",
+  "type": "object"
+}

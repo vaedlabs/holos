@@ -107,6 +107,10 @@ jobs:
       - run: npm run lint
       # Colours only through theme.css roles; text contrast AA in light and dark (R7)
       - run: npm run check:theme
+      # The contract files against the types from contracts/schema (R9, Part E #74)
+      - run: npm run typecheck
+      # The committed types are the contracts' own: regenerated, nothing changes or appears
+      - run: npm run contracts:types && test -z "$(git status --porcelain types/)"
       - run: npm test
       # Catches files the repo needs but doesn't hold (frontend/lib/ was ignored once)
       - run: npm run build

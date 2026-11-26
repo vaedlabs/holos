@@ -1,35 +1,31 @@
+// @ts-check
 /**
  * An account's logs as the person reads them (D062 B1, B3). The log endpoints send a workout's
- * exercises, a meal's foods and its macros as JSON strings (`str | None`, R9 types them); these
- * read the shapes actually stored, and anything else falls back to a plain name, never raw JSON.
+ * exercises, a meal's foods and its macros as lists and an object (R9, Part E #74), typed from
+ * contracts/schema; a name is always there, anything else may be missing.
  *
- *   exercises: [{name, sets, reps, duration_s}]
- *   foods:     [{name, portion, calories, protein_g, carbs_g, fat_g}]
- *   macros:    {protein_g, carbs_g, fat_g}
+ * @typedef {import('../types/contracts').WorkoutLogs['logs'][number]} WorkoutLog
+ * @typedef {import('../types/contracts').NutritionLogs['logs'][number]} NutritionLog
+ * @typedef {import('../types/contracts').MentalFitnessLogs['logs'][number]} PracticeLog
+ * @typedef {WorkoutLog['exercises'][number]} Exercise
  */
 
-/** A JSON string as a value, or null when it isn't JSON. */
-function parsed(text) {
-  if (typeof text !== 'string') return text ?? null
-  try {
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
-}
-
-/** "mindfulness_meditation" as "Mindfulness meditation". */
+/**
+ * "mindfulness_meditation" as "Mindfulness meditation".
+ * @param {string | null | undefined} slug
+ */
 export function humanize(slug) {
   if (!slug) return ''
   const words = String(slug).replace(/[_-]+/g, ' ').trim()
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
-const minutes = (value) => (value ? `${Math.round(value)} min` : null)
+const minutes = (/** @type {number | null | undefined} */ value) => (value ? `${Math.round(value)} min` : null)
 
 /**
  * One exercise's amount, from whatever the person said: "3 × 8", "15 reps", "3 sets", "30 min",
  * or nothing when none was given (owner, 25 Nov 2026: reps alone were dropped).
+ * @param {Exercise} exercise
  */
 function amount(exercise) {
   const { sets, reps, duration_s: seconds } = exercise
@@ -40,10 +36,12 @@ function amount(exercise) {
   return null
 }
 
-/** A workout: its title ("Running"), what was done ("30 min", "3 × 8") and its exercises. */
+/**
+ * A workout: its title ("Running"), what was done ("30 min", "3 × 8") and its exercises.
+ * @param {WorkoutLog} log
+ */
 export function workoutView(log) {
-  const list = parsed(log.exercises)
-  const exercises = Array.isArray(list) ? list.filter((e) => e && e.name) : []
+  const exercises = log.exercises
   const title = exercises.length > 0 ? exercises.map((e) => e.name).join(', ')
     : humanize(log.exercise_type) || 'Workout'
   const parts = exercises.length === 1 ? [amount(exercises[0])] : []
@@ -57,12 +55,16 @@ export function workoutView(log) {
   }
 }
 
-/** A meal: its foods by name ("Rotis, Dal"), the meal, calories and macros. */
+/**
+ * A meal: its foods by name ("Rotis, Dal"), the meal, calories and macros.
+ * @param {NutritionLog} log
+ */
 export function mealView(log) {
-  const list = parsed(log.foods)
-  const foods = Array.isArray(list) ? list.filter((f) => f && f.name) : []
-  const macros = parsed(log.macros)
-  const grams = (key) => (macros && typeof macros[key] === 'number' ? Math.round(macros[key]) : null)
+  const { foods, macros } = log
+  const grams = (/** @type {'protein_g' | 'carbs_g' | 'fat_g'} */ key) => {
+    const value = macros?.[key]
+    return typeof value === 'number' ? Math.round(value) : null
+  }
   return {
     title: foods.length > 0 ? foods.map((f) => f.name).join(', ') : humanize(log.meal_type) || 'Meal',
     meal: humanize(log.meal_type),
@@ -74,7 +76,10 @@ export function mealView(log) {
   }
 }
 
-/** A practice: its kind ("Mindfulness meditation") and how long. */
+/**
+ * A practice: its kind ("Mindfulness meditation") and how long.
+ * @param {PracticeLog} log
+ */
 export function practiceView(log) {
   return {
     title: humanize(log.activity_type) || 'Practice',
@@ -84,7 +89,10 @@ export function practiceView(log) {
   }
 }
 
-/** "Mon 23 Nov, 6:59 am" in the person's own zone. */
+/**
+ * "Mon 23 Nov, 6:59 am" in the person's own zone.
+ * @param {string} iso
+ */
 export function logWhen(iso) {
   const d = new Date(iso)
   const day = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })

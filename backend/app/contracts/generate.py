@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from app.agents import schemas
 from app.guardrails.loader import get_guardrails
+from app.schemas import logs
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[3] / "contracts"
 
@@ -28,6 +29,11 @@ def _schema(model: type[BaseModel]) -> dict:
     return model.model_json_schema()
 
 
+def _sent(model: type[BaseModel]) -> dict:
+    """A response as the app receives it, not as the model reads its input."""
+    return model.model_json_schema(mode="serialization")
+
+
 def build() -> dict[str, str]:
     """Every generated file, as {path relative to contracts/: content}."""
     files = {
@@ -38,6 +44,10 @@ def build() -> dict[str, str]:
         "schema/stream_event.json": schemas.STREAM_EVENT.json_schema(),
         "schema/history_page.json": _schema(schemas.HistoryPage),
         "schema/import_payload.json": _schema(schemas.ImportPayload),
+        # GET /logs/*, as sent (Part E #74)
+        "schema/workout_logs.json": _sent(logs.WorkoutLogsListResponse),
+        "schema/nutrition_logs.json": _sent(logs.NutritionLogsListResponse),
+        "schema/mental_fitness_logs.json": _sent(logs.MentalFitnessLogsListResponse),
     }
     # The exact schemas sent to the providers
     for name, model in schemas.REPLY_MODELS.items():

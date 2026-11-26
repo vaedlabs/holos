@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * The chat stream (Plan C.5, P5.1): one request's events, in order, through dropped
  * connections (Part E #34).
@@ -32,24 +33,43 @@ export const INTERRUPTED = 'Your answer was interrupted. Tap to try again.'
 export const NOT_ATTACHED = new Set(['duplicate_request', 'expired'])
 const TERMINAL = new Set(['done', 'error'])
 
+/**
+ * @typedef {import('../types/app').ChatEvent} ChatEvent
+ * @typedef {Extract<ChatEvent, { name: 'done' | 'error' }>} Terminal
+ * @typedef {(fn: () => void) => () => void} Listen
+ * @typedef {{ onOffline: Listen, onOnline: Listen }} Network
+ * @typedef {{ outcome: 'done' | 'error' | 'refused', code?: string, message?: string,
+ *   retryAfter?: number | null, keepMessage: boolean, clientRequestId: string,
+ *   done?: Extract<ChatEvent, { name: 'done' }>['data'] }} ChatResult
+ */
+
 /** Server-sent events as they arrive in chunks: `{name, data}`, or `{ping: true}`. */
 export class EventParser {
   constructor() {
     this.buffer = ''
+    /** @type {string | null} */
     this.name = null
+    /** @type {string[]} */
     this.data = []
   }
 
+  /**
+   * @param {string} text
+   * @returns {Array<ChatEvent | { ping: true }>}
+   */
   push(text) {
     this.buffer += text
     const lines = this.buffer.split('\n')
-    this.buffer = lines.pop()
+    this.buffer = lines.pop() ?? ''
+    /** @type {Array<ChatEvent | { ping: true }>} */
     const out = []
     for (const line of lines) {
       if (line === '') {
         if (this.data.length) {
           try {
-            out.push({ name: this.name || 'message', data: JSON.parse(this.data.join('\n')) })
+            // As the contract says it is; `handle` skips what has no `seq`
+            out.push(/** @type {ChatEvent} */ ({ name: this.name || 'message',
+                                                data: JSON.parse(this.data.join('\n')) }))
           } catch {
             // not an event of the contract: skipped
           }
@@ -69,7 +89,12 @@ export class EventParser {
   }
 }
 
-/** Wait `ms`, or less when the network comes back. */
+/**
+ * Wait `ms`, or less when the network comes back.
+ * @param {number} ms
+ * @param {Listen} onOnline
+ * @returns {Promise<void>}
+ */
 const pause = (ms, onOnline) => new Promise((resolve) => {
   let stop = () => {}
   const end = () => {
@@ -81,6 +106,14 @@ const pause = (ms, onOnline) => new Promise((resolve) => {
   stop = onOnline(end)
 })
 
+/**
+ * @param {Record<string, unknown>} input the payload's fields (C.7) but the envelope
+ * @param {{ image?: Blob | null, onEvent?: (event: ChatEvent) => void,
+ *   onStatus?: (status: 'reconnecting' | 'live') => void, fetchImpl?: typeof fetch,
+ *   silenceMs?: number, backoffMs?: number[], network?: Network, resent?: boolean,
+ *   clientRequestId?: string }} [options]
+ * @returns {Promise<ChatResult>}
+ */
 export async function sendChat(input, {
   image = null, onEvent = () => {}, onStatus = () => {}, fetchImpl = fetch,
   silenceMs = SILENCE_MS, backoffMs = BACKOFF_MS, network = browserNetwork(), resent = false,
@@ -89,26 +122,32 @@ export async function sendChat(input, {
   const payload = { contract_version: CONTRACT_VERSION, ...input,
                     client_request_id: clientRequestId }
   let lastSeq = -1
+  /** @type {Terminal | null} */
   let terminal = null
+  /** @type {AbortController | null} */
   let current = null // the AbortController of the open connection
   const handlers = { image, onEvent, onStatus, fetchImpl, silenceMs, backoffMs, network }
 
+  /** @param {ChatEvent} event */
   const handle = (event) => {
     const seq = event.data?.seq
     if (typeof seq !== 'number' || seq <= lastSeq) return
     lastSeq = seq
     onEvent(event)
-    if (TERMINAL.has(event.name)) terminal = event
+    if (TERMINAL.has(event.name)) terminal = /** @type {Terminal} */ (event)
   }
 
+  /** @param {Response} response */
   const read = async (response) => {
+    if (!response.body) return
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     const parser = new EventParser()
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
     let timer
     const quiet = () => {
       clearTimeout(timer)
-      timer = setTimeout(() => current.abort(), silenceMs)
+      timer = setTimeout(() => current?.abort(), silenceMs)
     }
     quiet()
     try {
@@ -117,7 +156,7 @@ export async function sendChat(input, {
         if (done) break
         quiet()
         for (const item of parser.push(decoder.decode(value, { stream: true }))) {
-          if (!item.ping) handle(item)
+          if (!('ping' in item)) handle(item)
         }
       }
     } catch {
@@ -128,6 +167,7 @@ export async function sendChat(input, {
     }
   }
 
+  /** @param {string} url @param {RequestInit} [init] */
   const connect = (url, init = {}) => {
     current = new AbortController()
     return fetchImpl(url, { ...init, credentials: 'include', signal: current.signal })
@@ -192,15 +232,17 @@ export async function sendChat(input, {
     stopListening()
   }
 
-  if (!terminal) {
+  // Set inside `handle`, which the checker can't follow from here
+  const end = /** @type {Terminal | null} */ (terminal)
+  if (!end) {
     return { outcome: 'error', code: 'interrupted', message: INTERRUPTED, keepMessage: true,
              clientRequestId }
   }
-  if (terminal.name === 'done') {
-    return { outcome: 'done', keepMessage: false, clientRequestId, done: terminal.data }
+  if (end.name === 'done') {
+    return { outcome: 'done', keepMessage: false, clientRequestId, done: end.data }
   }
-  return { outcome: 'error', code: terminal.data.code, message: terminal.data.message,
-           retryAfter: terminal.data.retry_after ?? null, keepMessage: true, clientRequestId }
+  return { outcome: 'error', code: end.data.code, message: end.data.message,
+           retryAfter: end.data.retry_after ?? null, keepMessage: true, clientRequestId }
 }
 
 /**
@@ -209,12 +251,21 @@ export async function sendChat(input, {
  * The same ID interrupted again means the server's request ended there (its worker
  * stopped), and replaying it would show the same interruption at every tap.
  */
+/**
+ * @param {ChatResult} result
+ * @param {{ requestId?: string | null } | null} [again]
+ * @returns {string | null}
+ */
 export function retryId(result, again = null) {
   if (result.code !== 'interrupted' || again?.requestId) return null
   return result.clientRequestId
 }
 
-/** The request body (C.7): the payload part, and the photo as one upload. */
+/**
+ * The request body (C.7): the payload part, and the photo as one upload.
+ * @param {Record<string, unknown>} payload
+ * @param {Blob | null} image
+ */
 function chatForm(payload, image) {
   const form = new FormData()
   form.append('payload', JSON.stringify(payload))
@@ -222,8 +273,12 @@ function chatForm(payload, image) {
   return form
 }
 
-/** The browser's network events; none outside a browser (tests pass their own). */
+/**
+ * The browser's network events; none outside a browser (tests pass their own).
+ * @returns {Network}
+ */
 function browserNetwork() {
+  /** @param {string} name @returns {Listen} */
   const listen = (name) => (fn) => {
     if (typeof window === 'undefined') return () => {}
     window.addEventListener(name, fn)

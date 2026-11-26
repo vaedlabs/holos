@@ -113,6 +113,16 @@ describe('cards', () => {
     expect(screen.getByText('A newer entry replaced this one.')).toBeTruthy()
   })
 
+  it('a decided card keeps its own words when its new state comes back from the chat (D067)', async () => {
+    const onConfirm = vi.fn().mockResolvedValue({ state: 'logged', message: 'Logged: Lunch: Poha' })
+    const { rerender } = draw([held()], { onConfirm })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(screen.getByText('Logged: Lunch: Poha')).toBeTruthy())
+    rerender(<Answer view={turnView([held({ state: 'logged' })])} onConfirm={onConfirm}
+                     onDiscard={vi.fn()} />)
+    expect(screen.getByText('Logged: Lunch: Poha')).toBeTruthy()
+  })
+
   it('Confirm sends the date, the meal and what was left out', async () => {
     const onConfirm = vi.fn().mockResolvedValue({ state: 'logged', message: 'Logged: Lunch: Poha' })
     draw([held()], { onConfirm })

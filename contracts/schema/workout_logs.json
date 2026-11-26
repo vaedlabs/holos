@@ -1,0 +1,171 @@
+{
+  "$defs": {
+    "LoggedExerciseView": {
+      "properties": {
+        "catalogue_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Catalogue Id"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration S"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "sets": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "LoggedExerciseView",
+      "type": "object"
+    },
+    "WorkoutLogResponse": {
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "duration_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Minutes"
+        },
+        "exercise_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Exercise Type"
+        },
+        "exercises": {
+          "items": {
+            "$ref": "#/$defs/LoggedExerciseView"
+          },
+          "title": "Exercises",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Notes"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Updated At"
+        },
+        "user_id": {
+          "title": "User Id",
+          "type": "integer"
+        },
+        "workout_date": {
+          "format": "date-time",
+          "title": "Workout Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "user_id",
+        "workout_date",
+        "exercise_type",
+        "exercises",
+        "duration_minutes",
+        "notes",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "WorkoutLogResponse",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "logs": {
+      "items": {
+        "$ref": "#/$defs/WorkoutLogResponse"
+      },
+      "title": "Logs",
+      "type": "array"
+    },
+    "total": {
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "logs",
+    "total"
+  ],
+  "title": "WorkoutLogsListResponse",
+  "type": "object"
+}

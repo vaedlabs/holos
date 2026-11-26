@@ -1,0 +1,19 @@
+{
+  "//": "npm run typecheck (R9, Part E #74): the files marked // @ts-check, against types/. Not tsconfig.json, which would make Next treat the app as TypeScript. Strict off with null checks on (owner, 25 Nov 2026).",
+  "extends": "./jsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "strictNullChecks": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "jsx": "preserve",
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["lib/**/*.js", "hooks/**/*.js", "types/**/*.d.ts"]
+}
