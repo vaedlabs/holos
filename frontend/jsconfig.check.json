@@ -1,5 +1,5 @@
 {
-  "//": "npm run typecheck (R9, Part E #74): the files marked // @ts-check, against types/. Not tsconfig.json, which would make Next treat the app as TypeScript. Strict off with null checks on (owner, 25 Nov 2026).",
+  "//": "npm run typecheck (R9, Part E #74, #76): the files marked // @ts-check, against types/. Not tsconfig.json, which would make Next treat the app as TypeScript. Strict off with null checks on (owner, 25 Nov 2026). The paths send the components the check doesn't cover to a folder that doesn't exist, so they resolve to types/ui.d.ts, where their props are open (D068).",
   "extends": "./jsconfig.json",
   "compilerOptions": {
     "allowJs": true,
@@ -13,7 +13,16 @@
     "lib": ["es2023", "dom", "dom.iterable"],
     "jsx": "preserve",
     "skipLibCheck": true,
-    "types": []
+    "types": [],
+    "paths": {
+      "@/components/ui/*": ["./types/unchecked/*"],
+      "@/components/ai/*": ["./types/unchecked/*"],
+      "@/components/AuthImage": ["./types/unchecked/x"],
+      "@/components/DateTimePicker": ["./types/unchecked/x"],
+      "@/components/HeaderMenu": ["./types/unchecked/x"],
+      "@/*": ["./*"]
+    }
   },
-  "include": ["lib/**/*.js", "hooks/**/*.js", "types/**/*.d.ts"]
+  "include": ["lib/**/*.js", "hooks/**/*.js", "components/chat/**/*.jsx", "components/logs/**/*.jsx",
+              "app/dashboard/**/*.js", "types/**/*.d.ts"]
 }

@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -26,6 +27,13 @@ import { COACHES, heldKinds, replaceWaiting, settleCard, stepStatus } from '@/li
  * or saved, is drawn from its events by `turnView`, so a reload shows what was shown.
  */
 
+/**
+ * @typedef {import('@/types/app').Entry} Entry
+ * @typedef {{ message: string, image?: Blob | null, agents?: string[] }} Asked
+ * @typedef {{ key: string, requestId: string | null }} Again
+ * @typedef {{ message: string, input?: Asked, again?: Again | null }} Failed
+ */
+
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
 
 // Within this distance of the bottom, a growing answer keeps the page scrolled to it
@@ -35,25 +43,26 @@ export default function ChatPage() {
   const { mounted, isAuthenticated, session } = useRequireAuth({ guest: true })
   if (!mounted || !isAuthenticated) return null
   // Mounted once the session is known, so a guest's history is read as the chat's first state
-  return <Chat guest={session.mode === 'guest'} />
+  return <Chat guest={session?.mode === 'guest'} />
 }
 
+/** @param {{ guest: boolean }} props */
 function Chat({ guest }) {
   const store = useMemo(() => (guest ? guestStore() : null), [guest])
 
-  const [entries, setEntries] = useState(() => (store ? guestEntries(store) : [])) // {key, role, text, photo, events, traceId, live}
-  const [before, setBefore] = useState(null)
+  const [entries, setEntries] = useState(() => /** @type {Entry[]} */ (store ? guestEntries(store) : []))
+  const [before, setBefore] = useState(/** @type {number | null | undefined} */ (null))
   const [draft, setDraft] = useState('')
-  const [photo, setPhoto] = useState(null)
-  const [coaches, setCoaches] = useState([])
+  const [photo, setPhoto] = useState(/** @type {Blob | null} */ (null))
+  const [coaches, setCoaches] = useState(/** @type {string[]} */ ([]))
   const [status, setStatus] = useState('')
-  const [failed, setFailed] = useState(null) // {message, input, again}: the message stays
+  const [failed, setFailed] = useState(/** @type {Failed | null} */ (null)) // the message stays
   const [sending, setSending] = useState(false)
   // An account's history has come (or failed): until then the chat isn't known to be empty, so
   // the prompt bar waits rather than showing in the middle and jumping down
   const [loaded, setLoaded] = useState(guest)
   const empty = loaded && entries.length === 0
-  const bottom = useRef(null)
+  const bottom = useRef(/** @type {HTMLDivElement | null} */ (null))
   const following = useRef(true)
 
   // An account's newest page of history
@@ -83,7 +92,7 @@ function Chat({ guest }) {
   }, [entries])
   // And as it grows after that (a card popping in, a block fading in), so nothing stops
   // half-hidden behind the prompt bar (owner, 25 Nov 2026)
-  const thread = useRef(null)
+  const thread = useRef(/** @type {HTMLElement | null} */ (null))
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined' || !thread.current) return undefined
     const grown = new ResizeObserver(() => {
@@ -108,7 +117,8 @@ function Chat({ guest }) {
 
   // `again`: Retry after an interrupted answer, into the same place; with its request ID,
   // the server's answer if it has one, so nothing is answered or logged twice (#67)
-  const send = useCallback(async function run({ message, image, agents }, again = null) {
+  const send = useCallback(/** @param {Asked} asked @param {Again | null} [again] */
+    async function run({ message, image, agents }, again = null) {
     setSending(true)
     setFailed(null)
     following.current = true
@@ -122,7 +132,7 @@ function Chat({ guest }) {
     }
     const events = []
     const input = { message, timezone: zone(), ...(agents?.length ? { agents } : {}) }
-    const result = await sendChat(guest ? store.chatInput(message, input) : input, {
+    const result = await sendChat(store ? store.chatInput(message, input) : input, {
       image,
       ...(again?.requestId ? { clientRequestId: again.requestId } : {}),
       onEvent: (event) => {
@@ -139,12 +149,12 @@ function Chat({ guest }) {
       // Earlier cards this answer's entries replaced say so at once, not after a reload: a guest's
       // redraw from the store (D064); an account's waiting ones of the same kind are marked as the
       // server marks them (D067)
-      const replaced = guest ? store.recordTurn(events) : []
-      const shown = new Map(guest ? store.data().turns.map((t) => [t.trace_id, t.display]) : [])
+      const replaced = store ? store.recordTurn(events) : []
+      const shown = new Map(store ? store.data().turns.map((t) => [t.trace_id, t.display]) : [])
       const kinds = guest ? new Set() : heldKinds(events)
       setEntries((prev) => prev.map((e) => {
         if (e.key === key) return { ...e, live: false }
-        if (replaced.includes(e.traceId) && shown.get(e.traceId)) return { ...e, events: shown.get(e.traceId) }
+        if (e.traceId && replaced.includes(e.traceId) && shown.get(e.traceId)) return { ...e, events: shown.get(e.traceId) }
         if (kinds.size > 0 && e.role === 'assistant' && e.events) {
           const events = replaceWaiting(e.events, kinds)
           return events === e.events ? e : { ...e, events }
@@ -165,6 +175,9 @@ function Chat({ guest }) {
                   ? { key, requestId: retryId(result, again) } : null })
   }, [guest, store])
 
+  /** A coach that failed, asked again on its own. @param {Asked} asked */
+  const retryWith = (asked) => (/** @type {string} */ agent) => send({ ...asked, agents: [agent] })
+
   const submit = async () => {
     const message = draft.trim()
     if (!message || sending) return
@@ -179,7 +192,8 @@ function Chat({ guest }) {
       await document.startViewTransition(() => flushSync(() => { answering = go() })).updateCallbackDone
       // The box moved, so it's a new one: it takes the focus back as soon as it's there, not
       // once the answer has come
-      document.querySelector('textarea[aria-label="Message"]')?.focus()
+      const box = /** @type {HTMLElement | null} */ (document.querySelector('textarea[aria-label="Message"]'))
+      box?.focus()
       await answering
       return
     }
@@ -208,7 +222,7 @@ function Chat({ guest }) {
             {failed.message}
             {failed.input && (
               <Button type="button" variant="outline" size="sm" disabled={sending}
-                      onClick={() => send(failed.input, failed.again)}>
+                      onClick={() => failed.input && send(failed.input, failed.again)}>
                 <RotateCcw /> Retry
               </Button>
             )}
@@ -270,8 +284,7 @@ function Chat({ guest }) {
           </div>
         ) : (
           <AnswerEntry key={e.key} entry={e} guest={guest} store={store} status={status} onSettled={settle}
-                       onRetry={e.saved || e.live ? null
-                         : (agent) => send({ ...e.asked, agents: [agent] })} />
+                       onRetry={e.saved || e.live || !e.asked ? null : retryWith(e.asked)} />
         )))}
       </main>
 
@@ -287,7 +300,11 @@ function Chat({ guest }) {
   )
 }
 
-/** A guest's history, kept in this browser (P5.2). */
+/**
+ * A guest's history, kept in this browser (P5.2).
+ * @param {ReturnType<typeof guestStore>} store
+ * @returns {Entry[]}
+ */
 function guestEntries(store) {
   return store.data().turns.map((t, i) => (t.role === 'user'
     ? { key: `g${i}`, role: 'user', text: t.content }
@@ -295,7 +312,11 @@ function guestEntries(store) {
         traceId: t.trace_id, saved: true }))
 }
 
-/** A message from the account's history (C.21): never retried from here. */
+/**
+ * A message from the account's history (C.21): never retried from here.
+ * @param {import('@/types/contracts').HistoryPage['messages'][number]} m
+ * @returns {Entry}
+ */
 function fromHistory(m) {
   return m.role === 'user'
     ? { key: `h${m.id}`, role: 'user', text: m.text, photo: m.photo }

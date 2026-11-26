@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import { humanize, workoutView } from '@/lib/logs'
@@ -8,6 +9,7 @@ import LogItem, { LogList } from './LogItem'
  * Workouts: what was done ("Running · 30 min", "Deadlift · 3 × 8"); with several exercises listed,
  * the title is the workout's kind, so the names aren't said twice.
  */
+/** @param {{ logs: import('@/lib/logs').WorkoutLog[], onDelete: (log: import('@/lib/logs').WorkoutLog, title: string) => void }} props */
 export default function WorkoutLogs({ logs, onDelete }) {
   return (
     <LogList empty="No workouts logged yet. Tell the exercise coach what you did and it shows up here.">

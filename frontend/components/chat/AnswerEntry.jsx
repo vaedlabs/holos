@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import { useMemo } from 'react'
@@ -12,10 +13,17 @@ import Answer from './Answer'
  * it's coming, the step it's on; never for a crisis reply, which shows at once (P5.4).
  * A card's decision also goes to `onSettled(entryKey, index, state)`, so the chat knows which cards
  * still wait when a newer entry replaces them. */
+/**
+ * @param {{ entry: import('@/types/app').Entry, guest: boolean,
+ *   store: ReturnType<typeof import('@/lib/guestStore').guestStore> | null, status: string,
+ *   onRetry?: ((agent: string) => void) | null,
+ *   onSettled?: (key: string, index: number | null, state: import('@/lib/turnView').CardState) => void }} props
+ */
 export default function AnswerEntry({ entry, guest, store, status, onRetry, onSettled }) {
   const view = useMemo(() => (entry.events ? turnView(entry.events) : null), [entry.events])
   const cards = useMemo(() => {
-    const decide = guest ? guestCards(store, entry.traceId) : accountCards()
+    // A card comes in an event carrying the answer's trace ID, so it's set by the time a card shows
+    const decide = guest && store ? guestCards(store, entry.traceId ?? '') : accountCards()
     const told = (action) => async (card, ...rest) => {
       const result = await action(card, ...rest)
       if (result.state) onSettled?.(entry.key, card.index, result.state)

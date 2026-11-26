@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
@@ -34,12 +35,23 @@ import WorkoutLogs from './WorkoutLogs'
  * they sign in (their entries stay in the browser for the repeat check only, E067).
  */
 
+/**
+ * @typedef {import('@/lib/logs').WorkoutLog} WorkoutLog
+ * @typedef {import('@/lib/logs').NutritionLog} NutritionLog
+ * @typedef {import('@/lib/logs').PracticeLog} PracticeLog
+ * @typedef {{ workouts: WorkoutLog[], nutrition: NutritionLog[], mental: PracticeLog[] }} Logs
+ * @typedef {keyof Logs} Kind
+ * @typedef {Logs[Kind][number]} AnyLog
+ */
+
+/** @type {Record<Kind, { label: string, load: () => Promise<{ logs: AnyLog[] }>, remove: (id: number) => Promise<unknown> }>} */
 const KINDS = {
   workouts: { label: 'Workouts', load: () => api.getWorkoutLogs(10, 0), remove: (id) => api.deleteWorkoutLog(id) },
   nutrition: { label: 'Nutrition', load: () => api.getNutritionLogs(10, 0), remove: (id) => api.deleteNutritionLog(id) },
   mental: { label: 'Mental', load: () => api.getMentalFitnessLogs(10, 0), remove: (id) => api.deleteMentalFitnessLog(id) },
 }
 
+/** @param {{ guest: boolean, children: import('react').ReactNode }} props */
 export default function LogsPanel({ guest, children }) {
   return (
     <Sheet>
@@ -69,13 +81,13 @@ function GuestLogs() {
 
 /** Mounted each time the panel opens, so the logs are loaded afresh. */
 function AccountLogs() {
-  const [logs, setLogs] = useState(null) // {workouts, nutrition, mental}; null while loading
-  const [deleting, setDeleting] = useState(null) // {kind, log, title}
-  const [tab, setTab] = useState(null) // pickTab's choice, once loaded
-  const seen = useRef(null) // each kind's highest log id this time, kept with the tab picked
-  const tabs = useRef(null)
+  const [logs, setLogs] = useState(/** @type {Logs | null} */ (null)) // null while loading
+  const [deleting, setDeleting] = useState(/** @type {{ kind: Kind, log: AnyLog, title: string } | null} */ (null))
+  const [tab, setTab] = useState(/** @type {string | null} */ (null)) // pickTab's choice, once loaded
+  const seen = useRef(/** @type {Record<string, number> | null} */ (null)) // each kind's highest log id this time, kept with the tab picked
+  const tabs = useRef(/** @type {HTMLDivElement | null} */ (null))
   const deleted = useRef(false) // Delete was pressed: the bin the focus came from goes
-  const opener = useRef(null) // the bin that asked, for the focus to go back to
+  const opener = useRef(/** @type {HTMLElement | null} */ (null)) // the bin that asked, for the focus to go back to
 
   useEffect(() => {
     let live = true
@@ -84,7 +96,7 @@ function AccountLogs() {
       .catch(() => [kind, []])))
       .then((pairs) => {
         if (!live) return
-        const loaded = Object.fromEntries(pairs)
+        const loaded = /** @type {Logs} */ (Object.fromEntries(pairs))
         const picked = pickTab(loaded, readRemembered())
         seen.current = picked.seen
         remember(picked)
@@ -95,19 +107,20 @@ function AccountLogs() {
   }, [])
 
   const remove = async () => {
+    if (!deleting) return
     const { kind, log, title } = deleting
     deleted.current = true
     setDeleting(null)
     try {
       await KINDS[kind].remove(log.id)
-      setLogs((prev) => ({ ...prev, [kind]: prev[kind].filter((l) => l.id !== log.id) }))
+      setLogs((prev) => prev && { ...prev, [kind]: prev[kind].filter((l) => l.id !== log.id) })
       toast.success(`${title} deleted`)
     } catch (error) {
       toast.error(error.message || "Couldn't delete that entry.")
     }
   }
   const ask = (kind) => (log, title) => {
-    opener.current = document.activeElement
+    opener.current = /** @type {HTMLElement | null} */ (document.activeElement)
     setDeleting({ kind, log, title })
   }
 
@@ -149,7 +162,7 @@ function AccountLogs() {
                             onCloseAutoFocus={(e) => {
                               // Opened from state, not a trigger: the focus is sent back by hand
                               e.preventDefault()
-                              const tab = tabs.current?.querySelector('[role=tab][aria-selected=true]')
+                              const tab = /** @type {HTMLElement | null | undefined} */ (tabs.current?.querySelector('[role=tab][aria-selected=true]'))
                               const back = deleted.current || !opener.current?.isConnected ? tab : opener.current
                               deleted.current = false
                               back?.focus()

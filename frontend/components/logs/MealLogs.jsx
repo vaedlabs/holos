@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +11,7 @@ import LogItem, { LogList } from './LogItem'
  * title is the meal ("Breakfast"), so the names aren't said twice; otherwise the names, and the
  * meal as a badge.
  */
+/** @param {{ logs: import('@/lib/logs').NutritionLog[], onDelete: (log: import('@/lib/logs').NutritionLog, title: string) => void }} props */
 export default function MealLogs({ logs, onDelete }) {
   return (
     <LogList empty="No meals logged yet. Tell the food coach what you ate, or send a photo, and it shows up here.">

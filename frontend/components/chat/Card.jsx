@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import { useState } from 'react'
@@ -13,6 +14,14 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 
 import { Caution } from './Items'
+
+/**
+ * @typedef {import('@/lib/turnView').LoggedCard} LoggedCard
+ * @typedef {import('@/lib/turnView').HeldCard} HeldCard
+ * @typedef {import('@/lib/turnView').RepeatHeld} RepeatHeld
+ * @typedef {import('@/lib/cards').Cards} Cards
+ * @typedef {{ onConfirm: Cards['confirm'], onDiscard: Cards['discard'] }} Decide
+ */
 
 /**
  * An entry's card (C.17; Part E #50, #58). Logged: its "Logged" line, or the coach's
@@ -44,6 +53,7 @@ function Decided({ state, text }) {
   return <ToolChip icon={DECIDED_ICONS[state] ?? Check}>{text}</ToolChip>
 }
 
+/** @param {{ card: LoggedCard | HeldCard } & Decide} props */
 export default function Card({ card, onConfirm, onDiscard }) {
   if (card.type === 'logged') {
     return (
@@ -62,6 +72,7 @@ export default function Card({ card, onConfirm, onDiscard }) {
   return <HeldCard card={card} onConfirm={onConfirm} onDiscard={onDiscard} />
 }
 
+/** @param {{ card: HeldCard } & Decide} props */
 function HeldCard({ card, onConfirm, onDiscard }) {
   const [state, setState] = useState(card.state)
   // Settled elsewhere (a newer entry replaced it): the new state shows at once, keeping what this
@@ -73,7 +84,7 @@ function HeldCard({ card, onConfirm, onDiscard }) {
   }
   const [when, setWhen] = useState(() => localInput(card.at))
   const [meal, setMeal] = useState(card.meal)
-  const [leftOut, setLeftOut] = useState([])
+  const [leftOut, setLeftOut] = useState(/** @type {string[]} */ ([]))
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const id = `entry-${card.write_id ?? card.index}`
@@ -90,7 +101,7 @@ function HeldCard({ card, onConfirm, onDiscard }) {
     }
   }
   const confirm = () => decide(() => onConfirm(card, {
-    at: new Date(when).toISOString(), meal: card.meal ? meal : undefined, leftOut }))
+    at: new Date(when).toISOString(), meal: (card.meal && meal) || undefined, leftOut }))
   const toggle = (a) => setLeftOut((prev) => (prev.includes(a) ? prev.filter((x) => x !== a)
                                                                 : [...prev, a]))
   const waiting = state === 'waiting'
@@ -131,7 +142,7 @@ function HeldCard({ card, onConfirm, onDiscard }) {
                 </NativeSelect>
               </Field>
             )}
-            {card.attributes?.length > 0 && (
+            {card.attributes.length > 0 && (
               <FieldSet className="sm:col-span-2">
                 <FieldLegend variant="label">I left out</FieldLegend>
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -169,6 +180,7 @@ export function whenShort(iso, now = new Date()) {
  * that time; Log again, Replace the earlier ones (only when each has one already saved)
  * or Don't log, for all that still wait.
  */
+/** @param {{ cards: RepeatHeld[] } & Decide} props */
 export function RepeatCard({ cards, onConfirm, onDiscard }) {
   const [states, setStates] = useState(() => cards.map((c) => c.state))
   const given = cards.map((c) => c.state).join()
@@ -177,8 +189,8 @@ export function RepeatCard({ cards, onConfirm, onDiscard }) {
     setSeen(given)
     setStates(cards.map((c) => c.state))
   }
-  const [swapped, setSwapped] = useState([]) // logged by Replace, this visit
-  const [messages, setMessages] = useState([])
+  const [swapped, setSwapped] = useState(/** @type {number[]} */ ([])) // logged by Replace, this visit
+  const [messages, setMessages] = useState(/** @type {string[]} */ ([]))
   const [busy, setBusy] = useState(false)
   const waiting = cards.filter((_, i) => states[i] === 'waiting')
   const replaceable = waiting.length > 0 && waiting.every((c) => c.repeat_of.log_id)

@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import { CircleAlert, Info, LifeBuoy, RotateCcw } from 'lucide-react'
@@ -27,6 +28,10 @@ const PILLAR = { physical: 'bg-fitness', nutrition: 'bg-nutrition', mental: 'bg-
  * summary, notices and helplines. A coach that failed shows Retry only while the answer
  * is live (`onRetry`), never in history. While `live`, each part fades in as it arrives;
  * a crisis reply shows at once, plain (P5.4).
+ */
+/**
+ * @param {{ view: import('@/lib/turnView').TurnView, live?: boolean,
+ *   onRetry?: ((agent: string) => void) | null } & import('./Card').Decide} props
  */
 export default function Answer({ view, live = false, onRetry, onConfirm, onDiscard }) {
   const moving = live && !view.crisis

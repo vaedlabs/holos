@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import ReactMarkdown from 'react-markdown'
@@ -16,6 +17,7 @@ const ALLOWED = ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br', 'h1', 'h2', 'h3', 
 const asHeading = ({ children }) => <p><strong>{children}</strong></p>
 const COMPONENTS = { h1: asHeading, h2: asHeading, h3: asHeading, h4: asHeading }
 
+/** @param {{ text: string }} props */
 export default function Prose({ text }) {
   return (
     <div className="prose prose-holos max-w-none">

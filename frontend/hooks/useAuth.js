@@ -10,7 +10,8 @@ import { currentSession } from '@/lib/api'
  * look at it; asking the server is also the only way to know it hasn't ended.
  */
 export function useSession() {
-  const [state, setState] = useState({ loading: true, session: null })
+  const [state, setState] = useState(/** @type {{ loading: boolean, session: { mode: 'guest' | 'account',
+    csrf_token: string, expires_at: string } | null }} */ ({ loading: true, session: null }))
 
   useEffect(() => {
     let live = true

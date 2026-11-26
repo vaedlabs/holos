@@ -21,3 +21,18 @@ export type CardData = Extract<AnyEvent, { name: 'pending_write' }>['data'] & {
 
 /** An event's data by name, without the envelope (`seq`, `trace_id`) a view never shows. */
 export type Data<N extends AnyEvent['name']> = Omit<Extract<AnyEvent, { name: N }>['data'], 'seq' | 'trace_id'>
+
+/** One message in the chat as app/dashboard/page.js holds it: the person's, or an answer drawn from
+ * its events (live, saved in history, or a guest's from the browser). */
+export type Entry = {
+  key: string
+  role: 'user' | 'assistant'
+  text?: string | null
+  photo?: string | null
+  preview?: string | null
+  events?: Array<ChatEvent | ShownEvent> | null
+  traceId?: string | null
+  live?: boolean
+  saved?: boolean
+  asked?: { message: string, image?: Blob | null, agents?: string[] }
+}

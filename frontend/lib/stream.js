@@ -38,9 +38,10 @@ const TERMINAL = new Set(['done', 'error'])
  * @typedef {Extract<ChatEvent, { name: 'done' | 'error' }>} Terminal
  * @typedef {(fn: () => void) => () => void} Listen
  * @typedef {{ onOffline: Listen, onOnline: Listen }} Network
- * @typedef {{ outcome: 'done' | 'error' | 'refused', code?: string, message?: string,
- *   retryAfter?: number | null, keepMessage: boolean, clientRequestId: string,
- *   done?: Extract<ChatEvent, { name: 'done' }>['data'] }} ChatResult
+ * @typedef {{ retryAfter?: number | null, keepMessage: boolean, clientRequestId: string }} ResultBase
+ * @typedef {ResultBase & ({ outcome: 'done', code?: undefined, message?: undefined,
+ *   done: Extract<ChatEvent, { name: 'done' }>['data'] }
+ *   | { outcome: 'error' | 'refused', code: string, message: string, done?: undefined })} ChatResult
  */
 
 /** Server-sent events as they arrive in chunks: `{name, data}`, or `{ping: true}`. */

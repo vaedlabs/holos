@@ -1,3 +1,4 @@
+// @ts-check
 'use client'
 
 import { TriangleAlert } from 'lucide-react'
@@ -10,6 +11,9 @@ import { byDay } from '@/lib/turnView'
  * list. Each row is what the coach gave and the gate kept: its text (`display`), its note,
  * and the cautions the gate added.
  */
+/** @typedef {import('@/lib/turnView').Item} Item */
+
+/** @param {{ items: Item[] }} props */
 export default function Items({ items }) {
   const days = byDay(items)
   if (days.length === 1 && !days[0].day) {
@@ -51,6 +55,7 @@ export default function Items({ items }) {
   )
 }
 
+/** @param {{ item: Item }} props */
 function Detail({ item }) {
   return (
     <>
@@ -61,6 +66,7 @@ function Detail({ item }) {
 }
 
 /** A caution the gate added: never folded away, and marked by an icon as well as its colour (C.6). */
+/** @param {{ children: import('react').ReactNode }} props */
 export function Caution({ children }) {
   return (
     <span className="flex items-start gap-1.5 text-sm text-caution">

@@ -40,11 +40,12 @@ const SHOWN = new Set(['section_start', 'text', 'item', 'sources', 'section_end'
  * @typedef {{ type: 'text', text: string } | { type: 'items', items: Item[] }} Block
  * @typedef {Data<'item'>['item'] & { display?: Data<'item'>['display'], caveats: string[] }} Item
  * @typedef {{ type: 'logged', summary: string, warnings: string[], note: string | null }} LoggedCard
- * @typedef {Omit<CardData, 'state'> & { type: 'held', index: number | null,
- *   state: NonNullable<CardData['state']> }} HeldCard
+ * @typedef {Omit<CardData, 'state' | 'warnings' | 'attributes'> & { type: 'held', index: number | null,
+ *   state: NonNullable<CardData['state']>, warnings: string[], attributes: string[] }} HeldCard
+ * @typedef {HeldCard & { repeat_of: NonNullable<HeldCard['repeat_of']> }} RepeatHeld
  * @typedef {{ agent: string, kind: string | null, blocks: Block[], sources: Data<'sources'>['sources'][number][],
  *   warnings: string[], removed: number, error: string | null, cards: Array<LoggedCard | HeldCard> }} Section
- * @typedef {{ own: string[], summary: string[], sections: Section[], repeats: HeldCard[],
+ * @typedef {{ own: string[], summary: string[], sections: Section[], repeats: RepeatHeld[],
  *   crisis: Data<'crisis'> | null, notices: Data<'notice'>[], step: Data<'step'> | null,
  *   done: boolean, error: Data<'error'> | null, traceId: string | null }} TurnView
  */
@@ -136,8 +137,10 @@ export function turnView(events) {
       case 'pending_write': {
         const data = /** @type {CardData} */ (bare(e.data))
         /** @type {HeldCard} */
-        const card = { type: 'held', index, ...data, state: data.state ?? 'waiting' }
-        if (data.repeat_of) view.repeats.push(card) // one card for all of them (#67)
+        // Lists the server always sends, though the contract marks them optional (they have defaults)
+        const card = { type: 'held', index, ...data, warnings: data.warnings ?? [],
+                       attributes: data.attributes ?? [], state: data.state ?? 'waiting' }
+        if (data.repeat_of) view.repeats.push({ ...card, repeat_of: data.repeat_of }) // one card for all of them (#67)
         else cardSection(data.kind ?? data.entry?.kind).cards.push(card)
         break
       }
