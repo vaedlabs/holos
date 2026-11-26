@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from app.agents import schemas
 from app.guardrails.loader import get_guardrails
+from app.orchestration.sessions import SessionView
 from app.schemas import logs
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[3] / "contracts"
@@ -48,6 +49,8 @@ def build() -> dict[str, str]:
         "schema/workout_logs.json": _sent(logs.WorkoutLogsListResponse),
         "schema/nutrition_logs.json": _sent(logs.NutritionLogsListResponse),
         "schema/mental_fitness_logs.json": _sent(logs.MentalFitnessLogsListResponse),
+        # GET /session/csrf and a session start (Part E #78)
+        "schema/session.json": _sent(SessionView),
     }
     # The exact schemas sent to the providers
     for name, model in schemas.REPLY_MODELS.items():

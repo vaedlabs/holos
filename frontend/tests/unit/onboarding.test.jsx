@@ -42,3 +42,15 @@ it('finishing with the optional answers left empty saves them as not given', asy
   expect(last.age).toBeNull()
   expect(Object.values(last)).not.toContain('')
 })
+
+it("offers a guest's data before the questions it may already answer (Part E #78)", async () => {
+  localStorage.setItem('holos.guest.v1', JSON.stringify({
+    version: 1, profile: { condition_ids: ['knee_ligament_injury'], allergen_tags: ['peanut'], diet_tags: [], notes: '' },
+    turns: [], pending: [], logs: [], traces: [] }))
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', {
+    status: 200, headers: { 'content-type': 'application/json' } })))
+  render(<OnboardingPage />)
+  const offer = await screen.findByRole('dialog')
+  expect(offer.textContent).toContain('a health profile')
+  localStorage.clear()
+})

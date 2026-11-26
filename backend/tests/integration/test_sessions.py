@@ -26,7 +26,7 @@ from app.dependencies import get_database, get_db_sessions, get_state_store, get
 from app.orchestration.budget import ip_spend_key
 from app.orchestration.passwords import get_password_hash
 from app.orchestration.principal import csrf_token, ip_key, ip_new_sessions_key, ip_requests_key
-from app.orchestration.sessions import SITEVERIFY_URL, Turnstile
+from app.orchestration.sessions import SITEVERIFY_URL, SessionView, Turnstile
 from app.routers import auth, session
 from app.routers.crud import preferences
 from app.routers.errors import ApiError, api_error_handler
@@ -366,6 +366,10 @@ async def test_csrf_endpoint_returns_the_same_token(world):
         started = await start(client)
         again = await client.get("/session/csrf")
     assert again.json()["csrf_token"] == started.json()["csrf_token"]
+    # Exactly the contract's fields (schema/session.json): the app's sign-in state reads them
+    for body in (started.json(), again.json()):
+        assert set(body) == set(SessionView.model_fields)
+        assert SessionView.model_validate(body).mode == "guest"
     async with world.client() as stranger:
         assert (await stranger.get("/session/csrf")).status_code == 401
 

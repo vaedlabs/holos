@@ -10,9 +10,11 @@ mostly don't; at 3x either, the IP key is refused until the window ends.
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 import httpx
 from fastapi import Request, Response
+from pydantic import BaseModel
 
 from app.config import limits
 from app.config.settings import Settings
@@ -80,15 +82,27 @@ def utc_iso(moment: datetime) -> str:
     return moment.astimezone(UTC).isoformat()
 
 
+class SessionView(BaseModel):
+    """Who is here, as a session start, sign-in or GET /session/csrf answers: a contract, so
+    the app's sign-in state and the guest-data offer read a checked shape (Part E #78)."""
+
+    mode: Literal["guest", "account"]
+    csrf_token: str
+    expires_at: str  # UTC, ISO 8601
+
+
+def session_view(raw_session_id: str, session: SessionInfo, settings: Settings) -> SessionView:
+    return SessionView(mode=session.mode, csrf_token=csrf_token(raw_session_id, settings),
+                       expires_at=utc_iso(session.expires_at))
+
+
 @dataclass(frozen=True)
 class Started:
     raw_session_id: str
     session: SessionInfo
 
-    def body(self, settings: Settings) -> dict:
-        return {"mode": self.session.mode,
-                "csrf_token": csrf_token(self.raw_session_id, settings),
-                "expires_at": utc_iso(self.session.expires_at)}
+    def body(self, settings: Settings) -> SessionView:
+        return session_view(self.raw_session_id, self.session, settings)
 
 
 def set_session_cookie(response: Response, started: Started, settings: Settings) -> None:

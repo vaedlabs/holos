@@ -321,6 +321,20 @@ describe('Clear my data', () => {
                                traces: [] })
   })
 
+  it('after sign-in: hasData offers the import, forget clears it and keeps the session', async () => {
+    const storage = memoryStorage()
+    const endSession = vi.fn()
+    const s = store(storage, { endSession })
+    expect(s.hasData()).toBe(false)
+    await s.setProfile(KNEE)
+    expect(s.hasData()).toBe(true)
+    s.recordTurn(turnEvents({ committed: [['workout', BRIDGES]] }))
+    s.forget()
+    expect(storage.length).toBe(0)
+    expect(s.hasData()).toBe(false)
+    expect(endSession).not.toHaveBeenCalled() // the account that signed in stays signed in
+  })
+
   it('unreadable storage starts again instead of breaking the chat', () => {
     const storage = memoryStorage()
     storage.setItem('holos.guest.v1', '{not json')

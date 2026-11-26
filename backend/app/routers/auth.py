@@ -88,7 +88,7 @@ def invite_token_hash(token: str) -> str:
 
 def _signed_in(response: Response, started, user: User, settings: Settings) -> dict:
     set_session_cookie(response, started, settings)
-    return {**started.body(settings), "user": {"id": user.id, "email": user.email}}
+    return {**started.body(settings).model_dump(), "user": {"id": user.id, "email": user.email}}
 
 
 def _too_many_logins(retry_after: int) -> ApiError:

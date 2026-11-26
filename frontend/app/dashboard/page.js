@@ -8,6 +8,7 @@ import { CircleAlert, List, MessageCircle, RotateCcw } from 'lucide-react'
 
 import AuthImage from '@/components/AuthImage'
 import HeaderMenu from '@/components/HeaderMenu'
+import ImportGuest from '@/components/ImportGuest'
 import LogsPanel from '@/components/logs/LogsPanel'
 import PromptBar from '@/components/ai/PromptBar'
 import AnswerEntry from '@/components/chat/AnswerEntry'
@@ -64,6 +65,8 @@ function Chat({ guest }) {
   const empty = loaded && entries.length === 0
   const bottom = useRef(/** @type {HTMLDivElement | null} */ (null))
   const following = useRef(true)
+  // Read again after a guest's data is saved to the account, so it shows here at once
+  const [reads, setReads] = useState(0)
 
   // An account's newest page of history
   useEffect(() => {
@@ -76,7 +79,7 @@ function Chat({ guest }) {
     }).catch((err) => live && setFailed({ message: err.message }))
       .finally(() => live && setLoaded(true))
     return () => { live = false }
-  }, [guest])
+  }, [guest, reads])
 
   // Follow the answer as it grows, unless the person has scrolled up to read
   useEffect(() => {
@@ -295,6 +298,8 @@ function Chat({ guest }) {
       )}
       {/* Under the prompt bar, not the messages: scrolled to, it leaves the newest in view above the bar */}
       <div ref={bottom} />
+      {/* A guest's data left in this browser, offered to the account that signed in (C.18) */}
+      {!guest && <ImportGuest onImported={() => setReads((prev) => prev + 1)} />}
 
     </div>
   )

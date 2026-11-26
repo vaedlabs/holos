@@ -8,6 +8,7 @@
  *   await store.confirm(id, { at, meal, leftOut })   // a held entry, dated as confirmed
  *   store.discard(id)                                // "Don't log"
  *   await store.clearMyData()                        // nothing left; the session ends
+ *   store.hasData()  /  store.forget()               // after sign-in: offer, then clear (C.18)
  *
  * The server keeps nothing for a guest: the profile and the last 6 turns go with each
  * message, and what the person logs stays here until they import it into an account
@@ -313,6 +314,17 @@ export function guestStore(storage = globalThis.localStorage,
     async clearMyData() {
       storage.removeItem(KEY)
       await endSession()
+    },
+
+    /** Anything a guest left here that an account could take: a profile, turns or logs. */
+    hasData() {
+      const data = read()
+      return Boolean(data.profile) || data.turns.length > 0 || data.logs.length > 0
+    },
+
+    /** Saved or discarded after sign-in: the browser copy goes, the account's session stays. */
+    forget() {
+      storage.removeItem(KEY)
     },
   }
 }

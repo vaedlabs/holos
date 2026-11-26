@@ -25,6 +25,10 @@ const SAFE = new Set(['GET', 'HEAD', 'OPTIONS'])
  * @typedef {import('../types/contracts').WorkoutLogs} WorkoutLogs
  * @typedef {import('../types/contracts').NutritionLogs} NutritionLogs
  * @typedef {import('../types/contracts').MentalFitnessLogs} MentalFitnessLogs
+ * @typedef {import('../types/contracts').Session} Session
+ * @typedef {import('../types/contracts').ImportPayload} ImportPayload
+ * @typedef {{ imported: { history: number, logs: number }, skipped: { index: number, reason: string }[],
+ *   review: { index: number, warnings: string[] }[], history_refused: { index: number, reason: string }[] }} ImportResult
  * @typedef {{ method?: string, body?: unknown, headers?: Record<string, string>, raw?: boolean,
  *   fetchImpl?: typeof fetch, retried?: boolean, withCsrf?: boolean }} RequestOptions
  */
@@ -183,10 +187,11 @@ export async function request(path, { method = 'GET', body, headers = {}, raw = 
 /**
  * The current session, or null when there is none (401).
  * @param {typeof fetch} [fetchImpl]
+ * @returns {Promise<Session | null>}
  */
 export async function currentSession(fetchImpl = fetch) {
   try {
-    return rememberSession(await request('/session/csrf', { fetchImpl }))
+    return rememberSession(/** @type {Session} */ (await request('/session/csrf', { fetchImpl })))
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) return null
     throw error
@@ -230,6 +235,16 @@ export async function signOut(fetchImpl = fetch) {
 }
 
 // --- The account's data ---
+
+/**
+ * A guest's data from this browser, saved to the signed-in account (C.18). The same
+ * `import_id` again gets the first result, so a retry never imports twice.
+ * @param {ImportPayload} body @param {typeof fetch} [fetchImpl]
+ * @returns {Promise<ImportResult>}
+ */
+export async function importGuest(body, fetchImpl = fetch) {
+  return request('/account/import', { method: 'POST', body, fetchImpl })
+}
 
 export const api = {
   getMedicalHistory: () => request('/medical/history'),

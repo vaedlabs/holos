@@ -6,6 +6,7 @@ import { CircleAlert } from 'lucide-react'
 
 import ButtonSelector from '@/components/ButtonSelector'
 import HealthProfile from '@/components/HealthProfile'
+import ImportGuest from '@/components/ImportGuest'
 import PageShell from '@/components/PageShell'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -108,6 +109,9 @@ export default function OnboardingPage() {
     // The header bar every page has, with no Chat yet; the step's name is its card's title, so the
     // step line only counts (owner, 25 Nov 2026)
     <PageShell end={false} title="Welcome! Let's set up your profile">
+      {/* A guest's data in this browser, offered before the questions it may already answer: saved
+          here, the health step then shows the guest's profile rather than asking again (Part E #78) */}
+      <ImportGuest />
       <div className="flex flex-col gap-2">
         <p className="m-0 text-sm font-medium text-foreground-secondary">Step {step + 1} of {STEPS.length}</p>
         <Progress value={((step + 1) / STEPS.length) * 100} aria-label={`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`} />

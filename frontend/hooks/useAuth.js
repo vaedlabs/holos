@@ -4,14 +4,16 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { currentSession } from '@/lib/api'
 
+/** @typedef {import('@/types/contracts').Session} Session */
+
 /**
  * Who is here (Plan C.6): the session the cookie names, read from GET /session/csrf
- * (`{mode, csrf_token, expires_at}`), or null. The cookie is HttpOnly, so the page can't
+ * (`Session`, schema/session.json), or null. The cookie is HttpOnly, so the page can't
  * look at it; asking the server is also the only way to know it hasn't ended.
  */
 export function useSession() {
-  const [state, setState] = useState(/** @type {{ loading: boolean, session: { mode: 'guest' | 'account',
-    csrf_token: string, expires_at: string } | null }} */ ({ loading: true, session: null }))
+  const [state, setState] = useState(/** @type {{ loading: boolean, session: Session | null }} */ (
+    { loading: true, session: null }))
 
   useEffect(() => {
     let live = true

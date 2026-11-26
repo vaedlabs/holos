@@ -1,0 +1,28 @@
+{
+  "description": "Who is here, as a session start, sign-in or GET /session/csrf answers: a contract, so\nthe app's sign-in state and the guest-data offer read a checked shape (Part E #78).",
+  "properties": {
+    "csrf_token": {
+      "title": "Csrf Token",
+      "type": "string"
+    },
+    "expires_at": {
+      "title": "Expires At",
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "guest",
+        "account"
+      ],
+      "title": "Mode",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mode",
+    "csrf_token",
+    "expires_at"
+  ],
+  "title": "SessionView",
+  "type": "object"
+}
