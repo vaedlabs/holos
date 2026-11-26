@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 
+import HelpNow from '@/components/HelpNow'
 import { cn } from '@/lib/utils'
 
 // Only in the browser, and only loaded where a page asks for it (three.js is large)
@@ -18,6 +19,7 @@ export default function AuthShell({ title, children, footer, silk = false }) {
     <div className={cn('flex min-h-dvh flex-col items-center justify-center gap-7 px-4 py-10',
                        silk && 'relative isolate overflow-hidden bg-background')}>
       {silk && <Silk speed={5} scale={1} noiseIntensity={1.5} rotation={0} />}
+      <HelpNow floating />
       <Link href="/" className={cn('flex flex-col items-center gap-2 no-underline', silk ? 'text-on-silk' : 'text-foreground')}>
         <span aria-hidden="true" className="flex size-12 items-center justify-center rounded-xl bg-primary-tint text-primary">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

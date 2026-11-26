@@ -3,22 +3,27 @@
 
 import { Trash2 } from 'lucide-react'
 
+import { Caution } from '@/components/chat/Items'
 import { Button } from '@/components/ui/button'
-import { logWhen } from '@/lib/logs'
+import { logWhen, warningNotes } from '@/lib/logs'
 
-/** One log: its title and details, when it happened, its notes, and Delete (`name`: what Delete
- * calls it, when the title is only its kind, e.g. "Breakfast"). */
+/** One log: its title and details, what was left out and the conflicts confirmed, when it happened,
+ * its notes, and Delete (`name`: what Delete calls it, when the title is only its kind, e.g. "Breakfast"). */
 /**
  * @param {{ title: string, name?: string, detail?: string, when: string, notes?: string | null,
- *   onDelete: () => void, children?: import('react').ReactNode }} props
+ *   warnings?: import('@/lib/logs').WriteWarning[], onDelete: () => void,
+ *   children?: import('react').ReactNode }} props
  */
-export default function LogItem({ title, name = title, detail, when, notes, onDelete, children }) {
+export default function LogItem({ title, name = title, detail, when, notes, warnings, onDelete, children }) {
+  const { without, confirmed } = warningNotes(warnings)
   return (
     <li className="flex gap-3 rounded-lg border bg-card p-3">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="m-0 font-medium">{title}</p>
         {detail && <p className="m-0 text-sm text-foreground-secondary tabular-nums">{detail}</p>}
         {children}
+        {without.map((w) => <p key={w} className="m-0 text-sm text-foreground-secondary">{w}</p>)}
+        {confirmed.map((reason) => <Caution key={reason}>{reason}. You confirmed this entry.</Caution>)}
         {notes && <p className="m-0 text-sm text-foreground-secondary">{notes}</p>}
         <p className="m-0 text-xs text-muted-foreground">{logWhen(when)}</p>
       </div>

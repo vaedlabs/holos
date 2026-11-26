@@ -3,13 +3,15 @@
 import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
 
+import HelpNow from '@/components/HelpNow'
 import { Button } from '@/components/ui/button'
 
 /**
  * A settings page's frame (profile, preferences, onboarding). The header: the wordmark (to the
  * chat), then with `section` "/ Health profile" as the page's name; at the end, on any page with
  * a `section`, Chat, since the wordmark isn't plainly a way back (owner, 25 Nov 2026), then the
- * page's own `end` (the menu; `end={false}` for nothing, as on onboarding). Below it, the page's
+ * "Need help now?" on every page (P5.4), then the page's own `end` (the menu; `end={false}` for
+ * nothing, as on onboarding). Below it, the page's
  * heading (an h2 under a `section`) and its content in one column.
  */
 export default function PageShell({ section, end, title, titleAs, description, children }) {
@@ -30,10 +32,12 @@ export default function PageShell({ section, end, title, titleAs, description, c
           <nav className="flex items-center gap-1" aria-label="Main">
             {/* Where the chat has Logs: an icon and its word, the same style */}
             {section && (
+              // On a phone its icon alone, so the page's name fits beside "Help" (owner, 27 Nov 2026)
               <Button asChild variant="ghost">
-                <Link href="/dashboard"><MessageCircle /> Chat</Link>
+                <Link href="/dashboard" aria-label="Chat"><MessageCircle /> <span className="hidden sm:inline">Chat</span></Link>
               </Button>
             )}
+            <HelpNow />
             {end || null}
           </nav>
         </div>

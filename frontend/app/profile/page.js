@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 
+import DemoNotice from '@/components/DemoNotice'
 import HealthProfile from '@/components/HealthProfile'
 import HeaderMenu from '@/components/HeaderMenu'
 import PageShell from '@/components/PageShell'
@@ -20,6 +21,7 @@ export default function ProfilePage() {
       end={<HeaderMenu guest={guest} />}
       title="Your health profile"
       description={`Holos checks every plan and meal against what you pick here.${guest ? ' As a guest, it stays in this browser.' : ''}`}>
+      <DemoNotice />
       {/* In a card, as on onboarding and the preferences page */}
       <section className="rounded-xl border bg-card p-5 text-card-foreground shadow-card sm:p-6">
         <HealthProfile mode={guest ? 'guest' : 'account'} store={store} />

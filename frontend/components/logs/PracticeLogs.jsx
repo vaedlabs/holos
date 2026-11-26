@@ -13,7 +13,7 @@ export default function PracticeLogs({ logs, onDelete }) {
       {logs.map((log) => {
         const v = practiceView(log)
         return (
-          <LogItem key={log.id} title={v.title} detail={v.detail} when={v.when} notes={v.notes}
+          <LogItem key={log.id} warnings={log.warnings} title={v.title} detail={v.detail} when={v.when} notes={v.notes}
                    onDelete={() => onDelete(log, v.title)} />
         )
       })}

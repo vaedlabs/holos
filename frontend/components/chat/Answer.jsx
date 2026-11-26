@@ -1,8 +1,9 @@
 // @ts-check
 'use client'
 
-import { CircleAlert, Info, LifeBuoy, RotateCcw } from 'lucide-react'
+import { CircleAlert, Info, RotateCcw } from 'lucide-react'
 
+import CrisisCard from '@/components/CrisisCard'
 import { StreamingBlock } from '@/components/ai/StreamingText'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -102,19 +103,7 @@ export default function Answer({ view, live = false, onRetry, onConfirm, onDisca
           <AlertDescription>{n.message}</AlertDescription>
         </Alert>
       ))}
-      {view.crisis && (
-        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-crisis-border bg-crisis-background p-4 text-crisis-foreground">
-          <p className="m-0 flex items-start gap-2 font-medium">
-            <LifeBuoy aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-            {view.crisis.text}
-          </p>
-          <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-            {view.crisis.helplines.map((h) => (
-              <li key={h.name}><strong>{h.name}</strong> ({h.region}): {h.contact}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {view.crisis && <CrisisCard text={view.crisis.text} helplines={view.crisis.helplines} />}
       {view.error && (
         <Alert variant="destructive">
           <CircleAlert />

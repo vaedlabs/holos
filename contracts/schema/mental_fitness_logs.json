@@ -64,6 +64,14 @@
         "user_id": {
           "title": "User Id",
           "type": "integer"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WriteWarning"
+          },
+          "title": "Warnings",
+          "type": "array"
         }
       },
       "required": [
@@ -77,6 +85,58 @@
         "updated_at"
       ],
       "title": "MentalFitnessLogResponse",
+      "type": "object"
+    },
+    "WriteWarning": {
+      "additionalProperties": false,
+      "description": "What in a logged entry conflicts with the profile, kept with the log row (owner,\n3 Nov 2026, Part E #45). `conflict`: a rule fired, so the entry waits for the\nperson's confirmation; `unchecked`: ingredients the gate couldn't check, recorded\nonly. `left_out`: the person said at confirm that they didn't have it (the peanuts\npicked out of the poha).",
+      "properties": {
+        "attributes": {
+          "items": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Attributes",
+          "type": "array"
+        },
+        "item": {
+          "maxLength": 60,
+          "title": "Item",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "conflict",
+            "unchecked"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "left_out": {
+          "default": false,
+          "title": "Left Out",
+          "type": "boolean"
+        },
+        "reason": {
+          "maxLength": 200,
+          "title": "Reason",
+          "type": "string"
+        },
+        "rule_id": {
+          "maxLength": 40,
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item",
+        "rule_id",
+        "attributes",
+        "reason"
+      ],
+      "title": "WriteWarning",
       "type": "object"
     }
   },

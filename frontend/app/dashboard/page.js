@@ -7,7 +7,9 @@ import Link from 'next/link'
 import { CircleAlert, List, MessageCircle, RotateCcw } from 'lucide-react'
 
 import AuthImage from '@/components/AuthImage'
+import DemoNotice from '@/components/DemoNotice'
 import HeaderMenu from '@/components/HeaderMenu'
+import HelpNow from '@/components/HelpNow'
 import ImportGuest from '@/components/ImportGuest'
 import LogsPanel from '@/components/logs/LogsPanel'
 import PromptBar from '@/components/ai/PromptBar'
@@ -17,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { useRequireAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
+import { CRISIS_TEXT, HELPLINES, crisisCheck } from '@/lib/crisis'
 import { guestStore } from '@/lib/guestStore'
 import { shrinkPhoto } from '@/lib/image'
 import { NOT_ATTACHED, retryId, sendChat } from '@/lib/stream'
@@ -36,6 +39,9 @@ import { COACHES, heldKinds, replaceWaiting, settleCard, stepStatus } from '@/li
  */
 
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
+
+/** The crisis card the browser shows before the server's comes: the same text and helplines. */
+const localCrisis = () => (/** @type {any} */ ({ name: 'crisis', data: { text: CRISIS_TEXT, helplines: HELPLINES } }))
 
 // Within this distance of the bottom, a growing answer keeps the page scrolled to it
 const FOLLOW_PX = 160
@@ -126,12 +132,16 @@ function Chat({ guest }) {
     setFailed(null)
     following.current = true
     const key = again?.key ?? `live-${Date.now()}`
+    // A crisis message shows the helplines before it is sent, even with the backend slow or down
+    // (C.16; owner, Part E #78). It is still sent, so the server records it. Kept last in the
+    // answer's events: an answer has one crisis card (turnView), so the server's adds no second
+    const local = crisisCheck(message).matched ? [localCrisis()] : []
     if (again) {
-      setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, events: [], live: true } : e)))
+      setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, events: [...local], live: true } : e)))
     } else {
       setEntries((prev) => [...prev,
         { key: `${key}-q`, role: 'user', text: message, preview: image ? URL.createObjectURL(image) : null },
-        { key, role: 'assistant', events: [], live: true, asked: { message, image } }])
+        { key, role: 'assistant', events: [...local], live: true, asked: { message, image } }])
     }
     const events = []
     const input = { message, timezone: zone(), ...(agents?.length ? { agents } : {}) }
@@ -142,7 +152,7 @@ function Chat({ guest }) {
         events.push(event)
         if (event.name === 'step') setStatus((prev) => stepStatus(prev, event.data.name))
         setEntries((prev) => prev.map((e) => (e.key === key
-          ? { ...e, events: [...events], traceId: event.data.trace_id ?? e.traceId } : e)))
+          ? { ...e, events: [...events, ...local], traceId: event.data.trace_id ?? e.traceId } : e)))
       },
       onStatus: (s) => setStatus(s === 'reconnecting' ? 'Reconnecting…' : ''),
     })
@@ -170,7 +180,9 @@ function Chat({ guest }) {
       await run({ message, image, agents }, { key, requestId: null })
       return
     }
-    if (result.outcome === 'refused' && !again) { // nothing came: the question goes back in the box
+    if (local.length) { // the helplines stay, whatever happened to the message
+      setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, live: false } : e)))
+    } else if (result.outcome === 'refused' && !again) { // nothing came: the question goes back in the box
       setEntries((prev) => prev.filter((e) => !e.key.startsWith(key)))
     }
     setFailed({ message: result.message, input: { message, image, agents },
@@ -248,6 +260,7 @@ function Chat({ guest }) {
             <LogsPanel guest={guest}>
               <Button type="button" variant="ghost"><List /> Logs</Button>
             </LogsPanel>
+            <HelpNow />
             <HeaderMenu guest={guest} />
           </nav>
         </div>
@@ -300,6 +313,8 @@ function Chat({ guest }) {
       <div ref={bottom} />
       {/* A guest's data left in this browser, offered to the account that signed in (C.18) */}
       {!guest && <ImportGuest onImported={() => setReads((prev) => prev + 1)} />}
+      {/* Where health details are given: here, onboarding and the profile (Part E #78) */}
+      <DemoNotice />
 
     </div>
   )

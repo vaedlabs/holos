@@ -1,6 +1,6 @@
 """GET /logs/* sends a workout's exercises, a meal's foods and its macros as lists and an
 object (R9, Part E #74), whatever text the row holds: what reads is sent, the rest left
-out, never raw JSON (D062 B1, B3)."""
+out, never raw JSON (D062 B1, B3). Each log sends its stored warnings (Part E #65 (4))."""
 
 import json
 
@@ -29,8 +29,9 @@ async def _app(async_engine, clean):
     return _crud_app(store, async_engine, clean), me
 
 
-async def _logged(engine, user_id, kind, args):
-    write = StagedWrite(kind=kind, args=WRITE_ARGS[kind].model_validate(args))
+async def _logged(engine, user_id, kind, args, warnings=()):
+    write = StagedWrite(kind=kind, args=WRITE_ARGS[kind].model_validate(args),
+                        warnings=list(warnings))
     async with AsyncSession(engine, expire_on_commit=False) as session:
         await insert_log(session, user_id, write)
         await session.commit()
@@ -84,3 +85,37 @@ async def test_an_old_workout_row_reads_too(async_engine, clean):
     [workout] = (await call(app, me, "GET", "/logs/workouts")).json()["logs"]
     assert workout["exercises"] == [{"name": "Push-ups", "catalogue_id": None, "sets": 3,
                                      "reps": 15, "duration_s": None}]
+
+
+PEANUT = {"kind": "conflict", "item": "Poha", "rule_id": "DI-ALG-01", "attributes": ["peanut"],
+          "reason": "Contains peanut: you have a peanut allergy", "left_out": True}
+SESAME = {**PEANUT, "attributes": ["sesame"], "reason": "Contains sesame", "left_out": False}
+UNCHECKED = {"kind": "unchecked", "item": "Poha", "rule_id": "DI-UNK-01",
+             "attributes": ["masala"], "reason": "Not checked", "left_out": False}
+
+
+async def test_each_log_sends_the_warnings_stored_with_it(async_engine, clean):
+    app, me = await _app(async_engine, clean)
+    await _logged(async_engine, me.user_id, "meal",
+                  {"meal": "breakfast", "foods": [POHA], "when": SQUATS["when"]},
+                  warnings=[PEANUT, SESAME, UNCHECKED])
+    await _logged(async_engine, me.user_id, "workout", SQUATS)
+    [meal] = (await call(app, me, "GET", "/logs/nutrition")).json()["logs"]
+    assert meal["warnings"] == [PEANUT, SESAME, UNCHECKED]
+    [workout] = (await call(app, me, "GET", "/logs/workouts")).json()["logs"]
+    assert workout["warnings"] == []  # stored as NULL
+
+
+@pytest.mark.parametrize("stored", [
+    json.dumps([{"kind": "conflict"}, PEANUT]),  # one that doesn't read is left out
+    json.dumps({"kind": "conflict"}),
+    json.dumps("peanut"),
+], ids=["partly", "not-a-list", "text"])
+async def test_stored_warnings_that_dont_read_are_left_out(async_engine, clean, stored):
+    app, me = await _app(async_engine, clean)
+    await sql(async_engine, "INSERT INTO mental_fitness_logs (user_id, activity_type, warnings) "
+              "VALUES (:u, 'breathing', CAST(:w AS json))", u=me.user_id, w=stored)
+    response = await call(app, me, "GET", "/logs/mental-fitness")
+    assert response.status_code == 200
+    [practice] = response.json()["logs"]
+    assert practice["warnings"] == ([PEANUT] if stored.startswith("[") else [])

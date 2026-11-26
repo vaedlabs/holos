@@ -23,7 +23,7 @@ export default function MealLogs({ logs, onDelete }) {
                         fat !== null && `fat ${fat} g`].filter(Boolean).join(' · ')
         const listed = v.foods.some((f) => f.portion)
         return (
-          <LogItem key={log.id} title={listed ? v.meal || 'Meal' : v.title} name={v.title} detail={detail}
+          <LogItem key={log.id} warnings={log.warnings} title={listed ? v.meal || 'Meal' : v.title} name={v.title} detail={detail}
                    when={v.when} notes={v.notes} onDelete={() => onDelete(log, v.title)}>
             {!listed && v.meal && <Badge variant="outline" className="text-nutrition">{v.meal}</Badge>}
             {listed && (

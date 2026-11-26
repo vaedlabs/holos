@@ -108,3 +108,39 @@ describe('the lists', () => {
     expect(screen.getByText(/No meals logged yet/)).toBeTruthy()
   })
 })
+
+describe('what a log was saved with (Part E #65 (4))', () => {
+  const warning = (fields) => ({ kind: 'conflict', item: 'Poha', rule_id: 'DI-ALG-01', attributes: ['peanut'],
+                                 reason: 'Contains an allergen in your profile', left_out: false, ...fields })
+  const breakfast = (warnings) => ({ ...lunch, id: 9, meal_type: 'breakfast', foods: [food('Poha', '1 plate', 300)],
+                                     warnings })
+  const shown = (warnings) => {
+    render(<MealLogs logs={[breakfast(warnings)]} onDelete={() => {}} />)
+    return screen.getAllByRole('listitem')[0].textContent // the log; its foods are items too
+  }
+
+  it('the fixtures with warnings are what the endpoint sends', () => {
+    expect(contract('nutrition_logs.json')({ logs: [breakfast([warning(), warning({ kind: 'unchecked' })])], total: 1 }))
+      .toBe(true)
+  })
+
+  it('what was left out is a quiet note', () => {
+    const text = shown([warning({ left_out: true }), warning({ left_out: true })])
+    expect(text).toContain('Poha · without peanut')
+    expect(text.match(/without peanut/g)).toHaveLength(1)
+    expect(text).not.toContain('You confirmed')
+  })
+
+  it('a conflict the person confirmed is flagged with what fired, and says they confirmed it', () => {
+    shown([warning()])
+    const flag = screen.getByText(/You confirmed this entry/)
+    expect(flag.textContent).toBe('Poha: contains an allergen in your profile (peanut). You confirmed this entry.')
+    expect(flag.closest('.text-caution')).not.toBeNull()
+  })
+
+  it('an unchecked ingredient, or none stored, says nothing', () => {
+    const plain = shown(undefined)
+    cleanup()
+    expect(shown([warning({ kind: 'unchecked', reason: 'Not checked against your allergies' })])).toBe(plain)
+  })
+})

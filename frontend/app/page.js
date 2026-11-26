@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CircleAlert } from 'lucide-react'
 
+import HelpNow from '@/components/HelpNow'
 import Turnstile from '@/components/Turnstile'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,7 @@ export default function Home() {
   return (
     <div className="relative isolate flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-10">
       <Silk speed={5} scale={1} noiseIntensity={1.5} rotation={0} />
+      <HelpNow floating />
       <main className="flex w-full max-w-xl flex-col items-center gap-6 rounded-2xl border bg-card/95 px-6 py-10 text-center text-card-foreground shadow-popover backdrop-blur sm:px-10">
         <h1 className="m-0 font-heading text-6xl font-bold tracking-tight sm:text-7xl">Holos</h1>
         <p className="m-0 max-w-md text-lg text-foreground-secondary">

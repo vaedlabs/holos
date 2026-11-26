@@ -5,6 +5,8 @@ responses send them as lists and an object (R9, Part E #74), so the app reads re
 shapes and the contracts can type them. Stored text that doesn't read as the shape
 (the old app's `{"foods": [...]}`, a row from before the rebuild) gives what does read:
 each item without a name is left out, never sent as raw JSON (D062 B1, B3).
+Each log also sends the warnings stored with it (Part E #65 (4)), so the logs can say
+what was left out and which conflicts the person confirmed.
 """
 
 import json
@@ -12,6 +14,8 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
+
+from app.agents.schemas import WriteWarning
 
 
 class _Read(BaseModel):
@@ -66,7 +70,27 @@ def _items(value: Any, key: str, model: type[_Read]) -> list[dict]:
     return out
 
 
-class WorkoutLogResponse(BaseModel):
+def _warnings(value: Any) -> list[dict]:
+    """The stored warnings that read; a row from before them (or JSON null) has none."""
+    out = []
+    for item in value if isinstance(value, list) else []:
+        try:
+            out.append(WriteWarning.model_validate(item).model_dump())
+        except ValidationError:
+            continue
+    return out
+
+
+class _Logged(BaseModel):
+    warnings: list[WriteWarning] = []
+
+    @field_validator("warnings", mode="before")
+    @classmethod
+    def _read_warnings(cls, value: Any) -> list[dict]:
+        return _warnings(value)
+
+
+class WorkoutLogResponse(_Logged):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -85,7 +109,7 @@ class WorkoutLogResponse(BaseModel):
         return _items(value, "exercises", LoggedExerciseView)
 
 
-class NutritionLogResponse(BaseModel):
+class NutritionLogResponse(_Logged):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -113,7 +137,7 @@ class NutritionLogResponse(BaseModel):
             return None
 
 
-class MentalFitnessLogResponse(BaseModel):
+class MentalFitnessLogResponse(_Logged):
     model_config = ConfigDict(from_attributes=True)
 
     id: int

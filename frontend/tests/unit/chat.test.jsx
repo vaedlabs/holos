@@ -31,8 +31,10 @@ describe('sample streams', () => {
       for (const { data } of events.filter((e) => e.name === 'item')) {
         expect(container.textContent).toContain(data.display)
       }
-      // The only links are https sources
-      for (const a of container.querySelectorAll('a')) expect(a.href).toMatch(/^https:/)
+      // The only links are https sources, and the crisis card's helplines, a phone can call
+      for (const a of container.querySelectorAll('a')) {
+        expect(a.href).toMatch(a.closest('[role=alert]') ? /^(https|tel):/ : /^https:/)
+      }
     })
 })
 

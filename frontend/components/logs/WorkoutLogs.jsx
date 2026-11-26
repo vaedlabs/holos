@@ -16,7 +16,7 @@ export default function WorkoutLogs({ logs, onDelete }) {
       {logs.map((log) => {
         const v = workoutView(log)
         return (
-          <LogItem key={log.id} title={v.exercises.length > 0 ? humanize(log.exercise_type) || 'Workout' : v.title}
+          <LogItem key={log.id} warnings={log.warnings} title={v.exercises.length > 0 ? humanize(log.exercise_type) || 'Workout' : v.title}
                    name={v.title} detail={v.detail} when={v.when} notes={v.notes}
                    onDelete={() => onDelete(log, v.title)}>
             {v.exercises.length > 0 && (

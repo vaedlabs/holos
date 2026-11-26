@@ -8,6 +8,7 @@
  * @typedef {import('../types/contracts').NutritionLogs['logs'][number]} NutritionLog
  * @typedef {import('../types/contracts').MentalFitnessLogs['logs'][number]} PracticeLog
  * @typedef {WorkoutLog['exercises'][number]} Exercise
+ * @typedef {NonNullable<NutritionLog['warnings']>[number]} WriteWarning
  */
 
 /**
@@ -98,4 +99,22 @@ export function logWhen(iso) {
   const day = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
   const time = d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })
   return `${day}, ${time}`
+}
+
+/**
+ * What a log's stored warnings say (Part E #65 (4)): what the person left out ("Poha · without
+ * peanut"), quietly; and the conflicts they confirmed, each once. An unchecked ingredient
+ * says nothing: it was recorded, not judged.
+ * @param {WriteWarning[] | undefined} warnings
+ * @returns {{ without: string[], confirmed: string[] }}
+ */
+export function warningNotes(warnings = []) {
+  const without = warnings.filter((w) => w.left_out)
+    .map((w) => `${w.item} · without ${w.attributes.join(', ')}`)
+  // As the server words a warning (staging.warning_text), with what fired: the stored reason is
+  // the rule's, e.g. "Contains an allergen in your profile"
+  const confirmed = warnings.filter((w) => w.kind === 'conflict' && !w.left_out)
+    .map((w) => `${w.item}: ${w.reason.charAt(0).toLowerCase()}${w.reason.slice(1)}`
+                + (w.attributes.length ? ` (${w.attributes.join(', ')})` : ''))
+  return { without: [...new Set(without)], confirmed: [...new Set(confirmed)] }
 }

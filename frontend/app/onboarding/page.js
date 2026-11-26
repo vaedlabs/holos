@@ -6,6 +6,7 @@ import { CircleAlert } from 'lucide-react'
 
 import ButtonSelector from '@/components/ButtonSelector'
 import HealthProfile from '@/components/HealthProfile'
+import DemoNotice from '@/components/DemoNotice'
 import ImportGuest from '@/components/ImportGuest'
 import PageShell from '@/components/PageShell'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -112,6 +113,7 @@ export default function OnboardingPage() {
       {/* A guest's data in this browser, offered before the questions it may already answer: saved
           here, the health step then shows the guest's profile rather than asking again (Part E #78) */}
       <ImportGuest />
+      <DemoNotice />
       <div className="flex flex-col gap-2">
         <p className="m-0 text-sm font-medium text-foreground-secondary">Step {step + 1} of {STEPS.length}</p>
         <Progress value={((step + 1) / STEPS.length) * 100} aria-label={`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`} />
