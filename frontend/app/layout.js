@@ -1,5 +1,7 @@
 import './globals.css'
 
+import { connection } from 'next/server'
+
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -13,7 +15,10 @@ export const metadata = {
   },
 }
 
-export default function RootLayout({ children }) {
+// Every page is rendered when it's asked for, so each gets the nonce proxy.js made for it: a page
+// built ahead of time has no request to take one from (Next's CSP guide; P5.5)
+export default async function RootLayout({ children }) {
+  await connection()
   return (
     <html lang="en" className={fontVariables} suppressHydrationWarning>
       <body suppressHydrationWarning>

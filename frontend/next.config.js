@@ -18,6 +18,9 @@ const nextConfig = {
   outputFileTracingRoot: repoRoot,
   // next dev would write frontend/AGENTS.md; the agent rules live in CLAUDE.md and docs/rules/
   agentRules: false,
+  // The e2e tests build into a folder of their own, against their own API port, so a test run
+  // never replaces the build or the dev server's files (P5.5)
+  distDir: process.env.NEXT_DIST_DIR || '.next',
 }
 
 module.exports = nextConfig

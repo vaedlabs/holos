@@ -4,7 +4,8 @@ import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
 const config = [
   ...nextCoreWebVitals,
   // Downloads/ holds third-party source kept only as a reference while porting (R7)
-  { ignores: ['coverage/', 'Downloads/'] },
+  // The e2e build (.next-e2e, P5.5) and Playwright's results are output, like .next/
+  { ignores: ['coverage/', 'Downloads/', '.next-e2e/', 'test-results/', 'playwright-report/'] },
 ]
 
 export default config
