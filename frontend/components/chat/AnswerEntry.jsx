@@ -4,13 +4,15 @@
 import { useMemo } from 'react'
 
 import LoadingState from '@/components/ai/LoadingState'
+import TracePanel from '@/components/ai/TracePanel'
 import { accountCards, guestCards } from '@/lib/cards'
 import { turnView } from '@/lib/turnView'
 
 import Answer from './Answer'
 
 /** One answer: its events through `turnView`, or its text when nothing was kept. While
- * it's coming, the step it's on; never for a crisis reply, which shows at once (P5.4).
+ * it's coming, the step it's on; never for a crisis reply, which shows at once (P5.4). Once a
+ * live answer is finished, how it was made (P5.6).
  * A card's decision also goes to `onSettled(entryKey, index, state)`, so the chat knows which cards
  * still wait when a newer entry replaces them. */
 /**
@@ -37,6 +39,9 @@ export default function AnswerEntry({ entry, guest, store, status, onRetry, onSe
       <Answer view={view} live={entry.live} onRetry={onRetry} onConfirm={cards.confirm}
               onDiscard={cards.discard} />
       {entry.live && !view.crisis && !view.done && <LoadingState label={status || 'Starting…'} />}
+      {/* Once it's finished, how it was made; a crisis reply has no model run to show, though a
+          coach's answer that also carries the helplines does (P5.6) */}
+      {!entry.live && view.trace && view.trace.route !== 'crisis' && <TracePanel trace={view.trace} view={view} />}
     </div>
   )
 }

@@ -24,5 +24,6 @@
     }
   },
   "include": ["lib/**/*.js", "hooks/**/*.js", "components/chat/**/*.jsx", "components/logs/**/*.jsx",
+              "components/ai/TracePanel.jsx", "components/CrisisCard.jsx",
               "app/dashboard/**/*.js", "types/**/*.d.ts"]
 }

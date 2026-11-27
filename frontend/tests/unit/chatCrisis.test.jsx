@@ -2,7 +2,8 @@
 /**
  * A crisis message in the chat (C.16, P5.4; owner, Part E #78): the browser's check shows the
  * helplines before any reply, the message is still sent, the server's crisis event takes the
- * card's place (one card), and the card stays when sending fails.
+ * card's place (one card), and the card stays when sending fails. And any send that ends without
+ * an answer stops loading.
  */
 
 import fs from 'node:fs'
@@ -78,4 +79,16 @@ it('an ordinary message shows no crisis card', async () => {
   render(<ChatPage />)
   await act(async () => say('a 20 minute run for a beginner'))
   expect(cards()).toHaveLength(0)
+})
+
+it('a send that ends without an answer stops loading: no "Starting…" left counting', async () => {
+  const server = held()
+  render(<ChatPage />)
+  await act(async () => say('a 20 minute run for a beginner'))
+  expect(screen.getByRole('status')).toBeTruthy() // waiting for the answer
+  await act(async () => server.emit({ name: 'accepted', data: { seq: 0, trace_id: 't', contract_version: 1, mode: 'guest' } }))
+  await act(async () => server.finish({ outcome: 'error', code: 'interrupted', message: 'Your answer was interrupted. Tap to try again.' }))
+  expect(screen.queryByRole('status')).toBeNull()
+  expect(screen.getByText('Your answer was interrupted. Tap to try again.')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
 })

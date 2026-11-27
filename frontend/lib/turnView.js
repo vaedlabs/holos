@@ -47,7 +47,8 @@ const SHOWN = new Set(['section_start', 'text', 'item', 'sources', 'section_end'
  *   warnings: string[], removed: number, error: string | null, cards: Array<LoggedCard | HeldCard> }} Section
  * @typedef {{ own: string[], summary: string[], sections: Section[], repeats: RepeatHeld[],
  *   crisis: Data<'crisis'> | null, notices: Data<'notice'>[], step: Data<'step'> | null,
- *   done: boolean, error: Data<'error'> | null, traceId: string | null }} TurnView
+ *   done: boolean, error: Data<'error'> | null, traceId: string | null,
+ *   trace: Data<'done'>['trace'] | null }} TurnView
  */
 
 /** A live `{name, data}` or saved `{event, data}` event, by its name. */
@@ -72,7 +73,7 @@ function bare(data) {
 export function turnView(events) {
   /** @type {TurnView} */
   const view = { own: [], summary: [], sections: [], repeats: [], crisis: null, notices: [],
-                 step: null, done: false, error: null, traceId: null }
+                 step: null, done: false, error: null, traceId: null, trace: null }
   /** @param {string} agent @returns {Section} */
   const section = (agent) => {
     let found = view.sections.find((s) => s.agent === agent)
@@ -152,6 +153,7 @@ export function turnView(events) {
         break
       case 'done':
         view.done = true
+        view.trace = e.data.trace ?? null // live only: a saved answer keeps no terminal event (C.5)
         break
       case 'error':
         view.error = bare(e.data)

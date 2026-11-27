@@ -181,10 +181,12 @@ function Chat({ guest }) {
       await run({ message, image, agents }, { key, requestId: null })
       return
     }
-    if (local.length) { // the helplines stay, whatever happened to the message
-      setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, live: false } : e)))
-    } else if (result.outcome === 'refused' && !again) { // nothing came: the question goes back in the box
+    if (result.outcome === 'refused' && !again && !local.length) { // nothing came: the question goes back in the box
       setEntries((prev) => prev.filter((e) => !e.key.startsWith(key)))
+    } else {
+      // What came stays (the helplines too), but it's no longer coming: no "Starting…" left
+      // counting under it; Retry makes it live again
+      setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, live: false } : e)))
     }
     setFailed({ message: result.message, input: { message, image, agents },
                 again: result.code === 'interrupted'
@@ -232,7 +234,9 @@ function Chat({ guest }) {
   const composer = (
     <div className="flex flex-col gap-2 [view-transition-name:prompt]">
       {failed && (
-        <Alert variant="destructive">
+        // Icon, message and Retry on one centred line: the button is taller than the text, so the
+        // icon is centred too rather than set at the top (owner, 27 Nov 2026)
+        <Alert variant="destructive" className="items-center *:[svg]:translate-y-0">
           <CircleAlert />
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
             {failed.message}
